@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   )
 
   const totalPiezas = items.reduce((s: number, it: any) => s + (it.cantidad || 0), 0)
-  const tipos = [...new Set(items.map((it: any) => it.tipo_case).filter(Boolean))]
+  const tipos = Array.from(new Set(items.map((it: any) => it.tipo_case).filter(Boolean)))
   const tipoPred = tipos.length === 1 ? tipos[0] : 'MIXTO'
   const resumen = `${items.length} modelos, ${totalPiezas} piezas${notas ? ` · ${notas}` : ''}`
 

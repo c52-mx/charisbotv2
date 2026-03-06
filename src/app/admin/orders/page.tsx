@@ -243,12 +243,12 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
   function colorsForItem(tipo:string, modelo:string): {value:string}[] {
     if (!modelo) {
       // No model selected yet — show all colors for this tipo
-      const cols = [...new Set(catalogFull.filter(r=>!tipo||r.tipo===tipo).map(r=>r.color))].sort()
+      const cols = Array.from(new Set(catalogFull.filter(r=>!tipo||r.tipo===tipo).map(r=>r.color))).sort()
       return cols.map(c=>({value:c}))
     }
-    const cols = [...new Set(
+    const cols = Array.from(new Set(
       catalogFull.filter(r=>r.tipo===tipo && r.modelo===modelo).map(r=>r.color)
-    )].sort()
+    )).sort()
     // If no exact match (custom model), return empty so user can type freely
     return cols.map(c=>({value:c}))
   }
