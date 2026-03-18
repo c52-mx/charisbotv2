@@ -153,7 +153,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="topbar">
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{width:30,height:30,borderRadius:8,background:'linear-gradient(135deg,#1a8fe3,#0d5fa3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>🤖</div>
-          <span style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:14,color:'var(--txt)'}}>CharisBot</span>
+          <span style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:14,color:'var(--txt)'}}>Charis</span>
           {user && ROL_STYLE[rol] && (
             <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,background:ROL_STYLE[rol].bg,color:ROL_STYLE[rol].color}}>{ROL_STYLE[rol].label}</span>
           )}
@@ -201,7 +201,7 @@ function SidebarInner({collapsed,setCollapsed,navItems,isActive,dark,toggleTheme
     {/* Logo */}
     <div style={{display:'flex',alignItems:'center',gap:9,padding:'14px 12px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
       <div style={{width:34,height:34,borderRadius:9,background:'linear-gradient(135deg,#1a8fe3,#0d5fa3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🤖</div>
-      {!collapsed && <span style={{fontFamily:'Syne,sans-serif',fontSize:15,fontWeight:700,color:'var(--txt)',whiteSpace:'nowrap'}}>CharisBot</span>}
+      {!collapsed && <span style={{fontFamily:'Syne,sans-serif',fontSize:15,fontWeight:700,color:'var(--txt)',whiteSpace:'nowrap'}}>Charis</span>}
     </div>
 
     {/* Nav */}

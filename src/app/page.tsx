@@ -44,7 +44,7 @@ export default function LoginPage() {
           <div style={{width:72,height:72,borderRadius:20,margin:'0 auto 16px',background:'linear-gradient(135deg,#1a8fe3,#0d5fa3)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 32px rgba(26,143,227,0.35)',fontSize:32}}>
             🤖
           </div>
-          <h1 style={{fontFamily:'Syne,system-ui,sans-serif',fontSize:28,fontWeight:800,color:'#e8f4fd',margin:0}}>CharisBot</h1>
+          <h1 style={{fontFamily:'Syne,system-ui,sans-serif',fontSize:28,fontWeight:800,color:'#e8f4fd',margin:0}}>Charis</h1>
           <p style={{fontSize:13,color:'#7a9ab8',marginTop:5}}>Portal de gestión de pedidos</p>
         </div>
 
@@ -73,7 +73,7 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <p style={{textAlign:'center',fontSize:11,color:'#3d5a78',marginTop:20}}>© 2025 Charis · Powered by CharisBot</p>
+        <p style={{textAlign:'center',fontSize:11,color:'#3d5a78',marginTop:20}}>© 2025 Charis · Powered by Código52</p>
       </div>
     </div>
   )

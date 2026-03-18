@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'CharisBot Portal',
+  title: 'Charis Portal',
   description: 'Portal de gestión de pedidos Charis',
   icons: { icon: '/favicon.ico' },
 }

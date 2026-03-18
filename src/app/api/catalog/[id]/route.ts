@@ -1,49 +1,50 @@
+// src/app/api/catalog/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { queryOne } from '@/lib/db'
+import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+// ── PATCH /api/catalog/[id] ───────────────────────────────────────────
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any,'catalogo_editar')) {
+  if (!session || !can(session.rol as any, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
   const body = await req.json()
-  const { tipo_case, modelo, color, precio, stock, activo, imagen_url } = body
+  const { tipo_case, modelo, color, activo, identificador, ubicacion } = body
 
-  // Build dynamic update - allow editing ALL fields
-  const sets: string[] = []
-  const vals: any[]    = []
-  let idx = 1
+  const sets: string[]  = []
+  const vals: any[]     = []
+  let   idx = 1
 
-  if (tipo_case   !== undefined) { sets.push(`tipo_case = $${idx++}`);   vals.push(tipo_case.toUpperCase()) }
-  if (modelo      !== undefined) { sets.push(`modelo = $${idx++}`);      vals.push(modelo.toUpperCase().trim()) }
-  if (color       !== undefined) { sets.push(`color = $${idx++}`);       vals.push(color.toUpperCase().trim()) }
-  if (precio      !== undefined) { sets.push(`precio = $${idx++}`);      vals.push(precio) }
-  if (stock       !== undefined) { sets.push(`stock = $${idx++}`);       vals.push(stock) }
-  if (activo      !== undefined) { sets.push(`activo = $${idx++}`);      vals.push(activo) }
-  if (imagen_url  !== undefined) { sets.push(`imagen_url = $${idx++}`);  vals.push(imagen_url) }
+  if (tipo_case   !== undefined) { sets.push(`tipo_case     = $${idx++}`); vals.push(tipo_case.toUpperCase().trim()) }
+  if (modelo      !== undefined) { sets.push(`modelo        = $${idx++}`); vals.push(modelo.toUpperCase().trim()) }
+  if (color       !== undefined) { sets.push(`color         = $${idx++}`); vals.push(color.toUpperCase().trim()) }
+  if (activo      !== undefined) { sets.push(`activo        = $${idx++}`); vals.push(activo) }
+  if (identificador !== undefined) { sets.push(`identificador = $${idx++}`); vals.push(identificador?.trim() || null) }
+  if (ubicacion   !== undefined) { sets.push(`ubicacion     = $${idx++}`); vals.push(ubicacion?.trim() || null) }
 
-  sets.push(`actualizado_en = NOW()`)
-
-  if (sets.length === 1) return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
+  if (!sets.length) {
+    return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
+  }
 
   vals.push(params.id)
-
-  const row = await queryOne(
+  const rows = await query(
     `UPDATE public.catalogo_cases SET ${sets.join(', ')} WHERE case_id = $${idx} RETURNING *`,
     vals
   )
 
-  if (!row) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  return NextResponse.json({ ok: true, data: row })
+  if (!rows.length) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  return NextResponse.json(rows[0])
 }
 
+// ── DELETE /api/catalog/[id] ──────────────────────────────────────────
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any,'catalogo_editar')) {
+  if (!session || !can(session.rol as any, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
-  await queryOne('UPDATE public.catalogo_cases SET activo = false WHERE case_id = $1', [params.id])
+
+  await query(`DELETE FROM public.catalogo_cases WHERE case_id = $1`, [params.id])
   return NextResponse.json({ ok: true })
 }

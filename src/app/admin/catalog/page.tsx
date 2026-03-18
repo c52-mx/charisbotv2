@@ -1,245 +1,407 @@
 'use client'
-import { useEffect, useState, useCallback, useContext } from 'react'
-import { Combo, NumInput, ColorsManager, SHARED_CSS, getThemeVars } from '@/components/shared'
-import { ThemeContext } from '@/lib/theme-context'
+import { useState, useEffect } from 'react'
+import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
+import { can, type UserRol } from '@/lib/auth-shared'
 
-const TIPOS = ['3 EN 1','BLINDAJE','ESCUDO','ANILLO','MIXTO']
-const TIPO_COLOR: Record<string,{bg:string,color:string}> = {
-  '3 EN 1':   {bg:'rgba(26,143,227,0.1)',   color:'#4baef0'},
-  'BLINDAJE':  {bg:'rgba(129,140,248,0.1)',  color:'#a5b4fc'},
-  'ESCUDO':    {bg:'rgba(34,197,94,0.1)',    color:'#4ade80'},
-  'ANILLO':    {bg:'rgba(245,158,11,0.1)',   color:'#fbbf24'},
-  'MIXTO':     {bg:'rgba(156,163,175,0.1)', color:'#9ca3af'},
+// ── Types ─────────────────────────────────────────────────────────────
+interface Product {
+  case_id:      string
+  tipo_case:    string
+  modelo:       string
+  color:        string
+  activo:       boolean
+  identificador: string | null
+  ubicacion:    string | null
+  creado_en:    string
 }
 
+interface FormState {
+  tipo_case:    string
+  modelo:       string
+  color:        string
+  activo:       boolean
+  identificador: string
+  ubicacion:    string
+}
+
+const TIPOS = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO']
+const EMPTY_FORM: FormState = {
+  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: ''
+}
+
+// ── Page ──────────────────────────────────────────────────────────────
 export default function CatalogPage() {
-  const { dark } = useContext(ThemeContext)
-  const tv = getThemeVars(dark)
-  const [items,    setItems]    = useState<any[]>([])
-  const [total,    setTotal]    = useState(0)
-  const [page,     setPage]     = useState(1)
-  const [loading,  setLoading]  = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editing,  setEditing]  = useState<any>(null)
-  const [showColors, setShowColors] = useState(false)
-  const [filters,  setFilters]  = useState({ tipo:'', modelo:'', activo:'true' })
+  const [dark,      setDark]      = useState(true)
+  const [userRol,   setUserRol]   = useState<UserRol>('VENDEDOR')
+  const [items,     setItems]     = useState<Product[]>([])
+  const [total,     setTotal]     = useState(0)
+  const [loading,   setLoading]   = useState(true)
+  const [search,    setSearch]    = useState('')
+  const [filterTipo,setFilterTipo]= useState('')
+  const [filterAct, setFilterAct] = useState('')
+  const [page,      setPage]      = useState(1)
+  const PAGE_SIZE = 50
 
-  const load = useCallback(async () => {
+  // Modal state
+  const [modal,     setModal]     = useState<'create' | 'edit' | null>(null)
+  const [form,      setForm]      = useState<FormState>(EMPTY_FORM)
+  const [editId,    setEditId]    = useState<string | null>(null)
+  const [saving,    setSaving]    = useState(false)
+  const [error,     setError]     = useState('')
+
+  // ── Init ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem('charis-theme')
+    if (saved) setDark(saved === 'dark')
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user?.rol || 'VENDEDOR'))
+  }, [])
+
+  // ── Fetch catalog ─────────────────────────────────────────────────
+  async function fetchItems(p = page) {
     setLoading(true)
-    const q = new URLSearchParams({ page: String(page), limit:'30' })
-    if (filters.tipo)              q.set('tipo',   filters.tipo)
-    if (filters.modelo)            q.set('modelo', filters.modelo)
-    if (filters.activo !== 'all')  q.set('activo', filters.activo)
-    const r = await fetch(`/api/catalog?${q}`)
-    const d = await r.json()
-    setItems(d.data||[]); setTotal(d.total||0); setLoading(false)
-  }, [page, filters])
-
-  useEffect(() => { load() }, [load])
-
-  async function toggleActivo(id:string, activo:boolean) {
-    await fetch(`/api/catalog/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ activo:!activo }) })
-    load()
+    const params = new URLSearchParams({
+      page: String(p), size: String(PAGE_SIZE),
+      ...(search     ? { search }              : {}),
+      ...(filterTipo ? { tipo: filterTipo }    : {}),
+      ...(filterAct  ? { activo: filterAct }   : {}),
+    })
+    try {
+      const r    = await fetch(`/api/catalog?${params}`)
+      const text = await r.text()
+      if (!text) { setError('El servidor devolvió una respuesta vacía'); setLoading(false); return }
+      const d = JSON.parse(text)
+      if (!r.ok)  { setError(d.error || `Error ${r.status}`); setLoading(false); return }
+      setItems(d.items || [])
+      setTotal(d.total || 0)
+      setError('')
+    } catch (e: any) {
+      setError('Error al cargar el catálogo: ' + (e as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const countByTipo = TIPOS.reduce((acc,t) => ({ ...acc, [t]: items.filter(i=>i.tipo_case===t).length }), {} as Record<string,number>)
-  const pages = Math.ceil(total/30)
+  useEffect(() => { fetchItems(1); setPage(1) }, [search, filterTipo, filterAct])
 
+  // ── Open modals ───────────────────────────────────────────────────
+  function openCreate() {
+    setForm(EMPTY_FORM)
+    setEditId(null)
+    setError('')
+    setModal('create')
+  }
+
+  function openEdit(p: Product) {
+    setForm({
+      tipo_case:    p.tipo_case,
+      modelo:       p.modelo,
+      color:        p.color,
+      activo:       p.activo,
+      identificador: p.identificador || '',
+      ubicacion:    p.ubicacion || '',
+    })
+    setEditId(p.case_id)
+    setError('')
+    setModal('edit')
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────
+  async function save() {
+    if (!form.tipo_case || !form.modelo || !form.color) {
+      setError('Tipo, modelo y color son obligatorios')
+      return
+    }
+    setSaving(true)
+    setError('')
+
+    const payload = {
+      tipo_case:    form.tipo_case,
+      modelo:       form.modelo,
+      color:        form.color,
+      activo:       form.activo,
+      identificador: form.identificador.trim() || null,
+      ubicacion:    form.ubicacion.trim()     || null,
+    }
+
+    const isEdit = modal === 'edit' && editId
+    const res = await fetch(
+      isEdit ? `/api/catalog/${editId}` : '/api/catalog',
+      { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
+    )
+    const data = await res.json()
+    setSaving(false)
+
+    if (!res.ok) { setError(data.error || 'Error al guardar'); return }
+    setModal(null)
+    fetchItems()
+  }
+
+  // ── Toggle active ─────────────────────────────────────────────────
+  async function toggleActivo(p: Product) {
+    await fetch(`/api/catalog/${p.case_id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activo: !p.activo })
+    })
+    fetchItems()
+  }
+
+  const tv         = getThemeVars(dark)
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const canEdit    = can(userRol, 'catalogo_editar')
+  const canCreate  = can(userRol, 'catalogo_crear')
+
+  // ── Input helper ──────────────────────────────────────────────────
+  const inp = (style?: React.CSSProperties): React.CSSProperties => ({
+    width: '100%', padding: '8px 10px', borderRadius: 8,
+    border: '1px solid var(--border)', background: 'var(--bg)',
+    color: 'var(--txt)', fontSize: 13, fontFamily: 'inherit',
+    outline: 'none', boxSizing: 'border-box', ...style
+  })
+
+  // ── Render ────────────────────────────────────────────────────────
   return (
-    <div className="page-anim" style={{ ...Object.fromEntries(Object.entries(tv)) as any, color:'var(--txt)', fontFamily:"'DM Sans',system-ui,sans-serif" }}>
-      <style>{SHARED_CSS}</style>
+    <div style={{ ...Object.fromEntries(Object.entries(tv)) as any }}>
+      <style>{SHARED_CSS + `
+        .inp:focus { border-color: var(--border2) !important; }
+        .tw { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; }
+        th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+             padding: 10px 12px; color: var(--txt2); text-align: left; border-bottom: 1px solid var(--border); }
+        td { font-size: 13px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+             color: var(--txt); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--bg4); }
+        .badge { display: inline-flex; align-items: center; padding: 2px 9px;
+                 border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200;
+                      display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal-box  { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+                      width: 100%; max-width: 520px; max-height: 90dvh; overflow-y: auto; padding: 24px; }
+        .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media(max-width:500px) { .g2 { grid-template-columns: 1fr; } }
+        @media(max-width:639px) {
+          .modal-mask { align-items: flex-end !important; padding: 0 !important; }
+          .modal-box  { border-radius: 18px 18px 0 0 !important; max-width: 100% !important; }
+        }
+      `}</style>
 
-      {/* Header */}
-      <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,system-ui,sans-serif',fontSize:26,fontWeight:700,color:'var(--txt)',margin:0 }}>Catálogo</h1>
-          <p style={{ fontSize:13,color:'var(--txt2)',marginTop:3 }}>{total} productos registrados</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Catálogo de Productos</h1>
+          <p style={{ fontSize: 13, color: 'var(--txt2)', margin: '3px 0 0' }}>
+            {total.toLocaleString()} productos registrados
+          </p>
         </div>
-        <div style={{ display:'flex',gap:8 }}>
-          <button className="cbtn cbtn-secondary" onClick={() => setShowColors(true)} style={{ fontSize:12 }}>🎨 Colores</button>
-          <button className="cbtn cbtn-primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Agregar producto</button>
-        </div>
+        {canCreate && (
+          <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nuevo producto</button>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="ccard" style={{ padding:'14px 16px',marginBottom:12,display:'flex',flexWrap:'wrap',gap:10 }}>
-        <input className="cinput" style={{ flex:1,minWidth:160 }} placeholder="Buscar modelo..."
-               value={filters.modelo} onChange={e => setFilters(f=>({...f,modelo:e.target.value}))} />
-        <select className="cinput" style={{ width:160 }} value={filters.tipo} onChange={e=>setFilters(f=>({...f,tipo:e.target.value}))}>
+      {/* ── Filters ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input
+          className="inp" style={inp({ maxWidth: 260 })}
+          placeholder="🔍 Buscar modelo, color, identificador..."
+          value={search} onChange={e => setSearch(e.target.value)}
+        />
+        <select className="inp" style={inp({ maxWidth: 160 })}
+                value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
           <option value="">Todos los tipos</option>
-          {TIPOS.map(t=><option key={t}>{t}</option>)}
+          {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select className="cinput" style={{ width:130 }} value={filters.activo} onChange={e=>setFilters(f=>({...f,activo:e.target.value}))}>
+        <select className="inp" style={inp({ maxWidth: 140 })}
+                value={filterAct} onChange={e => setFilterAct(e.target.value)}>
+          <option value="">Todos</option>
           <option value="true">Activos</option>
           <option value="false">Inactivos</option>
-          <option value="all">Todos</option>
         </select>
       </div>
 
-      {/* Type chips */}
-      <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:12 }}>
-        {TIPOS.filter(t=>countByTipo[t]>0).map(t => {
-          const c = TIPO_COLOR[t]||{bg:'var(--bg4)',color:'var(--txt2)'}
-          const active = filters.tipo===t
-          return (
-            <button key={t} onClick={()=>setFilters(f=>({...f,tipo:f.tipo===t?'':t}))}
-                    style={{ padding:'4px 12px',borderRadius:20,fontSize:12,fontWeight:500,cursor:'pointer',fontFamily:'inherit',transition:'all 0.15s',
-                      background:active?c.color:c.bg, color:active?'#070c14':c.color, border:`1px solid ${c.color}40` }}>
-              {t} ({countByTipo[t]})
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Table */}
-      <div className="table-wrap" style={{ marginBottom:14 }}>
+      {/* ── Table ── */}
+      <div className="tw">
         {loading ? (
-          <div style={{ display:'flex',alignItems:'center',justifyContent:'center',padding:48 }}>
-            <div style={{ width:24,height:24,borderRadius:'50%',border:'2.5px solid var(--border)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite' }}/>
-          </div>
-        ) : items.length===0 ? (
-          <div style={{ padding:48,textAlign:'center',color:'var(--txt2)',fontSize:13 }}>Sin productos que coincidan</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--txt2)' }}>Cargando…</div>
+        ) : items.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--txt2)' }}>Sin resultados</div>
         ) : (
-          <table className="ctable">
-            <thead><tr><th>Tipo</th><th>Modelo</th><th>Color</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <table className="rtable">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Modelo</th>
+                <th>Color</th>
+                <th>Identificador</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+                {canEdit && <th>Acciones</th>}
+              </tr>
+            </thead>
             <tbody>
-              {items.map(item=>{
-                const tc = TIPO_COLOR[item.tipo_case]||{bg:'var(--bg4)',color:'var(--txt2)'}
-                return (
-                  <tr key={item.case_id}>
-                    <td><span style={{ fontSize:11,padding:'2px 8px',borderRadius:4,fontWeight:600,background:tc.bg,color:tc.color }}>{item.tipo_case}</span></td>
-                    <td style={{ fontWeight:500 }}>{item.modelo}</td>
-                    <td style={{ fontSize:12,color:'var(--txt2)' }}>{item.color}</td>
-                    <td style={{ fontFamily:'monospace',fontWeight:600,color:'var(--blue3)' }}>${Number(item.precio).toFixed(2)}</td>
-                    <td><span style={{ fontWeight:600,color:item.stock<10?'#f87171':'var(--txt)' }}>{item.stock}</span></td>
+              {items.map(p => (
+                <tr key={p.case_id}>
+                  <td>
+                    <span style={{ fontSize: 11, background: 'rgba(26,143,227,0.1)',
+                                   color: 'var(--blue3)', padding: '2px 8px',
+                                   borderRadius: 4, fontWeight: 500 }}>
+                      {p.tipo_case}
+                    </span>
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{p.modelo}</td>
+                  <td>{p.color}</td>
+                  <td style={{ fontSize: 12, color: p.identificador ? 'var(--txt)' : 'var(--txt3)',
+                               fontFamily: p.identificador ? 'monospace' : 'inherit' }}>
+                    {p.identificador || '—'}
+                  </td>
+                  <td style={{ fontSize: 12, color: p.ubicacion ? 'var(--txt)' : 'var(--txt3)' }}>
+                    {p.ubicacion || '—'}
+                  </td>
+                  <td>
+                    <span className="badge" style={p.activo
+                      ? { background: 'rgba(52,211,153,0.15)', color: '#34d399' }
+                      : { background: 'rgba(239,68,68,0.15)',  color: '#ef4444' }}>
+                      {p.activo ? '● Activo' : '○ Inactivo'}
+                    </span>
+                  </td>
+                  {canEdit && (
                     <td>
-                      <button onClick={()=>toggleActivo(item.case_id,item.activo)}
-                              className={`badge ${item.activo?'badge-ok':'badge-red'}`}
-                              style={{ cursor:'pointer',border:'none',fontFamily:'inherit' }}>
-                        {item.activo?'● Activo':'● Inactivo'}
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="cbtn cbtn-ghost"
+                                onClick={() => openEdit(p)}>Editar</button>
+                        <button className="cbtn cbtn-ghost"
+                                style={{ color: p.activo ? '#ef4444' : '#34d399' }}
+                                onClick={() => toggleActivo(p)}>
+                          {p.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </div>
                     </td>
-                    <td>
-                      <button className="cbtn cbtn-secondary cbtn-sm" onClick={()=>{setEditing(item);setShowForm(true)}}>Editar</button>
-                    </td>
-                  </tr>
-                )
-              })}
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
       </div>
 
-      {/* Pagination */}
-      {pages>1 && (
-        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,color:'var(--txt2)' }}>
-          <span>Página {page} de {pages} · {total} productos</span>
-          <div style={{ display:'flex',gap:8 }}>
-            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}>← Ant</button>
-            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages}>Sig →</button>
-          </div>
+      {/* ── Pagination ── */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+          <button className="cbtn cbtn-ghost" disabled={page <= 1}
+                  onClick={() => { setPage(p => p - 1); fetchItems(page - 1) }}>← Anterior</button>
+          <span style={{ padding: '6px 12px', fontSize: 13, color: 'var(--txt2)' }}>
+            {page} / {totalPages}
+          </span>
+          <button className="cbtn cbtn-ghost" disabled={page >= totalPages}
+                  onClick={() => { setPage(p => p + 1); fetchItems(page + 1) }}>Siguiente →</button>
         </div>
       )}
 
-      {showForm    && <CatalogForm dark={dark} item={editing} onClose={()=>{setShowForm(false);setEditing(null)}} onSaved={load} />}
-      {showColors  && <ColorsManager onClose={()=>{setShowColors(false)}} />}
-    </div>
-  )
-}
+      {/* ── Modal: Create / Edit ── */}
+      {modal && (
+        <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
+          <div className="modal-box">
+            <h2 style={{ margin: '0 0 18px', fontSize: 17, fontWeight: 700 }}>
+              {modal === 'create' ? 'Nuevo producto' : 'Editar producto'}
+            </h2>
 
-// ── CATALOG FORM ──────────────────────────────────────────────────────────────
-function CatalogForm({ dark, item, onClose, onSaved }: { dark:boolean; item?:any; onClose:()=>void; onSaved:()=>void }) {
-  const tv = getThemeVars(dark)
-  const [colorOpts, setColorOpts] = useState<{value:string}[]>([])
-  const [form, setForm] = useState({
-    tipo_case: item?.tipo_case || '3 EN 1',
-    modelo:    item?.modelo    || '',
-    color:     item?.color     || 'NEGRO',
-    precio:    item?.precio    || 0,
-    stock:     item?.stock     || 0,
-  })
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
-
-  useEffect(() => {
-    fetch('/api/colors').then(r=>r.json()).then(d=>{
-      const list = (d.data||[]).map((c:any)=>({value:c.nombre}))
-      setColorOpts([{value:'N/A'},...list])
-    })
-  },[])
-
-  async function handleSubmit(e:React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError('')
-    try {
-      const url    = item ? `/api/catalog/${item.case_id}` : '/api/catalog'
-      const method = item ? 'PUT' : 'POST'
-      const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-      if (!r.ok) throw new Error((await r.json()).error)
-      onSaved(); onClose()
-    } catch(err:any) { setError(err.message) }
-    finally { setLoading(false) }
-  }
-
-  return (
-    <div className="modal-overlay" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-      <style>{SHARED_CSS}</style>
-      <div className="modal-box" style={{ maxWidth:440 }}>
-        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>{item?'Editar producto':'Nuevo producto'}</div>
-          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
-        </div>
-        <div style={{ padding:'18px 22px 22px' }}>
-          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
-          <form onSubmit={handleSubmit}>
-            <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
-              {/* Tipo */}
+            {/* ── Row 1: tipo + activo ── */}
+            <div className="g2" style={{ marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Tipo de case</label>
-                <select className="cinput" value={form.tipo_case}
-                        onChange={e=>setForm(f=>({...f,tipo_case:e.target.value}))}
-                        disabled={!!item}>
-                  {TIPOS.map(t=><option key={t}>{t}</option>)}
-                </select>
-              </div>
-              {/* Modelo */}
-              <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Modelo</label>
-                <input className="cinput" placeholder="SAMSUNG A04E 4G" value={form.modelo}
-                       onChange={e=>setForm(f=>({...f,modelo:e.target.value.toUpperCase()}))}
-                       disabled={!!item} required />
-              </div>
-              {/* Color — combo, editable incluso en modo edición */}
-              <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Color</label>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Tipo de case *
+                </label>
                 <Combo
-                  value={form.color}
-                  onChange={v=>setForm(f=>({...f,color:v}))}
-                  options={colorOpts}
-                  placeholder="Seleccionar color..."
-                  allowNew
+                  value={form.tipo_case}
+                  onChange={v => setForm(f => ({ ...f, tipo_case: v }))}
+                  options={TIPOS}
+                  placeholder="Seleccionar tipo..."
                 />
               </div>
-              {/* Precio + Stock */}
-              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
-                <div>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Precio ($)</label>
-                  <NumInput value={form.precio} onChange={v=>setForm(f=>({...f,precio:v}))} min={0} />
-                </div>
-                <div>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Stock</label>
-                  <NumInput value={form.stock} onChange={v=>setForm(f=>({...f,stock:Math.round(v)}))} min={0} />
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'flex', alignItems: 'center',
+                                gap: 8, cursor: 'pointer', paddingBottom: 6 }}>
+                  <input type="checkbox" checked={form.activo}
+                         onChange={e => setForm(f => ({ ...f, activo: e.target.checked }))} />
+                  Producto activo
+                </label>
               </div>
             </div>
-            <div style={{ display:'flex',gap:10,marginTop:20 }}>
-              <button type="button" className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
-              <button type="submit" className="cbtn cbtn-primary" style={{ flex:1 }} disabled={loading}>
-                {loading ? 'Guardando...' : item ? 'Guardar cambios' : 'Crear producto'}
+
+            {/* ── Row 2: modelo + color ── */}
+            <div className="g2" style={{ marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Modelo *
+                </label>
+                <input className="inp" style={inp()} placeholder="Ej: SAMSUNG A07"
+                       value={form.modelo}
+                       onChange={e => setForm(f => ({ ...f, modelo: e.target.value.toUpperCase() }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Color *
+                </label>
+                <input className="inp" style={inp()} placeholder="Ej: NEGRO"
+                       value={form.color}
+                       onChange={e => setForm(f => ({ ...f, color: e.target.value.toUpperCase() }))} />
+              </div>
+            </div>
+
+            {/* ── Row 3: identificador (full width) ── */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Identificador
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                  (código de barras, SKU, referencia interna…)
+                </span>
+              </label>
+              <input
+                className="inp"
+                style={inp({ fontFamily: 'monospace', letterSpacing: '0.03em' })}
+                placeholder="Ej: 7501234567890"
+                value={form.identificador}
+                onChange={e => setForm(f => ({ ...f, identificador: e.target.value }))}
+              />
+            </div>
+
+            {/* ── Row 4: ubicacion (full width) ── */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Ubicación
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                  (estante, anaquel, zona de almacén…)
+                </span>
+              </label>
+              <input
+                className="inp"
+                style={inp()}
+                placeholder="Ej: Estante 62, Anaquel 3"
+                value={form.ubicacion}
+                onChange={e => setForm(f => ({ ...f, ubicacion: e.target.value }))}
+              />
+            </div>
+
+            {error && (
+              <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>
+            )}
+
+            {/* ── Actions ── */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="cbtn cbtn-secondary" onClick={() => setModal(null)}>
+                Cancelar
+              </button>
+              <button className="cbtn cbtn-primary" onClick={save} disabled={saving}>
+                {saving ? 'Guardando…' : modal === 'create' ? 'Crear producto' : 'Guardar cambios'}
               </button>
             </div>
-          </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -87,7 +87,7 @@ function TrackContent() {
           <div style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:14,color:'#e8f4fd',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             Hola{nombre!==tel ? `, ${nombre.split(' ')[0]}` : ''} 👋
           </div>
-          <div style={{fontSize:11,color:'#7a9ab8'}}>Tus pedidos · CharisBot</div>
+          <div style={{fontSize:11,color:'#7a9ab8'}}>Tus pedidos · Charis</div>
         </div>
         <div style={{fontSize:11,color:'#3d5a78',flexShrink:0}}>📱 {tel.slice(-4)}</div>
       </div>

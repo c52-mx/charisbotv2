@@ -1,81 +1,106 @@
+// src/app/api/catalog/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { query, queryOne } from '@/lib/db'
+import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 
-// GET /api/catalog - listar catálogo con filtros
+// ── GET /api/catalog ──────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const tipo = searchParams.get('tipo')
-  const modelo = searchParams.get('modelo')
-  const activo = searchParams.get('activo') ?? 'true'
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '50')
-  const offset = (page - 1) * limit
+  const search   = searchParams.get('search')   || ''
+  const tipo     = searchParams.get('tipo')      || ''
+  const activo   = searchParams.get('activo')    || ''
+  const page     = parseInt(searchParams.get('page')  || '1')
+  const pageSize = parseInt(searchParams.get('size')  || '50')
+  const offset   = (page - 1) * pageSize
 
   const conditions: string[] = []
-  const params: any[] = []
-  let idx = 1
+  const params: any[]        = []
+  let   idx = 1
 
-  if (tipo) { conditions.push(`tipo_case = $${idx++}`); params.push(tipo) }
-  if (modelo) { conditions.push(`modelo ILIKE $${idx++}`); params.push(`%${modelo}%`) }
-  if (activo !== 'all') { conditions.push(`activo = $${idx++}`); params.push(activo === 'true') }
+  if (search) {
+    conditions.push(`(modelo ILIKE $${idx} OR color ILIKE $${idx} OR identificador ILIKE $${idx} OR ubicacion ILIKE $${idx})`)
+    params.push(`%${search}%`); idx++
+  }
+  if (tipo)   { conditions.push(`tipo_case = $${idx}`);    params.push(tipo);   idx++ }
+  if (activo !== '') { conditions.push(`activo = $${idx}`); params.push(activo === 'true'); idx++ }
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
+
+  // Detectar si las columnas nuevas ya existen (migración 006)
+  let hasNewCols = true
+  try {
+    await query(`SELECT identificador FROM public.catalogo_cases LIMIT 0`, [])
+  } catch {
+    hasNewCols = false
+  }
+
+  const selectCols = hasNewCols
+    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, creado_en'
+    : 'case_id, tipo_case, modelo, color, activo, creado_en'
 
   const [rows, countRow] = await Promise.all([
     query(
-      `SELECT case_id, tipo_case, modelo, color, precio, stock, activo, imagen_url, creado_en
+      `SELECT ${selectCols}
        FROM public.catalogo_cases ${where}
        ORDER BY tipo_case, modelo, color
-       LIMIT $${idx++} OFFSET $${idx}`,
-      [...params, limit, offset]
+       LIMIT $${idx} OFFSET $${idx + 1}`,
+      [...params, pageSize, offset]
     ),
-    queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM public.catalogo_cases ${where}`,
+    query(
+      `SELECT COUNT(*) as total FROM public.catalogo_cases ${where}`,
       params
-    ),
+    )
   ])
 
+  // Normalizar filas para que siempre tengan los campos (aunque no existan en DB aún)
+  const normalizedRows = rows.map((r: any) => ({
+    ...r,
+    identificador: r.identificador ?? null,
+    ubicacion:     r.ubicacion     ?? null,
+  }))
+
   return NextResponse.json({
-    data: rows,
-    total: parseInt(countRow?.count || '0'),
+    items: normalizedRows,
+    total: parseInt(countRow[0]?.total || '0'),
     page,
-    limit,
+    pageSize
   })
 }
 
-// POST /api/catalog - crear item
+// ── POST /api/catalog ─────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !can(session.rol as any, 'catalogo_crear')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const { tipo_case, modelo, color, precio, stock, imagen_url } = body
+  const { tipo_case, modelo, color, activo = true, identificador, ubicacion } = await req.json()
 
   if (!tipo_case || !modelo || !color) {
     return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
   }
 
-  const row = await queryOne(
-    `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, precio, stock, imagen_url)
+  const rows = await query(
+    `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion)
      VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (tipo_case, modelo, color) 
-     DO UPDATE SET precio = EXCLUDED.precio, stock = EXCLUDED.stock, activo = true
+     ON CONFLICT (tipo_case, modelo, color) DO NOTHING
      RETURNING *`,
     [
-      tipo_case.toUpperCase(),
+      tipo_case.toUpperCase().trim(),
       modelo.toUpperCase().trim(),
       color.toUpperCase().trim(),
-      precio || 0,
-      stock || 0,
-      imagen_url || null,
+      activo,
+      identificador?.trim() || null,
+      ubicacion?.trim()     || null
     ]
   )
 
-  return NextResponse.json({ ok: true, data: row }, { status: 201 })
+  if (!rows.length) {
+    return NextResponse.json({ error: 'Ya existe un producto con ese tipo, modelo y color' }, { status: 409 })
+  }
+
+  return NextResponse.json(rows[0], { status: 201 })
 }

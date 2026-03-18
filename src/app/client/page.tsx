@@ -54,7 +54,7 @@ export default function ClientPage() {
                style={{ background: 'linear-gradient(135deg, #a855f7, #7c3aed)' }}>
             <span className="text-sm">📱</span>
           </div>
-          <span className="font-bold" style={{ fontFamily: 'var(--font-display)' }}>CharisBot</span>
+          <span className="font-bold" style={{ fontFamily: 'var(--font-display)' }}>Charis</span>
         </div>
         <div className="flex items-center gap-4">
           {user && <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Hola, {user.nombre}</span>}
