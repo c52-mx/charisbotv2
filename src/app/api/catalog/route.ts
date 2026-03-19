@@ -70,6 +70,19 @@ export async function GET(req: NextRequest) {
   })
 }
 
+// Cache para no hacer el check de columnas en cada request
+let _colsChecked: boolean | null = null
+async function hasNewColumns(): Promise<boolean> {
+  if (_colsChecked !== null) return _colsChecked
+  try {
+    await query(`SELECT identificador FROM public.catalogo_cases LIMIT 0`, [])
+    _colsChecked = true
+  } catch {
+    _colsChecked = false
+  }
+  return _colsChecked
+}
+
 // ── POST /api/catalog ─────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
@@ -83,24 +96,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
   }
 
-  const rows = await query(
-    `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (tipo_case, modelo, color) DO NOTHING
-     RETURNING *`,
-    [
-      tipo_case.toUpperCase().trim(),
-      modelo.toUpperCase().trim(),
-      color.toUpperCase().trim(),
-      activo,
-      identificador?.trim() || null,
-      ubicacion?.trim()     || null
-    ]
-  )
+  const newCols = await hasNewColumns()
+
+  let rows: any[]
+  if (newCols) {
+    rows = await query(
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (tipo_case, modelo, color) DO NOTHING
+       RETURNING *`,
+      [
+        tipo_case.toUpperCase().trim(),
+        modelo.toUpperCase().trim(),
+        color.toUpperCase().trim(),
+        activo,
+        identificador?.trim() || null,
+        ubicacion?.trim()     || null,
+      ]
+    )
+  } else {
+    rows = await query(
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tipo_case, modelo, color) DO NOTHING
+       RETURNING *`,
+      [
+        tipo_case.toUpperCase().trim(),
+        modelo.toUpperCase().trim(),
+        color.toUpperCase().trim(),
+        activo,
+      ]
+    )
+  }
 
   if (!rows.length) {
     return NextResponse.json({ error: 'Ya existe un producto con ese tipo, modelo y color' }, { status: 409 })
   }
 
-  return NextResponse.json(rows[0], { status: 201 })
+  return NextResponse.json({
+    ...rows[0],
+    identificador: rows[0].identificador ?? null,
+    ubicacion:     rows[0].ubicacion     ?? null,
+  }, { status: 201 })
 }

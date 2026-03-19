@@ -24,7 +24,8 @@ interface FormState {
   ubicacion:    string
 }
 
-const TIPOS = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO']
+const TIPOS = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO'].map(t => ({ value: t, label: t }))
+const TIPOS_LIST = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO']
 const EMPTY_FORM: FormState = {
   tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: ''
 }
@@ -213,7 +214,7 @@ export default function CatalogPage() {
         <select className="inp" style={inp({ maxWidth: 160 })}
                 value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
           <option value="">Todos los tipos</option>
-          {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+          {TIPOS_LIST.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select className="inp" style={inp({ maxWidth: 140 })}
                 value={filterAct} onChange={e => setFilterAct(e.target.value)}>
