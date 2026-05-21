@@ -39,9 +39,9 @@ export async function GET(
     }
 
     // Fotos de la serie (máx 4 únicas, de distintos modelos)
-    const fotos = [...new Set(
+    const fotos = Array.from(new Set(
       (rows as any[]).map(r => r.foto_url).filter(Boolean)
-    )].slice(0, 4)
+    )).slice(0, 4)
 
     return NextResponse.json({
       tipo_case: tipo,
