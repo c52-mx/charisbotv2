@@ -61,21 +61,6 @@ export const SHARED_CSS = `
 
   .page-anim { animation: fadeUp 0.28s ease-out; }
 
-  /* ── Page titles (fix tenue on dark/light) ── */
-  h1, h2, h3, h4 { color: var(--txt); margin: 0; }
-  p               { margin: 0; }
-  .page-title     {
-    font-family: 'Syne', system-ui, sans-serif;
-    font-size: 24px; font-weight: 800;
-    color: var(--txt); letter-spacing: -.01em;
-  }
-  .page-subtitle  { font-size: 13px; color: var(--txt2); margin-top: 3px; }
-  .page-header    {
-    display: flex; align-items: flex-start;
-    justify-content: space-between; gap: 12px;
-    margin-bottom: 24px; flex-wrap: wrap;
-  }
-
   /* ── Scrollbar ── */
   ::-webkit-scrollbar       { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }

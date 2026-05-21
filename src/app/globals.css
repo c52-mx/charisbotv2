@@ -1,29 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --blue: #1a8fe3;
-  --blue-dark: #0d5fa3;
-  --blue-light: #4baef0;
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
 
-html, body {
-  margin: 0; padding: 0; height: 100%;
-  background: #070c14;
-  color: #e8f4fd;
-  font-family: 'DM Sans', system-ui, sans-serif;
+html {
+  /* overflow-x only — never restrict overflow-y globally */
+  overflow-x: clip;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0b1220; }
-::-webkit-scrollbar-thumb { background: #0d5fa3; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #1a8fe3; }
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  /* No overflow restrictions on body — each page controls its own layout */
+}
 
-::selection { background: rgba(26,143,227,0.25); }
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #b8d4ed; border-radius: 10px; }
+
+/* Selection */
+::selection { background: rgba(26,127,212,0.2); color: inherit; }
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid #1a7fd4;
+  outline-offset: 2px;
+}

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
-import { CharisAppIcon, CharisLogotipo } from '@/components/CharisLogo'
 import type { UserRol } from '@/lib/auth-shared'
 
 const NAV_ITEMS = [
@@ -86,23 +85,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <style>{SHARED_CSS + `
         @keyframes spin { to { transform: rotate(360deg) } }
 
-        /* ── Force title visibility ── */
-        h1, h2, h3, h4, h5, h6 {
-          color: var(--txt) !important;
-          font-family: 'Syne', system-ui, sans-serif;
-        }
-        p { color: inherit; }
-        .page-title {
-          font-size: 22px; font-weight: 800;
-          color: var(--txt) !important;
-          letter-spacing: -.01em;
-        }
-        .page-sub {
-          font-size: 13px;
-          color: var(--txt2) !important;
-          margin-top: 3px;
-        }
-
         /* ── Shell ── */
         .shell        { display:flex; flex:1; overflow:hidden; min-height:0; }
         .sidebar      {
@@ -160,7 +142,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── TOPBAR (mobile/tablet) ── */}
       <header className="topbar">
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <CharisLogotipo height={28} variant={dark ? 'white' : 'color'} />
+          <div style={{
+            width:30, height:30, borderRadius:8,
+            background:'linear-gradient(135deg,#1a8fe3,#0d4f8c)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:15, flexShrink:0,
+          }}>🤖</div>
+          <span style={{ fontFamily:'Syne,sans-serif', fontWeight:800, fontSize:14, color:'var(--txt)' }}>
+            CharisBot
+          </span>
           {user && ROL_STYLE[rol] && (
             <span style={{
               fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10,
@@ -234,10 +224,20 @@ function SidebarContent({
         borderBottom:'1px solid var(--border)', flexShrink:0,
         justifyContent: collapsed ? 'center' : 'flex-start',
       }}>
-        {collapsed
-          ? <CharisAppIcon size={36} />
-          : <CharisLogotipo height={36} variant={dark ? 'white' : 'color'} />
-        }
+        <div style={{
+          width:36, height:36, borderRadius:10, flexShrink:0,
+          background:'linear-gradient(135deg,#1a8fe3,#0d4f8c)',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
+          boxShadow:'0 2px 12px rgba(26,143,227,0.3)',
+        }}>🤖</div>
+        {!collapsed && (
+          <div>
+            <div style={{ fontFamily:'Syne,sans-serif', fontSize:15, fontWeight:800,
+                          color:'var(--txt)', lineHeight:1.1 }}>CharisBot</div>
+            <div style={{ fontSize:10, color:'var(--txt3)', letterSpacing:'.06em',
+                          textTransform:'uppercase', marginTop:1 }}>Portal Admin</div>
+          </div>
+        )}
       </div>
 
       {/* Nav */}

@@ -21,9 +21,8 @@ const CSS = `
 
   /* ── Carrusel noticias ── */
   .carousel-wrap { position:relative; overflow:hidden; border-radius:18px; }
-  .carousel-track { display:flex; transition:transform .45s cubic-bezier(.4,0,.2,1); will-change:transform; align-items:stretch; }
-  .carousel-slide { min-width:100%; display:flex; flex-direction:column; }
-  .carousel-slide > div { flex:1; min-height:220px; }
+  .carousel-track { display:flex; transition:transform .45s cubic-bezier(.4,0,.2,1); will-change:transform; }
+  .carousel-slide { min-width:100%; }
   .dot { width:8px; height:8px; border-radius:50%; cursor:pointer; transition:all .2s; background:rgba(255,255,255,0.35); border:none; padding:0; }
   .dot.act { background:white; width:20px; border-radius:4px; }
 
@@ -119,7 +118,7 @@ export default function ClientHome() {
                 <div className="carousel-track" style={{transform:`translateX(-${notCarousel.idx*100}%)`}}>
                   {/* Fixed: Nuevos modelos card always first */}
                   <div className="carousel-slide">
-                    <div style={{background:'linear-gradient(135deg,#0d2137,#1a3a6b)',borderRadius:18,overflow:'hidden',position:'relative',height:'100%',minHeight:220}}>
+                    <div style={{background:'linear-gradient(135deg,#0d2137,#1a3a6b)',borderRadius:18,overflow:'hidden',position:'relative',minHeight:200}}>
                       <img src="https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=1200&q=60" alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',opacity:.2}}/>
                       <div style={{position:'relative',padding:'28px 32px',display:'flex',flexDirection:'column',justifyContent:'space-between',minHeight:200}}>
                         <div>
