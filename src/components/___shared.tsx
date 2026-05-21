@@ -1,5 +1,6 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
+mport { useState, useEffect, useRef } from 'react'
 
 // ─────────────────────────────────────────────────────────────────────
 // THEME VARS
