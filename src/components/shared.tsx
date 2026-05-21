@@ -316,9 +316,10 @@ interface ComboProps {
   options: ComboOption[]
   placeholder?: string
   disabled?: boolean
+  allowNew?: boolean
 }
 
-export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps): JSX.Element {
+export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled, allowNew }: ComboProps): JSX.Element {
   const [open, setOpen]   = useState(false)
   const [query, setQuery] = useState('')
 
@@ -483,7 +484,7 @@ export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, ini
                const f = e.target.files?.[0]
                if (!f) return
                const reader = new FileReader()
-               reader.onload = ev => onChange(ev.target?.result as string)
+               reader.onload = ev => onChange?.(ev.target?.result as string)
                reader.readAsDataURL(f)
              }} />
     </div>
