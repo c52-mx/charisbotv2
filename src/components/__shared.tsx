@@ -1,6 +1,5 @@
 'use client'
-import React from 'react'
-mport { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // ─────────────────────────────────────────────────────────────────────
 // THEME VARS
@@ -319,7 +318,7 @@ interface ComboProps {
   disabled?: boolean
 }
 
-export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps): JSX.Element {
+export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps) {
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const ref                   = useRef<HTMLDivElement>(null)
@@ -419,7 +418,7 @@ interface NumInputProps {
   style?: React.CSSProperties
 }
 
-export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInputProps): JSX.Element {
+export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInputProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, ...style }}>
       <button
@@ -463,7 +462,7 @@ interface ImageUploaderProps {
   label?: string
 }
 
-export function ImageUploader({ value, onChange, label = 'Imagen' }: ImageUploaderProps): JSX.Element {
+export function ImageUploader({ value, onChange, label = 'Imagen' }: ImageUploaderProps) {
   const inp = useRef<HTMLInputElement>(null)
   return (
     <div>
