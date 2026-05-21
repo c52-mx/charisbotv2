@@ -447,15 +447,11 @@ export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInp
 // ─────────────────────────────────────────────────────────────────────
 interface ImageUploaderProps {
   value?: string
-  onChange?: (v: string) => void
+  onChange: (v: string) => void
   label?: string
-  // Extended props used in orders page
-  pedidoId?: string
-  initialUrls?: string[]
-  onUploaded?: (urls: string[]) => void
 }
 
-export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, initialUrls, onUploaded }: ImageUploaderProps): JSX.Element {
+export function ImageUploader({ value, onChange, label = 'Imagen' }: ImageUploaderProps): JSX.Element {
   const inp = useRef<HTMLInputElement>(null)
   return (
     <div>
