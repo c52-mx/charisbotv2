@@ -319,27 +319,16 @@ interface ComboProps {
 }
 
 export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps): JSX.Element {
-  const [open, setOpen]       = useState(false)
-  const [query, setQuery]     = useState('')
-  const ref                   = useRef<HTMLDivElement>(null)
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
 
   const selected = options.find(o => o.value === value)
   const filtered = options.filter(o =>
     o.label.toLowerCase().includes(query.toLowerCase())
   )
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setQuery('')
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setOpen(false); setQuery('') } }}>
       <button
         type="button"
         disabled={disabled}

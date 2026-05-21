@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 // ─────────────────────────────────────────────────────────────────────
 // THEME VARS
@@ -60,6 +60,21 @@ export const SHARED_CSS = `
   *, *::before, *::after { box-sizing: border-box; }
 
   .page-anim { animation: fadeUp 0.28s ease-out; }
+
+  /* ── Page titles (fix tenue on dark/light) ── */
+  h1, h2, h3, h4 { color: var(--txt); margin: 0; }
+  p               { margin: 0; }
+  .page-title     {
+    font-family: 'Syne', system-ui, sans-serif;
+    font-size: 24px; font-weight: 800;
+    color: var(--txt); letter-spacing: -.01em;
+  }
+  .page-subtitle  { font-size: 13px; color: var(--txt2); margin-top: 3px; }
+  .page-header    {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 12px;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
 
   /* ── Scrollbar ── */
   ::-webkit-scrollbar       { width: 5px; height: 5px; }
@@ -303,7 +318,7 @@ interface ComboProps {
   disabled?: boolean
 }
 
-export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps) {
+export function Combo({ value, onChange, options, placeholder = 'Seleccionar...', disabled }: ComboProps): JSX.Element {
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const ref                   = useRef<HTMLDivElement>(null)
@@ -403,7 +418,7 @@ interface NumInputProps {
   style?: React.CSSProperties
 }
 
-export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInputProps) {
+export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInputProps): JSX.Element {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, ...style }}>
       <button
@@ -447,7 +462,7 @@ interface ImageUploaderProps {
   label?: string
 }
 
-export function ImageUploader({ value, onChange, label = 'Imagen' }: ImageUploaderProps) {
+export function ImageUploader({ value, onChange, label = 'Imagen' }: ImageUploaderProps): JSX.Element {
   const inp = useRef<HTMLInputElement>(null)
   return (
     <div>
