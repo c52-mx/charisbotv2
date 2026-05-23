@@ -8,8 +8,11 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-se
 
 export async function POST(req: NextRequest) {
   try {
-    const { nombre, empresa, telefono, email, password, codigo } = await req.json()
-
+     const body = await req.json()
+    console.log('[register body]', body)  // ← aquí
+    const { nombre, empresa, telefono, email, password, hcaptchaToken } = body
+    console.log('[hcaptchaToken]', hcaptchaToken)  // ← y aquí
+    
     if (!nombre?.trim() || !email?.trim() || !password) {
       return NextResponse.json({ error: 'Nombre, correo y contraseña son obligatorios' }, { status: 400 })
     }

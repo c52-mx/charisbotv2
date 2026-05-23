@@ -3,122 +3,114 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { SignJWT } from 'jose'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { sendEmail, emailVerificacion } from '@/lib/email'
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'charis-secret-2025'
-)
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-secret-2025')
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || ''
+
+async function verifyHCaptcha(token: string): Promise<boolean> {
+  console.log(HCAPTCHA_SECRET);
+  if (!HCAPTCHA_SECRET || !token) return false
+  try {
+    const res = await fetch('https://hcaptcha.com/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${HCAPTCHA_SECRET}&response=${token}`,
+    })
+    const data = await res.json()
+    console.log('[hcaptcha response]', data)
+    return data.success === true
+  } catch { return false }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { nombre, empresa, telefono, email, password } = body
+    
+    const { nombre, empresa, telefono, email, password, hcaptchaToken } = await req.json()
 
-    // Validaciones
-    if (!nombre?.trim() || !email?.trim() || !password) {
-      return NextResponse.json(
-        { error: 'Nombre, correo y contraseña son obligatorios' },
-        { status: 400 }
-      )
-    }
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 8 caracteres' },
-        { status: 400 }
-      )
-    }
-    if (!telefono?.trim()) {
-      return NextResponse.json(
-        { error: 'El teléfono de WhatsApp es obligatorio' },
-        { status: 400 }
-      )
-    }
+    // Validaciones básicas
+    if (!nombre?.trim() || !email?.trim() || !password)
+      return NextResponse.json({ error: 'Nombre, correo y contraseña son obligatorios' }, { status: 400 })
+    if (password.length < 8)
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
+    if (!telefono?.trim())
+      return NextResponse.json({ error: 'El teléfono de WhatsApp es obligatorio' }, { status: 400 })
 
-    // Verificar email duplicado
+    // Verificar hCaptcha
+    const captchaOk = await verifyHCaptcha(hcaptchaToken)
+    console.log('---------- Captcha ----------', {captchaOk,hcaptchaToken} );
+    if (!captchaOk)
+      return NextResponse.json({ error: 'Verificación de seguridad fallida. Intenta de nuevo.' }, { status: 400 })
+
+    // Email duplicado
     const existing = await query(
       `SELECT id FROM public.usuarios WHERE email = $1 LIMIT 1`,
       [email.toLowerCase().trim()]
     )
-    if (existing.length > 0) {
-      return NextResponse.json(
-        { error: 'Ya existe una cuenta con ese correo electrónico' },
-        { status: 409 }
-      )
-    }
+    if (existing.length > 0)
+      return NextResponse.json({ error: 'Ya existe una cuenta con ese correo electrónico' }, { status: 409 })
 
-    const hash = await bcrypt.hash(password, 12)
+    const hash  = await bcrypt.hash(password, 12)
+    const token = crypto.randomBytes(32).toString('hex')
+    const expira = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
 
-    // Detectar si columnas empresa/verificado existen (migración 008)
+    // Detectar columnas opcionales
     let hasExtracols = true
-    try {
-      await query(`SELECT empresa FROM public.usuarios LIMIT 0`, [])
-    } catch {
-      hasExtracols = false
-    }
+    try { await query(`SELECT empresa FROM public.usuarios LIMIT 0`, []) }
+    catch { hasExtracols = false }
 
     let rows: any[]
     if (hasExtracols) {
-      rows = await query(
-        `INSERT INTO public.usuarios
-           (nombre, email, password_hash, rol, telefono, empresa, activo, verificado, creado_en)
-         VALUES ($1, $2, $3, 'CLIENTE', $4, $5, true, false, NOW())
-         RETURNING id, nombre, email, rol`,
-        [
-          nombre.trim(),
-          email.toLowerCase().trim(),
-          hash,
-          telefono.trim(),
-          empresa?.trim() || null,
-        ]
-      )
+      rows = await query(`
+        INSERT INTO public.usuarios
+          (nombre, email, password_hash, rol, telefono, empresa, activo, verificado,
+           verificacion_token, verificacion_token_expira, creado_en)
+        VALUES ($1,$2,$3,'CLIENTE',$4,$5,true,false,$6,$7,NOW())
+        RETURNING id, nombre, email, rol
+      `, [
+        nombre.trim(), email.toLowerCase().trim(), hash,
+        telefono.trim(), empresa?.trim() || null,
+        token, expira,
+      ])
     } else {
-      rows = await query(
-        `INSERT INTO public.usuarios
-           (nombre, email, password_hash, rol, telefono, activo, creado_en)
-         VALUES ($1, $2, $3, 'CLIENTE', $4, true, NOW())
-         RETURNING id, nombre, email, rol`,
-        [
-          nombre.trim(),
-          email.toLowerCase().trim(),
-          hash,
-          telefono.trim(),
-        ]
-      )
+      rows = await query(`
+        INSERT INTO public.usuarios
+          (nombre, email, password_hash, rol, telefono, activo, creado_en)
+        VALUES ($1,$2,$3,'CLIENTE',$4,true,NOW())
+        RETURNING id, nombre, email, rol
+      `, [nombre.trim(), email.toLowerCase().trim(), hash, telefono.trim()])
     }
 
     const user = rows[0]
 
-    // Generar JWT
-    const token = await new SignJWT({
-      id:     user.id,
-      nombre: user.nombre,
-      email:  user.email,
-      rol:    user.rol,
+    // Enviar email de verificación (no bloqueante)
+    sendEmail({
+      to:      email.toLowerCase().trim(),
+      subject: 'Verifica tu correo — Charis Portal',
+      html:    emailVerificacion(nombre.trim(), token),
+    }).catch(e => console.error('[register] email error:', e))
+
+    // JWT — acceso inmediato aunque no haya verificado aún
+    const jwt = await new SignJWT({
+      id: user.id, nombre: user.nombre, email: user.email, rol: user.rol,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('7d')
       .sign(JWT_SECRET)
 
-    const res = NextResponse.json({
-      ok:     true,
-      rol:    user.rol,
-      nombre: user.nombre,
-    })
-
-    res.cookies.set('charis-token', token, {
+    const res = NextResponse.json({ ok: true, rol: user.rol, nombre: user.nombre })
+    res.cookies.set('charis-token', jwt, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path:     '/',
       maxAge:   60 * 60 * 24 * 7,
     })
-
     return res
 
   } catch (e: any) {
     console.error('[POST /api/auth/register]', e)
-    return NextResponse.json(
-      { error: 'Error interno al crear la cuenta' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error interno al crear la cuenta' }, { status: 500 })
   }
 }
