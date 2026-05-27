@@ -10,7 +10,6 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-se
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || ''
 
 async function verifyHCaptcha(token: string): Promise<boolean> {
-  console.log(HCAPTCHA_SECRET);
   if (!HCAPTCHA_SECRET || !token) return false
   try {
     const res = await fetch('https://hcaptcha.com/siteverify', {
@@ -19,7 +18,6 @@ async function verifyHCaptcha(token: string): Promise<boolean> {
       body: `secret=${HCAPTCHA_SECRET}&response=${token}`,
     })
     const data = await res.json()
-    console.log('[hcaptcha response]', data)
     return data.success === true
   } catch { return false }
 }
@@ -39,7 +37,6 @@ export async function POST(req: NextRequest) {
 
     // Verificar hCaptcha
     const captchaOk = await verifyHCaptcha(hcaptchaToken)
-    console.log('---------- Captcha ----------', {captchaOk,hcaptchaToken} );
     if (!captchaOk)
       return NextResponse.json({ error: 'Verificación de seguridad fallida. Intenta de nuevo.' }, { status: 400 })
 

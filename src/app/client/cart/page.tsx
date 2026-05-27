@@ -8,6 +8,17 @@ interface CartItem {
   tipo_case: string; marca: string; modelo: string; color: string; cantidad: number
 }
 
+const TIPO_EMOJI: Record<string, string> = {
+  'BLINDAJE': '🔐', '3 EN 1': '🎯', 'ESCUDO': '🛡️', 'ANILLO': '💍',
+}
+
+function descuentoPct(piezas: number) {
+  if (piezas >= 200) return 15
+  if (piezas >= 100) return 10
+  if (piezas >= 50)  return 5
+  return 0
+}
+
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   @keyframes spin   { to{transform:rotate(360deg)} }
@@ -16,9 +27,8 @@ const CSS = `
     display:flex; align-items:center; gap:10px;
     padding:12px 18px; background:#f5f8fc;
     border-bottom:1px solid #e2eaf4;
-    font-family:Arial Black,sans-serif; font-weight:900; font-size:14px; color:#0d2137;
+    font-weight:900; font-size:14px; color:#0d2137;
   }
-
   .cart-row {
     display:flex; align-items:center; gap:12px;
     padding:12px 18px; border-bottom:1px solid #f0f4f8;
@@ -32,6 +42,7 @@ const CSS = `
     width:28px; height:28px; border:1px solid #d0dde8; background:#f5f8fc;
     cursor:pointer; font-size:15px; color:#0d2137;
     display:flex; align-items:center; justify-content:center; transition:all .12s;
+    font-family:inherit;
   }
   .qty-btn:hover { background:#e2eaf4; }
   .qty-input {
@@ -39,7 +50,6 @@ const CSS = `
     text-align:center; font-size:13px; font-weight:600; color:#0d2137;
     font-family:inherit; outline:none; background:white;
   }
-
   .del-btn {
     background:none; border:none; color:#8aaac4; cursor:pointer; font-size:12px;
     font-weight:600; padding:4px 8px; border-radius:6px;
@@ -54,8 +64,16 @@ const CSS = `
     display:flex; align-items:center; justify-content:center; gap:8px;
     box-shadow:0 4px 20px rgba(21,101,192,0.25);
   }
-  .confirm-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); box-shadow:0 6px 28px rgba(21,101,192,0.35); }
+  .confirm-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
   .confirm-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  .vol-bar { height:5px; background:#e2eaf4; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .vol-fill { height:100%; background:#1565c0; border-radius:3px; transition:width .4s; }
+
+  @media(max-width:768px){
+    .cart-layout { grid-template-columns:1fr !important; }
+    .cart-summary { position:static !important; }
+  }
 `
 
 function loadCart(): CartItem[] {
@@ -81,7 +99,6 @@ export default function CartPage() {
   const [success, setSuccess] = useState(false)
   const skipSync = useRef(false)
 
-  // ── Load & sync ──────────────────────────────────────────────────
   useEffect(() => {
     setCart(loadCart())
     setLoading(false)
@@ -104,16 +121,11 @@ export default function CartPage() {
     })
   }
 
-  // ── Actions ──────────────────────────────────────────────────────
-  const removeItem = (id: string) =>
-    updateCart(c => c.filter(it => it._id !== id))
-
-  const updateQty = (id: string, qty: number) =>
+  const removeItem = (id: string) => updateCart(c => c.filter(it => it._id !== id))
+  const updateQty  = (id: string, qty: number) =>
     updateCart(c => c.map(it => it._id === id ? { ...it, cantidad: Math.max(1, qty) } : it))
+  const clearAll   = () => updateCart(() => [])
 
-  const clearAll = () => updateCart(() => [])
-
-  // ── Checkout ─────────────────────────────────────────────────────
   async function handleCheckout() {
     if (cart.length === 0 || placing) return
     setPlacing(true)
@@ -135,8 +147,10 @@ export default function CartPage() {
     }
   }
 
-  // ── Derived ──────────────────────────────────────────────────────
   const totalPiezas = cart.reduce((s, i) => s + i.cantidad, 0)
+  const desc        = descuentoPct(totalPiezas)
+  const nextTier    = totalPiezas < 50 ? 50 : totalPiezas < 100 ? 100 : totalPiezas < 200 ? 200 : null
+  const volPct      = Math.min(100, (totalPiezas / 200) * 100)
 
   const groups = cart.reduce<Record<string, CartItem[]>>((acc, item) => {
     if (!acc[item.tipo_case]) acc[item.tipo_case] = []
@@ -144,7 +158,6 @@ export default function CartPage() {
     return acc
   }, {})
 
-  // ── Render ───────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
       <div style={{ width:28, height:28, borderRadius:'50%', border:'3px solid #e2eaf4', borderTopColor:'#1565c0', animation:'spin .7s linear infinite' }}/>
@@ -153,11 +166,11 @@ export default function CartPage() {
   )
 
   if (success) return (
-    <div style={{ textAlign:'center', padding:'60px 20px', animation:'fadeUp .4s ease-out' }}>
+    <div style={{ textAlign:'center', padding:'70px 20px', animation:'fadeUp .4s ease-out' }}>
       <style>{CSS}</style>
-      <div style={{ fontSize:52, marginBottom:16 }}>✅</div>
-      <h2 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:22, color:'#0d2137', marginBottom:8 }}>¡Pedido creado!</h2>
-      <p style={{ fontSize:14, color:'#3a6080' }}>Redirigiendo a tus pedidos...</p>
+      <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
+      <h2 style={{ fontWeight:900, fontSize:22, color:'#0d2137', marginBottom:8 }}>¡Pedido creado!</h2>
+      <p style={{ fontSize:14, color:'#8aaac4' }}>Redirigiendo a tus pedidos…</p>
     </div>
   )
 
@@ -165,119 +178,144 @@ export default function CartPage() {
     <>
       <style>{CSS}</style>
 
-      {/* ── Page header ── */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:24, animation:'fadeUp .3s ease-out' }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:24, animation:'fadeUp .3s ease-out' }}>
         <div>
-          <h1 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:22, color:'#0d2137', marginBottom:4 }}>
+          <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,22px)', color:'#0d2137', marginBottom:4 }}>
             🛒 Carrito de compras
           </h1>
-          <p style={{ fontSize:13, color:'#8aaac4' }}>{totalPiezas} piezas en el carrito</p>
+          <p style={{ fontSize:13, color:'#8aaac4' }}>{totalPiezas} piezas · {cart.length} artículo{cart.length !== 1 ? 's' : ''}</p>
         </div>
         {cart.length > 0 && (
-          <button onClick={clearAll}
-            style={{ padding:'8px 16px', borderRadius:9, border:'1.5px solid #e2eaf4', background:'white', color:'#8aaac4', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
-            onMouseEnter={e => e.currentTarget.style.borderColor='#ef4444'}
-            onMouseLeave={e => e.currentTarget.style.borderColor='#e2eaf4'}>
-            Vaciar carrito
-          </button>
+          <button
+            onClick={clearAll}
+            style={{ padding:'8px 16px', borderRadius:8, border:'1.5px solid #e2eaf4', background:'white', color:'#8aaac4', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#ef4444')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '#e2eaf4')}
+          >Vaciar carrito</button>
         )}
       </div>
 
       {cart.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'white', borderRadius:16, border:'1px solid #e2eaf4' }}>
-          <div style={{ fontSize:48, marginBottom:16, opacity:.3 }}>🛒</div>
-          <h3 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:18, color:'#0d2137', marginBottom:8 }}>Carrito vacío</h3>
-          <p style={{ fontSize:14, color:'#8aaac4', marginBottom:20 }}>Agrega productos desde el catálogo</p>
-          <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'#1565c0', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
+        <div style={{ textAlign:'center', padding:'64px 20px', background:'white', borderRadius:16, border:'1px solid #e2eaf4' }}>
+          <div style={{ fontSize:48, marginBottom:16, opacity:.25 }}>🛒</div>
+          <h3 style={{ fontWeight:900, fontSize:18, color:'#0d2137', marginBottom:8 }}>Carrito vacío</h3>
+          <p style={{ fontSize:14, color:'#8aaac4', marginBottom:24 }}>Agrega productos desde el catálogo</p>
+          <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 24px', borderRadius:100, background:'#1565c0', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
             Ir al catálogo →
           </Link>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:20, alignItems:'start', animation:'fadeUp .3s ease-out .05s both' }}>
+        <div className="cart-layout" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:20, alignItems:'start', animation:'fadeUp .3s ease-out .05s both' }}>
 
-          {/* ── Items ── */}
+          {/* ── ITEMS ── */}
           <div style={{ background:'white', borderRadius:16, border:'1px solid #e2eaf4', overflow:'hidden' }}>
             {Object.entries(groups).map(([tipo, items]) => (
               <div key={tipo}>
                 <div className="group-header">
+                  <span>{TIPO_EMOJI[tipo] || '📦'}</span>
                   {tipo}
-                  <span style={{ fontSize:12, color:'#8aaac4', fontWeight:400, fontFamily:'system-ui' }}>
-                    {items.length} artículo{items.length !== 1 ? 's' : ''}
+                  <span style={{ fontSize:12, color:'#8aaac4', fontWeight:400 }}>
+                    {items.length} artículo{items.length !== 1 ? 's' : ''} · {items.reduce((s,i)=>s+i.cantidad,0)} pzas
                   </span>
                 </div>
                 {items.map(item => (
                   <div key={item._id} className="cart-row">
-                    {/* Info */}
                     <div style={{ flex:1, minWidth:0 }}>
                       <p style={{ fontSize:14, fontWeight:700, color:'#0d2137', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {item.modelo}
                       </p>
                       <p style={{ fontSize:11, color:'#8aaac4' }}>
-                        {item.marca} · {item.color}
+                        {item.marca} · <span style={{ background:'#f0f4f8', borderRadius:4, padding:'1px 6px', fontSize:10, fontWeight:600, color:'#3a6080' }}>{item.color}</span>
                       </p>
                     </div>
-                    {/* Qty */}
                     <div className="qty-ctrl">
-                      <button className="qty-btn" style={{ borderRadius:'7px 0 0 7px' }}
-                              onClick={() => updateQty(item._id!, item.cantidad - 1)}>−</button>
+                      <button className="qty-btn" style={{ borderRadius:'7px 0 0 7px' }} onClick={() => updateQty(item._id!, item.cantidad - 1)}>−</button>
                       <input className="qty-input" type="number" value={item.cantidad} min={1}
-                             onChange={e => updateQty(item._id!, parseInt(e.target.value) || 1)}/>
-                      <button className="qty-btn" style={{ borderRadius:'0 7px 7px 0' }}
-                              onClick={() => updateQty(item._id!, item.cantidad + 1)}>+</button>
+                        onChange={e => updateQty(item._id!, parseInt(e.target.value) || 1)} />
+                      <button className="qty-btn" style={{ borderRadius:'0 7px 7px 0' }} onClick={() => updateQty(item._id!, item.cantidad + 1)}>+</button>
                     </div>
-                    {/* Pzas */}
-                    <span style={{ fontSize:13, fontWeight:700, color:'#1565c0', minWidth:58, textAlign:'right', flexShrink:0 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:'#1565c0', minWidth:54, textAlign:'right', flexShrink:0 }}>
                       {item.cantidad} pzas
                     </span>
-                    {/* Delete */}
-                    <button className="del-btn" onClick={() => removeItem(item._id!)}>
-                      Eliminar
-                    </button>
+                    <button className="del-btn" onClick={() => removeItem(item._id!)}>Eliminar</button>
                   </div>
                 ))}
               </div>
             ))}
+
+            {/* Descuento banner */}
+            {desc > 0 && (
+              <div style={{ padding:'10px 18px', background:'#e8f5e9', borderTop:'1px solid #c8e6c9', display:'flex', alignItems:'center', gap:8, fontSize:12, color:'#1b5e20', fontWeight:600 }}>
+                % Descuento mayoreo {desc}% aplicado automáticamente — {totalPiezas} pzas
+              </div>
+            )}
           </div>
 
-          {/* ── Summary ── */}
-          <div style={{ background:'white', borderRadius:16, border:'1px solid #e2eaf4', padding:'20px', position:'sticky', top:80 }}>
-            <h3 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:16, color:'#0d2137', marginBottom:16 }}>
-              Resumen del pedido
-            </h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16, paddingBottom:16, borderBottom:'1px solid #f0f4f8' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
-                <span>Artículos</span>
-                <span style={{ fontWeight:600, color:'#0d2137' }}>{cart.length}</span>
+          {/* ── RESUMEN ── */}
+          <div className="cart-summary" style={{ background:'white', borderRadius:16, border:'1px solid #e2eaf4', padding:'20px', position:'sticky', top:88 }}>
+            <h3 style={{ fontWeight:900, fontSize:16, color:'#0d2137', marginBottom:16 }}>Resumen del pedido</h3>
+
+            {/* Vol progress */}
+            <div style={{ background:'#f5f8fc', borderRadius:10, padding:'12px', marginBottom:16 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                <span style={{ fontWeight:700, color:'#0d2137' }}>{totalPiezas} pzas</span>
+                {desc > 0
+                  ? <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ {desc}% desc.</span>
+                  : nextTier
+                    ? <span style={{ color:'#8aaac4' }}>Faltan {nextTier - totalPiezas} pzas para {descuentoPct(nextTier)}%</span>
+                    : <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ Descuento máximo</span>
+                }
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
-                <span>Total piezas</span>
-                <span style={{ fontWeight:600, color:'#0d2137' }}>{totalPiezas}</span>
-              </div>
+              <div className="vol-bar"><div className="vol-fill" style={{ width:`${volPct}%` }} /></div>
             </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:9, marginBottom:14, paddingBottom:14, borderBottom:'1px solid #f0f4f8' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
+                <span>Artículos</span><span style={{ fontWeight:600, color:'#0d2137' }}>{cart.length}</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
+                <span>Total piezas</span><span style={{ fontWeight:600, color:'#0d2137' }}>{totalPiezas}</span>
+              </div>
+              {desc > 0 && (
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#1b5e20', fontWeight:600 }}>
+                  <span>% Descuento mayoreo</span><span>{desc}%</span>
+                </div>
+              )}
+            </div>
+
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <span style={{ fontSize:14, fontWeight:700, color:'#0d2137' }}>Total</span>
-              <span style={{ fontSize:18, fontWeight:900, color:'#1565c0' }}>{totalPiezas} pzas</span>
+              <span style={{ fontSize:20, fontWeight:900, color:'#1565c0' }}>{totalPiezas} pzas</span>
             </div>
+
             <button className="confirm-btn" disabled={placing} onClick={handleCheckout}>
               {placing
-                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando...</>
+                ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando…</>
                 : `Confirmar pedido (${totalPiezas} pzas)`
               }
             </button>
-            <Link href="/client/catalog"
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', marginTop:10, padding:'9px', borderRadius:9, border:'1.5px solid #e2eaf4', fontSize:13, color:'#3a6080', textDecoration:'none', transition:'all .15s', fontWeight:500 }}
+
+            <Link
+              href="/client/catalog"
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', marginTop:10, padding:'9px', borderRadius:9, border:'1.5px solid #e2eaf4', fontSize:13, color:'#3a6080', textDecoration:'none', fontWeight:500, transition:'all .15s' }}
               onMouseEnter={(e:any) => e.currentTarget.style.borderColor='#1565c0'}
-              onMouseLeave={(e:any) => e.currentTarget.style.borderColor='#e2eaf4'}>
+              onMouseLeave={(e:any) => e.currentTarget.style.borderColor='#e2eaf4'}
+            >
               Seguir comprando
             </Link>
+
+            {/* WA alternativa */}
+            <div style={{ marginTop:16, padding:'10px 12px', background:'#e8f5e9', border:'1px solid #c8e6c9', borderRadius:8, display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+              <span style={{ fontSize:18 }}>📱</span>
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:'#0d2137' }}>¿Preferes pedir por WhatsApp?</div>
+                <div style={{ fontSize:10, color:'#4a5568' }}>CharisBot lo procesa al instante</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Mobile: stack layout */}
-      <style>{`@media(max-width:768px){
-        .cart-grid { grid-template-columns:1fr !important; }
-      }`}</style>
     </>
   )
 }

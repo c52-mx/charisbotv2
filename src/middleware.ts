@@ -6,12 +6,13 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('charis_token')?.value
 
   const isAdmin  = pathname.startsWith('/admin')
+  const isClient = pathname.startsWith('/client')
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
   const isTrack  = pathname.startsWith('/track')
 
   // /track es público — no requiere auth
   if (isTrack) return NextResponse.next()
-  if (!isAdmin && !isApi) return NextResponse.next()
+  if (!isAdmin && !isClient && !isApi) return NextResponse.next()
 
   if (!token) {
     if (isApi) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -26,13 +27,18 @@ export async function middleware(req: NextRequest) {
     return r
   }
 
-  // Todos los roles ADMIN/VENDEDOR/ALMACEN pueden entrar a /admin
+  // Solo roles internos pueden entrar a /admin
   const portalRoles = ['ADMIN','VENDEDOR','ALMACEN']
   if (isAdmin && !portalRoles.includes(session.rol)) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
+  // Solo CLIENTE puede entrar a /client
+  if (isClient && session.rol !== 'CLIENTE') {
+    return NextResponse.redirect(new URL('/admin/orders', req.url))
+  }
+
   return NextResponse.next()
 }
 
-export const config = { matcher: ['/admin/:path*', '/api/:path*', '/track'] }
+export const config = { matcher: ['/admin/:path*', '/client/:path*', '/api/:path*', '/track'] }
