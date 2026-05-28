@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest) {
 
   await query(`
     UPDATE public.usuarios SET nombre=$1, empresa=$2, telefono=$3 WHERE id=$4
-  `, [nombre, empresa || null, telefono, session.id])
+  `, [nombre, empresa || null, telefono, session.sub])
 
   return NextResponse.json({ ok: true })
 }
