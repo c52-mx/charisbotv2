@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       )
       ORDER BY p.creado_en DESC
       LIMIT 50
-    `, [session.telefono || session.email])
+    `, [session.email])
 
     return NextResponse.json({ items: rows })
   } catch (e: any) {
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       VALUES ($1, NOW())
       ON CONFLICT (telefono) DO UPDATE SET actualizada_en = NOW()
       RETURNING id
-    `, [session.telefono || session.email])
+    `, [session.email])
 
     const tipos = [...new Set(items.map((i: any) => i.tipo_case))]
     const tipo  = tipos.length === 1 ? tipos[0] : 'MIXTO'
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, NOW())
       RETURNING id, numero_pedido
     `, [
-      conv.id, session.telefono || session.email, tipo, resumen,
+      conv.id, session.email, tipo, resumen,
       JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
       referencia_pago || null, JSON.stringify(direccion_entrega || {}),
       notas_cliente || null,

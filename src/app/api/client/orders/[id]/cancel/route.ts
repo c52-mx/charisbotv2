@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const [pedido] = await query(`SELECT * FROM public.pedidos WHERE id = $1`, [params.id])
     if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
 
-    const userPhone = session.telefono || session.email
+    const userPhone = session.email
     if (pedido.telefono !== userPhone) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
     if (!['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION'].includes(pedido.estado)) {

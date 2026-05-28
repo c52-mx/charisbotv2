@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
 
     // Verificar que pertenece al usuario
-    const userPhone = session.telefono || session.email
+    const userPhone = session.email
     if (pedido.telefono !== userPhone && pedido.conv_telefono !== userPhone) {
       return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
     }
