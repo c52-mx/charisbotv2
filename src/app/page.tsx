@@ -16,10 +16,12 @@ const SERIE_IMG: Record<string,string> = {
   'ANILLO':   'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=600&q=70',
 }
 const SERIE_EMOJI: Record<string,string> = { 'BLINDAJE':'🔐', '3 EN 1':'🎯', 'ESCUDO':'🛡️', 'ANILLO':'💍' }
+// Imagen genérica de case para tarjetas de producto sin foto propia
+const CASE_IMG = 'https://images.unsplash.com/photo-1601593346740-925612772716?w=400&q=70'
 const HERO_IMGS = [
-  'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=1400&q=70',
-  'https://images.unsplash.com/photo-1601593346740-925612772716?w=1400&q=70',
-  'https://images.unsplash.com/photo-1604671368394-2240d0b1bb6c?w=1400&q=70',
+  '/Img_Hero1.png',
+  '/Img_Hero3.png',
+  '/Img_Hero2.png',
 ]
 
 // ── Autoplay hook ────────────────────────────────────────────────────
@@ -52,7 +54,8 @@ const CSS = `
     --txt3:   #8aaac4;
   }
 
-  body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--txt); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--txt); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 
   @keyframes fadeUp  { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
   @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
@@ -89,7 +92,7 @@ const CSS = `
   .lp-nav.scrolled { box-shadow: 0 4px 24px rgba(13,33,55,.07); }
   .lp-navlinks { display:flex; gap:4px; align-items:center; flex:1; }
   .lp-navlink {
-    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    padding: 8px 15px; border-radius: 8px; font-size: 14.5px; font-weight: 600;
     color: var(--txt2); text-decoration: none; transition: all .15s; white-space:nowrap;
   }
   .lp-navlink:hover { color: var(--blue); background: rgba(21,101,192,.06); }
@@ -98,32 +101,32 @@ const CSS = `
   /* ── BUTTONS ── */
   .btn-primary {
     display:inline-flex; align-items:center; gap:7px;
-    padding:10px 22px; border-radius:100px;
+    padding:11px 24px; border-radius:10px;
     background: var(--blue); color:white;
-    font-size:14px; font-weight:700; border:none; cursor:pointer;
+    font-size:15px; font-weight:700; border:none; cursor:pointer;
     text-decoration:none; transition:all .2s; font-family:inherit;
     box-shadow:0 3px 14px rgba(21,101,192,.3);
   }
   .btn-primary:hover { background:#1976d2; transform:translateY(-1px); box-shadow:0 6px 22px rgba(21,101,192,.38); }
   .btn-ghost {
     display:inline-flex; align-items:center; gap:7px;
-    padding:10px 22px; border-radius:100px;
+    padding:11px 24px; border-radius:10px;
     background:transparent; color: var(--blue);
-    font-size:14px; font-weight:600;
+    font-size:15px; font-weight:600;
     border:1.5px solid var(--blue2); cursor:pointer;
     text-decoration:none; transition:all .2s; font-family:inherit;
   }
   .btn-ghost:hover { background: var(--blue); color:white; border-color: var(--blue); }
   .btn-sm {
     display:inline-flex; align-items:center; gap:5px;
-    padding:8px 16px; border-radius:100px; font-size:13px; font-weight:700;
+    padding:9px 18px; border-radius:9px; font-size:14px; font-weight:700;
     background: var(--blue); color:white; border:none; cursor:pointer;
     text-decoration:none; transition:all .18s; font-family:inherit;
   }
   .btn-sm:hover { background:#1976d2; }
   .btn-sm-ghost {
     display:inline-flex; align-items:center; gap:5px;
-    padding:8px 16px; border-radius:100px; font-size:13px; font-weight:600;
+    padding:9px 18px; border-radius:9px; font-size:14px; font-weight:600;
     background:transparent; color: var(--blue); border:1.5px solid var(--border);
     cursor:pointer; text-decoration:none; transition:all .18s; font-family:inherit;
   }
@@ -167,42 +170,56 @@ const CSS = `
   .section-gray  { background: var(--bg); }
   .section-navy  { background: var(--navy); }
   .section-hdr { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:10px; }
-  .section-title { font-weight:900; font-size:clamp(20px,3vw,26px); color: var(--txt); }
-  .section-sub { font-size:13px; color: var(--txt3); margin-top:4px; }
-  .see-all { font-size:13px; font-weight:700; color: var(--blue); text-decoration:none; white-space:nowrap; }
+  .section-title { font-weight:900; font-size:clamp(23px,3vw,30px); color: var(--txt); letter-spacing:-.01em; }
+  .section-sub { font-size:14.5px; color: var(--txt3); margin-top:5px; }
+  .see-all { font-size:14.5px; font-weight:700; color: var(--blue); text-decoration:none; white-space:nowrap; }
   .see-all:hover { text-decoration:underline; }
   .inner { max-width:1200px; margin:0 auto; }
 
   /* ── PROPUESTA B2B ── */
+  .biz-strip { background:linear-gradient(135deg, var(--navy) 0%, #1a3d6b 60%, var(--navy) 100%); }
   .biz-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
-  .biz-prop { padding:20px 24px; border-right:1px solid var(--border); display:flex; gap:14px; align-items:flex-start; }
+  .biz-prop { padding:36px 24px; border-right:1px solid rgba(255,255,255,.08); display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; transition:background .2s; }
   .biz-prop:last-child { border-right:none; }
-  .biz-ico { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
-  .biz-t1 { font-size:13px; font-weight:800; color: var(--txt); margin-bottom:3px; }
-  .biz-t2 { font-size:11.5px; color: var(--txt3); line-height:1.45; }
+  .biz-prop:hover { background:rgba(75,174,240,.08); }
+  .biz-ico { width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:30px; flex-shrink:0; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); box-shadow:0 6px 20px rgba(0,0,0,.18); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+  .biz-t1 { font-size:16.5px; font-weight:800; color:white; margin-bottom:4px; }
+  .biz-t2 { font-size:13.5px; color:rgba(255,255,255,.62); line-height:1.55; max-width:230px; }
 
   /* ── SERIES GRID ── */
-  .series-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:16px; }
-  .serie-card {
-    border-radius:14px; overflow:hidden; text-decoration:none; display:block;
-    border:1.5px solid var(--border); background:white;
-    transition:transform .22s, box-shadow .22s, border-color .18s;
-    box-shadow:0 2px 12px rgba(0,0,0,.05);
+  .cat-label { display:inline-flex; align-items:center; gap:7px; padding:7px 18px; border-radius:100px; background:rgba(21,101,192,.1); border:1px solid rgba(21,101,192,.2); font-size:13px; font-weight:800; color:var(--blue); letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; box-shadow:0 2px 10px rgba(21,101,192,.1); }
+  .cat-intro { margin-bottom:40px; text-align:center; }
+  .cat-intro-txt { max-width:560px; margin:0 auto; }
+  /* Imagen de fondo de la sección "Elige tu categoría" */
+  .section-catalogo { position:relative; background:var(--bg); overflow:hidden; }
+  .section-catalogo::before {
+    content:''; position:absolute; inset:0; z-index:0;
+    background:
+      linear-gradient(180deg, rgba(240,244,248,.93) 0%, rgba(240,244,248,.88) 45%, rgba(240,244,248,.96) 100%),
+      url('/Img_Categoria.png') center/cover no-repeat;
   }
-  .serie-card:hover { transform:translateY(-4px); box-shadow:0 12px 36px rgba(21,101,192,.13); border-color: var(--blue2); }
+  .section-catalogo > .inner { position:relative; z-index:1; }
+  .series-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:20px; }
+  .serie-card {
+    border-radius:16px; overflow:hidden; text-decoration:none; display:block;
+    border:1.5px solid var(--border); background:white;
+    transition:transform .25s, box-shadow .25s, border-color .22s;
+    box-shadow:0 4px 16px rgba(0,0,0,.06);
+  }
+  .serie-card:hover { transform:translateY(-6px); box-shadow:0 20px 48px rgba(21,101,192,.15); border-color:var(--blue2); }
 
   /* ── PRODUCTOS GRID ── */
-  .prod-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px,1fr)); gap:12px; }
+  .prod-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
   .prod-card {
-    background:white; border-radius:12px; border:1.5px solid var(--border);
+    background:white; border-radius:14px; border:1.5px solid var(--border);
     overflow:hidden; transition:all .2s; cursor:pointer;
   }
-  .prod-card:hover { border-color: var(--blue2); box-shadow:0 8px 24px rgba(21,101,192,.1); transform:translateY(-2px); }
-  .prod-img { height:110px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
-  .prod-body { padding:10px 12px; }
-  .prod-tipo { font-size:9px; font-weight:700; color: var(--blue); background:rgba(21,101,192,.08); padding:2px 7px; border-radius:4px; display:inline-block; margin-bottom:5px; letter-spacing:.04em; }
-  .prod-name { font-size:12px; font-weight:700; color: var(--txt); line-height:1.3; margin-bottom:3px; }
-  .prod-marca { font-size:11px; color: var(--txt3); }
+  .prod-card:hover { border-color: var(--blue2); box-shadow:0 10px 28px rgba(21,101,192,.12); transform:translateY(-3px); }
+  .prod-img { height:150px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+  .prod-body { padding:14px 16px; }
+  .prod-tipo { font-size:10px; font-weight:700; color: var(--blue); background:rgba(21,101,192,.08); padding:3px 9px; border-radius:5px; display:inline-block; margin-bottom:7px; letter-spacing:.04em; }
+  .prod-name { font-size:14.5px; font-weight:700; color: var(--txt); line-height:1.3; margin-bottom:4px; }
+  .prod-marca { font-size:13px; color: var(--txt3); }
 
   /* ── LOCK OVERLAY ── */
   .lock-overlay {
@@ -214,20 +231,31 @@ const CSS = `
     border-radius:12px;
   }
   .prod-card:hover .lock-overlay { opacity:1; }
-  .lock-text { font-size:11px; font-weight:700; color: var(--blue); text-align:center; }
+  .lock-text { font-size:12.5px; font-weight:700; color: var(--blue); text-align:center; }
 
   /* ── CTA BANNER ── */
   .cta-banner {
     background:linear-gradient(135deg, var(--navy) 0%, #1565c0 100%);
-    border-radius:20px; padding:48px 48px; display:flex;
+    border-radius:20px; padding:48px; display:flex;
     align-items:center; justify-content:space-between;
-    gap:32px; flex-wrap:wrap;
+    gap:40px; flex-wrap:wrap; overflow:hidden;
+  }
+  .cta-img { position:relative; flex:1 1 300px; min-width:280px; max-width:420px; }
+  .cta-img img {
+    width:100%; height:260px; object-fit:cover; border-radius:16px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35); display:block;
+  }
+  .cta-img-badge {
+    position:absolute; bottom:14px; left:14px;
+    background:rgba(255,255,255,.95); backdrop-filter:blur(6px);
+    color:var(--navy); font-size:13px; font-weight:800;
+    padding:8px 16px; border-radius:100px; box-shadow:0 6px 20px rgba(0,0,0,.2);
   }
 
   /* ── FEATURES ── */
-  .feat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+  .feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
   .feat-card {
-    background:white; border-radius:14px; padding:24px 20px;
+    background:white; border-radius:14px; padding:28px 24px;
     border:1.5px solid var(--border); transition:all .2s;
   }
   .feat-card:hover { border-color: var(--blue2); box-shadow:0 8px 28px rgba(21,101,192,.08); transform:translateY(-2px); }
@@ -239,16 +267,20 @@ const CSS = `
   /* ── FOOTER ── */
   .lp-footer { background: var(--navy); padding:40px 5% 24px; }
   .footer-grid { max-width:1200px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px; margin-bottom:32px; }
-  .footer-col-title { font-size:10px; font-weight:700; color:rgba(255,255,255,.35); letter-spacing:.1em; text-transform:uppercase; margin-bottom:12px; }
-  .footer-link { display:block; font-size:13px; color:rgba(255,255,255,.45); text-decoration:none; margin-bottom:7px; transition:color .14s; }
+  .footer-col-title { font-size:11.5px; font-weight:700; color:rgba(255,255,255,.35); letter-spacing:.1em; text-transform:uppercase; margin-bottom:12px; }
+  .footer-link { display:block; font-size:14px; color:rgba(255,255,255,.45); text-decoration:none; margin-bottom:8px; transition:color .14s; }
   .footer-link:hover { color: var(--blue2); }
   .footer-copy { max-width:1200px; margin:0 auto; padding-top:20px; border-top:1px solid rgba(255,255,255,.07); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
 
   /* ── RESPONSIVE ── */
+  @media(max-width:1000px){
+    .prod-grid { grid-template-columns:repeat(3,1fr); }
+    .feat-grid { grid-template-columns:repeat(2,1fr); }
+  }
   @media(max-width:900px){
     .biz-grid { grid-template-columns:1fr 1fr; }
     .biz-prop:nth-child(2) { border-right:none; }
-    .biz-prop { border-bottom:1px solid var(--border); }
+    .biz-prop { border-bottom:1px solid rgba(255,255,255,.08); }
     .biz-prop:nth-child(3), .biz-prop:nth-child(4) { border-bottom:none; }
     .footer-grid { grid-template-columns:1fr 1fr; gap:24px; }
     .lp-navlinks { display:none; }
@@ -259,12 +291,15 @@ const CSS = `
     .lp-topbar { display:none; }
     .hero-content { padding:0 5%; }
     .biz-grid { grid-template-columns:1fr; }
-    .biz-prop { border-right:none; border-bottom:1px solid var(--border); }
+    .biz-prop { border-right:none; border-bottom:1px solid rgba(255,255,255,.08); }
     .biz-prop:last-child { border-bottom:none; }
+    .biz-t2 { max-width:none; }
     .prod-grid { grid-template-columns:repeat(2,1fr); }
+    .feat-grid { grid-template-columns:1fr; }
     .cta-banner { padding:32px 24px; }
     .footer-grid { grid-template-columns:1fr; gap:20px; }
     .hero-arrow { display:none; }
+    .cta-img { display:none; }
   }
 `
 
@@ -347,17 +382,17 @@ export default function LandingPage() {
       <style>{CSS}</style>
 
       {/* ── TOPBAR ── */}
-      <div className="lp-topbar">
-        <span className="lp-topbar-item">📍 CDMX · Zona Metropolitana</span>
-        <span className="lp-topbar-sep">|</span>
-        <span className="lp-topbar-item">🚚 Entrega express mismo día</span>
-        <span className="lp-topbar-sep">|</span>
-        <span className="lp-topbar-item">% Descuentos desde 50 pzas</span>
+      {/* <div className="lp-nav" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span className="lp-navlink">📍 CDMX · Zona Metropolitana</span>
+
+        <span className="lp-navlink">🚚 Entrega express mismo día</span>
+
+        <span className="lp-navlink">% Descuentos desde 50 pzas</span>
         <div style={{marginLeft:'auto', display:'flex', gap:16}}>
           <Link href="/login"    style={{color:'rgba(255,255,255,.6)', fontSize:12, textDecoration:'none'}}>Ingresar</Link>
           <Link href="/register" style={{color:'var(--blue2)', fontSize:12, fontWeight:700, textDecoration:'none'}}>Crear cuenta</Link>
-        </div>
-      </div>
+        </div> 
+      </div> */}
 
       {/* ── NAV ── */}
       <nav className={`lp-nav${scrolled?' scrolled':''}`}>
@@ -409,14 +444,14 @@ export default function LandingPage() {
       </div>
 
       {/* ── SEARCH BAR ── */}
-      <div className="search-section">
-        <form className="search-wrap" onSubmit={handleSearch}>
+      {/*<div className="search-section">
+         <form className="search-wrap" onSubmit={handleSearch}>
           <input
             type="text" placeholder="Buscar modelo, marca, tipo de case…"
             value={search} onChange={e=>setSearch(e.target.value)}
           />
           <button type="submit">🔍 Buscar</button>
-        </form>
+        </form> 
         <div className="search-cats">
           {['BLINDAJE','3 EN 1','ESCUDO','ANILLO'].map(c=>(
             <Link key={c} href="/login" className="search-cat">
@@ -424,20 +459,20 @@ export default function LandingPage() {
             </Link>
           ))}
         </div>
-      </div>
+      </div>*/}
 
       {/* ── PROPUESTA B2B ── */}
-      <div style={{background:'white', borderBottom:'1px solid var(--border)'}}>
+      <div className="biz-strip">
         <div className="inner">
           <div className="biz-grid">
             {[
-              { ico:'🚚', bg:'#e3f2fd', label:'Entrega express CDMX', sub:'Pedidos antes de las 2 PM llegan el mismo día' },
-              { ico:'%',  bg:'#e8f5e9', label:'Descuentos mayoristas',  sub:'+50 pzas → 5% · +100 → 10% · +200 → 15%' },
-              { ico:'📦', bg:'#e8eaf6', label:'+800 modelos activos',   sub:'Para todas las marcas y categorías' },
-              { ico:'📱', bg:'#fff3e0', label:'Pedidos por WhatsApp',   sub:'CharisBot procesa tu pedido al instante' },
+              { ico:'🚚', label:'Entrega express CDMX', sub:'Pedidos antes de las 2 PM llegan el mismo día' },
+              { ico:'%',  label:'Descuentos mayoristas',  sub:'+50 pzas → 5% · +100 → 10% · +200 → 15%' },
+              { ico:'📦', label:'+100 modelos activos',   sub:'Para todas las marcas y categorías' },
+              { ico:'📱', label:'Pedidos por WhatsApp',   sub:'CharisBot procesa tu pedido al instante' },
             ].map((p,i)=>(
               <div key={i} className="biz-prop">
-                <div className="biz-ico" style={{background:p.bg}}>{p.ico}</div>
+                <div className="biz-ico">{p.ico}</div>
                 <div><div className="biz-t1">{p.label}</div><div className="biz-t2">{p.sub}</div></div>
               </div>
             ))}
@@ -446,51 +481,56 @@ export default function LandingPage() {
       </div>
 
       {/* ── CATÁLOGO PÚBLICO (series) ── */}
-      <section id="catalogo" className="section section-gray">
+      <section id="catalogo" className="section section-catalogo">
         <div className="inner">
-          <div className="section-hdr">
-            <div>
-              <div className="section-title">Explora nuestro catálogo</div>
-              <div className="section-sub">Selecciona una categoría para ver los modelos disponibles</div>
+          <div className="cat-intro">
+            <div className="cat-intro-txt">
+              {/* <div className="cat-label">🛍️ Catálogo Mayorista</div> */}
+              <div className="section-title" style={{fontSize:'clamp(24px,3.5vw,32px)',marginTop:6}}>Elige tu categoría</div>
+              <div style={{fontSize:14.5,color:'var(--txt2)',marginTop:8,maxWidth:440,marginLeft:'auto',marginRight:'auto',lineHeight:1.55}}>
+                Selecciona una línea para ver los modelos disponibles — precio visible al iniciar sesión
+              </div>
             </div>
-            <Link href="/login" className="see-all">Ver catálogo completo →</Link>
           </div>
           <div className="series-grid">
             {loadingSeries ? [1,2,3,4].map(i=>(
-              <div key={i} style={{height:240}} className="skel"/>
+              <div key={i} style={{height:290}} className="skel"/>
             )) : series.map(s=>{
               const img = s.foto_url || SERIE_IMG[s.tipo_case] || ''
               return (
                 <Link key={s.tipo_case} href="/login" className="serie-card">
-                  <div style={{height:160, position:'relative', overflow:'hidden', background:'#e2eaf4'}}>
+                  <div style={{height:200, position:'relative', overflow:'hidden', background:'#e2eaf4'}}>
                     {img
-                      ? <img src={img} alt={s.tipo_case} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform .4s'}}
-                          onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.06)')}
+                      ? <img src={img} alt={s.tipo_case} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform .5s'}}
+                          onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.08)')}
                           onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}
                         />
-                      : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontSize:48,opacity:.3}}>{SERIE_EMOJI[s.tipo_case]||'📦'}</div>
+                      : <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',fontSize:64,opacity:.18}}>{SERIE_EMOJI[s.tipo_case]||'📦'}</div>
                     }
-                    <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,.45) 0%,transparent 55%)'}}/>
-                    <span style={{position:'absolute',top:10,right:10,padding:'3px 10px',borderRadius:100,background:'rgba(0,0,0,.35)',backdropFilter:'blur(6px)',color:'white',fontSize:10,fontWeight:700}}>
+                    <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 55%)'}}/>
+                    <span style={{position:'absolute',top:12,right:12,padding:'4px 12px',borderRadius:100,background:'rgba(0,0,0,.4)',backdropFilter:'blur(8px)',color:'white',fontSize:10,fontWeight:700,letterSpacing:'.04em'}}>
                       {s.total_modelos} modelos
                     </span>
-                    <span style={{position:'absolute',bottom:10,left:14,fontWeight:900,fontSize:16,color:'white',textShadow:'0 2px 8px rgba(0,0,0,.5)'}}>
+                    <span style={{position:'absolute',bottom:14,left:16,fontWeight:900,fontSize:18,color:'white',textShadow:'0 2px 10px rgba(0,0,0,.6)'}}>
                       {SERIE_EMOJI[s.tipo_case]||'📦'} {s.tipo_case}
                     </span>
                   </div>
-                  <div style={{padding:'12px 14px'}}>
-                    <p style={{fontSize:12,color:'var(--txt2)',marginBottom:8,lineHeight:1.4}}>{s.descripcion||'Cases de alta calidad disponibles en múltiples colores y marcas.'}</p>
+                  <div style={{padding:'14px 16px'}}>
+                    <p style={{fontSize:12.5,color:'var(--txt2)',marginBottom:10,lineHeight:1.45}}>{s.descripcion||'Cases de alta calidad disponibles en múltiples colores y marcas.'}</p>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                       <div style={{display:'flex',gap:6}}>
-                        <span style={{fontSize:11,background:'var(--bg)',color:'var(--txt2)',fontWeight:600,padding:'2px 7px',borderRadius:5}}>{s.total_marcas} marcas</span>
-                        <span style={{fontSize:11,background:'var(--bg)',color:'var(--txt2)',fontWeight:600,padding:'2px 7px',borderRadius:5}}>{s.total_colores} colores</span>
+                        <span style={{fontSize:11,background:'var(--bg)',color:'var(--txt2)',fontWeight:600,padding:'3px 8px',borderRadius:6}}>{s.total_marcas} marcas</span>
+                        <span style={{fontSize:11,background:'var(--bg)',color:'var(--txt2)',fontWeight:600,padding:'3px 8px',borderRadius:6}}>{s.total_colores} colores</span>
                       </div>
-                      <span style={{fontSize:12,color:'var(--blue)',fontWeight:700}}>Ver →</span>
+                      <span style={{fontSize:13,color:'var(--blue)',fontWeight:700}}>Ver colección →</span>
                     </div>
                   </div>
                 </Link>
               )
             })}
+          </div>
+          <div style={{textAlign:'center',marginTop:36}}>
+            <Link href="/login" className="btn-primary" style={{padding:'13px 32px',fontSize:15}}>Ver catálogo completo →</Link>
           </div>
         </div>
       </section>
@@ -507,7 +547,7 @@ export default function LandingPage() {
           </div>
           <div className="prod-grid">
             {loadingModelos
-              ? [1,2,3,4,5,6,7,8].map(i=><div key={i} style={{height:190}} className="skel"/>)
+              ? [1,2,3,4,5,6,7,8].map(i=><div key={i} style={{height:230}} className="skel"/>)
               : (modelos.length > 0 ? modelos : [
                   {id:'1',tipo_case:'BLINDAJE', marca:'Samsung',  modelo:'A55 5G',   color:'Negro', foto_url:null},
                   {id:'2',tipo_case:'3 EN 1',   marca:'Apple',    modelo:'iPhone 15',color:'Negro', foto_url:null},
@@ -520,17 +560,14 @@ export default function LandingPage() {
                 ] as Modelo[]).map(m=>(
                 <div key={m.id} className="prod-card" onClick={()=>router.push('/login')}>
                   <div className="prod-img" style={{background:'#f0f4f8', position:'relative'}}>
-                    {m.foto_url
-                      ? <img src={m.foto_url} alt={m.modelo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                      : <span style={{fontSize:36,opacity:.2}}>{SERIE_EMOJI[m.tipo_case]||'📦'}</span>
-                    }
+                    <img src={m.foto_url || CASE_IMG} alt={m.modelo} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                     <LockBadge/>
                   </div>
                   <div className="prod-body">
                     <div className="prod-tipo">{m.tipo_case}</div>
                     <div className="prod-name">{m.marca} {m.modelo}</div>
                     <div className="prod-marca">{m.color}</div>
-                    <div style={{marginTop:8,fontSize:11,color:'var(--blue)',fontWeight:600,display:'flex',alignItems:'center',gap:4}}>
+                    <div style={{marginTop:10,fontSize:12.5,color:'var(--blue)',fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
                       🔒 Ver precio
                     </div>
                   </div>
@@ -542,8 +579,8 @@ export default function LandingPage() {
           {/* CTA login inline */}
           <div style={{marginTop:28,background:'var(--bg)',borderRadius:14,border:'1px solid var(--border)',padding:'20px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
             <div>
-              <div style={{fontWeight:800,fontSize:15,color:'var(--txt)',marginBottom:3}}>¿Quieres ver precios y hacer pedidos?</div>
-              <div style={{fontSize:13,color:'var(--txt3)'}}>Crea tu cuenta de distribuidor gratis — aprobación en minutos</div>
+              <div style={{fontWeight:800,fontSize:17,color:'var(--txt)',marginBottom:4}}>¿Quieres ver precios y hacer pedidos?</div>
+              <div style={{fontSize:14.5,color:'var(--txt3)'}}>Crea tu cuenta de distribuidor gratis — aprobación en minutos</div>
             </div>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
               <Link href="/register" className="btn-primary">Crear cuenta gratis →</Link>
@@ -557,7 +594,7 @@ export default function LandingPage() {
       <section id="como" className="section section-gray">
         <div className="inner">
           <div style={{textAlign:'center',marginBottom:48}}>
-            <div style={{fontSize:11,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--blue2)',marginBottom:8}}>CÓMO FUNCIONA</div>
+            <div style={{fontSize:13,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--blue2)',marginBottom:8}}>CÓMO FUNCIONA</div>
             <div className="section-title">Tres pasos para hacer tu pedido</div>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:20,maxWidth:800,margin:'0 auto'}}>
@@ -575,8 +612,8 @@ export default function LandingPage() {
                   <div style={{fontSize:24}}>{s.ico}</div>
                 </div>
                 <div>
-                  <div style={{fontWeight:900,fontSize:15,color:'var(--txt)',marginBottom:5}}>{s.title}</div>
-                  <div style={{fontSize:13,color:'var(--txt2)',lineHeight:1.6}}>{s.desc}</div>
+                  <div style={{fontWeight:900,fontSize:17,color:'var(--txt)',marginBottom:6}}>{s.title}</div>
+                  <div style={{fontSize:14.5,color:'var(--txt2)',lineHeight:1.6}}>{s.desc}</div>
                 </div>
               </div>
             ))}
@@ -588,7 +625,7 @@ export default function LandingPage() {
       <section id="beneficios" className="section section-white">
         <div className="inner">
           <div style={{textAlign:'center',marginBottom:40}}>
-            <div style={{fontSize:11,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--blue2)',marginBottom:8}}>BENEFICIOS</div>
+            <div style={{fontSize:13,fontWeight:700,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--blue2)',marginBottom:8}}>BENEFICIOS</div>
             <div className="section-title">Todo lo que necesitas para ordenar<br/>sin complicaciones</div>
           </div>
           <div className="feat-grid">
@@ -597,13 +634,13 @@ export default function LandingPage() {
               { icon:'📊', title:'Estado en tiempo real',   desc:'Consulta el estatus de cada pedido. Sabrás exactamente en qué etapa está.' },
               { icon:'🔄', title:'Recompra en 1 clic',      desc:'Repite cualquier pedido anterior directamente desde tu historial.' },
               { icon:'📋', title:'Catálogo actualizado',    desc:'Stock en tiempo real. Sin sorpresas al hacer el pedido.' },
-              { icon:'📱', title:'Mobile-first',            desc:'Desde tu celular, tablet o computadora. Donde estés.' },
+              { icon:'📱', title:'Desde todas partes',            desc:'Desde tu celular, tablet o computadora. Donde estés.' },
               { icon:'🔒', title:'Acceso seguro',           desc:'Tu cuenta y pedidos protegidos. Solo tú ves tu información.' },
             ].map(f=>(
               <div key={f.title} className="feat-card">
-                <div style={{width:44,height:44,borderRadius:12,background:'rgba(21,101,192,.07)',border:'1px solid rgba(21,101,192,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,marginBottom:14}}>{f.icon}</div>
-                <div style={{fontWeight:800,fontSize:14,color:'var(--txt)',marginBottom:6}}>{f.title}</div>
-                <div style={{fontSize:13,color:'var(--txt2)',lineHeight:1.6}}>{f.desc}</div>
+                <div style={{width:50,height:50,borderRadius:13,background:'rgba(21,101,192,.07)',border:'1px solid rgba(21,101,192,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:25,marginBottom:16}}>{f.icon}</div>
+                <div style={{fontWeight:800,fontSize:16.5,color:'var(--txt)',marginBottom:7}}>{f.title}</div>
+                <div style={{fontSize:14.5,color:'var(--txt2)',lineHeight:1.6}}>{f.desc}</div>
               </div>
             ))}
           </div>
@@ -614,22 +651,29 @@ export default function LandingPage() {
       <section className="section section-gray">
         <div className="inner">
           <div className="cta-banner">
-            <div>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:'.08em',color:'var(--blue2)',marginBottom:12,textTransform:'uppercase'}}>EMPIEZA HOY</div>
-              <h2 style={{fontWeight:900,fontSize:'clamp(22px,4vw,36px)',color:'white',lineHeight:1.15,marginBottom:10}}>
+            <div style={{flex:'1 1 320px'}}>
+              <div style={{fontSize:13,fontWeight:700,letterSpacing:'.08em',color:'var(--blue2)',marginBottom:12,textTransform:'uppercase'}}>EMPIEZA HOY</div>
+              <h2 style={{fontWeight:900,fontSize:'clamp(26px,4vw,40px)',color:'white',lineHeight:1.15,marginBottom:12}}>
                 ¿Listo para ordenar<br/>más fácil?
               </h2>
-              <p style={{fontSize:14,color:'rgba(255,255,255,.65)',lineHeight:1.6,maxWidth:380}}>
+              <p style={{fontSize:15.5,color:'rgba(255,255,255,.7)',lineHeight:1.6,maxWidth:400,marginBottom:24}}>
                 Accede al catálogo completo, gestiona tus pedidos y recibe descuentos automáticos por volumen.
               </p>
+              <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                <Link href="/register" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'14px 30px',borderRadius:10,background:'white',color:'var(--blue)',fontSize:15.5,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 20px rgba(0,0,0,.15)',whiteSpace:'nowrap'}}>
+                  Crear cuenta gratuita →
+                </Link>
+                <Link href="/login" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'14px 30px',borderRadius:10,background:'transparent',color:'white',fontSize:15,fontWeight:600,border:'1.5px solid rgba(255,255,255,.35)',textDecoration:'none',whiteSpace:'nowrap'}}>
+                  Ya tengo cuenta
+                </Link>
+              </div>
             </div>
-            <div style={{display:'flex',flexDirection:'column',gap:10,flexShrink:0}}>
-              <Link href="/register" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'13px 28px',borderRadius:100,background:'white',color:'var(--blue)',fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 20px rgba(0,0,0,.15)',whiteSpace:'nowrap'}}>
-                Crear cuenta gratuita →
-              </Link>
-              <Link href="/login" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,padding:'13px 28px',borderRadius:100,background:'transparent',color:'white',fontSize:14,fontWeight:600,border:'1.5px solid rgba(255,255,255,.35)',textDecoration:'none',whiteSpace:'nowrap'}}>
-                Ya tengo cuenta
-              </Link>
+            <div className="cta-img">
+              <img
+                src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=700&q=75"
+                alt="Pedidos y entregas de accesorios"
+              />
+              <div className="cta-img-badge">📦 Pedidos en minutos</div>
             </div>
           </div>
         </div>
@@ -644,8 +688,8 @@ export default function LandingPage() {
               Portal de pedidos mayoristas para distribuidores<br/>de accesorios móviles.
             </p>
             <div style={{display:'flex',gap:10,marginTop:16}}>
-              <Link href="/register" style={{fontSize:12,background:'var(--blue)',color:'white',padding:'7px 16px',borderRadius:100,textDecoration:'none',fontWeight:700}}>Crear cuenta</Link>
-              <Link href="/login"    style={{fontSize:12,color:'rgba(255,255,255,.5)',padding:'7px 16px',border:'1px solid rgba(255,255,255,.15)',borderRadius:100,textDecoration:'none'}}>Ingresar</Link>
+              <Link href="/register" style={{fontSize:12,background:'var(--blue)',color:'white',padding:'7px 16px',borderRadius:9,textDecoration:'none',fontWeight:700}}>Crear cuenta</Link>
+              <Link href="/login"    style={{fontSize:12,color:'rgba(255,255,255,.5)',padding:'7px 16px',border:'1px solid rgba(255,255,255,.15)',borderRadius:9,textDecoration:'none'}}>Ingresar</Link>
             </div>
           </div>
           <div>
