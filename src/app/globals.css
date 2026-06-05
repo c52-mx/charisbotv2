@@ -5,6 +5,37 @@
 :root {
   --font-display: 'Syne', system-ui, sans-serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
+
+  /* ── Paleta / tokens de marca (fuente única para todas las páginas) ── */
+  --blue:        #1565c0;
+  --blue-bright: #1a7fe3; /* azul de acento (header, búsqueda, badges) */
+  --blue2:       #4baef0;
+  --navy:        #0d2137;
+  --navy-deep:   #07111f; /* navy más oscuro (barras, footer) */
+  --bg:     #f0f4f8;
+  --bg2:    #ffffff;
+  --border: #e2eaf4;
+  --txt:    #0d2137;
+  --txt2:   #3a6080;
+  --txt3:   #8aaac4;
+
+  --blue-hover: #1976d2; /* hover de botones azules */
+
+  /* WhatsApp */
+  --wa:      #25d366;
+  --wa-dark: #075e54;
+
+  /* Campos de formulario */
+  --field-bg:     #f5f8fc;
+  --field-border: #d0dde8;
+
+  /* Estados */
+  --ok:  #22c55e;
+  --err: #ef4444;
+  --ok-bg:      #f0fdf4;
+  --err-bg:     #fef2f2;
+  --err-text:   #dc2626;
+  --err-border: #fecaca;
 }
 
 * {
@@ -37,4 +68,156 @@ body {
 :focus-visible {
   outline: 2px solid #1a7fd4;
   outline-offset: 2px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   COMPONENTES BASE (design system) — usar en todo el sitio.
+   Botones, inputs y labels canónicos, manejados por tokens.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── Botones ── */
+.btn-primary,
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 24px; border-radius: 10px;
+  font-size: 15px; font-family: inherit; cursor: pointer;
+  text-decoration: none; transition: all .2s; border: none;
+}
+.btn-primary {
+  background: var(--blue); color: #fff; font-weight: 700;
+  box-shadow: 0 3px 14px rgba(21,101,192,.3);
+}
+.btn-primary:hover:not(:disabled) { background: var(--blue-hover); transform: translateY(-1px); box-shadow: 0 6px 22px rgba(21,101,192,.38); }
+.btn-ghost {
+  background: transparent; color: var(--blue); font-weight: 600;
+  border: 1.5px solid var(--blue2);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+.btn-sm {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 9px 18px; border-radius: 9px; font-size: 14px; font-weight: 700;
+  background: var(--blue); color: #fff; border: none; cursor: pointer;
+  text-decoration: none; transition: all .18s; font-family: inherit;
+}
+.btn-sm:hover:not(:disabled) { background: var(--blue-hover); }
+.btn-sm-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 9px 18px; border-radius: 9px; font-size: 14px; font-weight: 600;
+  background: transparent; color: var(--blue); border: 1.5px solid var(--border);
+  cursor: pointer; text-decoration: none; transition: all .18s; font-family: inherit;
+}
+.btn-sm-ghost:hover:not(:disabled) { border-color: var(--blue); }
+
+/* Modificador: botón a ancho completo (formularios) */
+.btn-block { width: 100%; padding: 13px; box-shadow: 0 4px 20px rgba(21,101,192,.3); }
+
+.btn-primary:disabled, .btn-sm:disabled, .btn-block:disabled {
+  opacity: .6; cursor: not-allowed; transform: none; box-shadow: none;
+}
+
+/* ── Inputs / campos ── */
+.input {
+  width: 100%; padding: 11px 14px;
+  background: var(--field-bg); border: 1.5px solid var(--field-border);
+  border-radius: 10px; color: var(--txt); font-size: 15px;
+  font-family: inherit; outline: none; transition: all .18s;
+}
+.input:focus { border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px rgba(21,101,192,.1); }
+.input::placeholder { color: var(--txt3); }
+.input:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Label de formulario ── */
+.field-label {
+  display: block; font-size: 12.5px; font-weight: 700; color: var(--txt2);
+  margin-bottom: 6px; letter-spacing: .05em;
+}
+.field-label span { color: var(--txt3); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* ── Botón "volver" (paneles oscuros de login/registro) ── */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 10px;
+  background: rgba(255,255,255,0.15); color: #fff;
+  font-size: 14px; font-weight: 600; text-decoration: none;
+  border: 1.5px solid rgba(255,255,255,0.35); transition: all .2s; font-family: inherit;
+}
+.back-btn:hover { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.6); transform: translateY(-1px); }
+
+/* ── Sistema de secciones (layout de marketing/landing, reutilizable) ── */
+.section { padding: 60px 5%; }
+.section-white { background: #fff; }
+.section-gray  { background: var(--bg); }
+.section-navy  { background: var(--navy); }
+.section-hdr { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 10px; }
+.section-title { font-weight: 900; font-size: clamp(23px,3vw,30px); color: var(--txt); letter-spacing: -.01em; }
+.section-sub { font-size: 14.5px; color: var(--txt3); margin-top: 5px; }
+.see-all { font-size: 14.5px; font-weight: 700; color: var(--blue); text-decoration: none; white-space: nowrap; }
+.see-all:hover { text-decoration: underline; }
+.inner { max-width: 1200px; margin: 0 auto; }
+
+/* ── Etiqueta/intro de sección (badge + título centrado) ── */
+.cat-label { display: inline-flex; align-items: center; gap: 7px; padding: 7px 18px; border-radius: 100px; background: rgba(21,101,192,.1); border: 1px solid rgba(21,101,192,.2); font-size: 13px; font-weight: 800; color: var(--blue); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; box-shadow: 0 2px 10px rgba(21,101,192,.1); }
+.cat-intro { margin-bottom: 40px; text-align: center; }
+.cat-intro-txt { max-width: 560px; margin: 0 auto; }
+
+/* ── Tarjeta de categoría (serie-card) ── */
+.serie-card {
+  border-radius: 16px; overflow: hidden; text-decoration: none; display: block;
+  border: 1.5px solid var(--border); background: #fff;
+  transition: transform .25s, box-shadow .25s, border-color .22s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
+}
+.serie-card:hover { transform: translateY(-6px); box-shadow: 0 20px 48px rgba(21,101,192,.15); border-color: var(--blue2); }
+.serie-thumb { height: 190px; position: relative; overflow: hidden; background: var(--border); }
+.serie-thumb-img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+.serie-card:hover .serie-thumb-img { transform: scale(1.08); }
+.serie-thumb-new { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--blue) 0%, var(--blue2) 100%); }
+.serie-thumb-grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 55%); }
+.serie-badge { position: absolute; top: 12px; right: 12px; padding: 4px 12px; border-radius: 100px; background: rgba(0,0,0,.4); backdrop-filter: blur(8px); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.serie-badge-new { background: #fff; color: var(--blue); }
+.serie-thumb-title { position: absolute; bottom: 14px; left: 16px; font-weight: 900; font-size: 18px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.serie-card-new { border-color: var(--blue2); }
+
+/* ── Franja B2B (tira oscura con íconos glass) ── */
+.biz-strip { background: linear-gradient(135deg, var(--navy) 0%, #1a3d6b 60%, var(--navy) 100%); }
+.biz-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 0; }
+.biz-prop { padding: 36px 24px; border-right: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; transition: background .2s; }
+.biz-prop:last-child { border-right: none; }
+.biz-prop:hover { background: rgba(75,174,240,.08); }
+.biz-ico { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 20px rgba(0,0,0,.18); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.biz-t1 { font-size: 16.5px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.biz-t2 { font-size: 13.5px; color: rgba(255,255,255,.62); line-height: 1.55; max-width: 230px; }
+@media (max-width: 900px) {
+  .biz-grid { grid-template-columns: 1fr 1fr; }
+  .biz-prop:nth-child(2) { border-right: none; }
+  .biz-prop { border-bottom: 1px solid rgba(255,255,255,.08); }
+  .biz-prop:nth-child(3), .biz-prop:nth-child(4) { border-bottom: none; }
+}
+@media (max-width: 600px) {
+  .biz-grid { grid-template-columns: 1fr; }
+  .biz-prop { border-right: none; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .biz-prop:last-child { border-bottom: none; }
+  .biz-t2 { max-width: none; }
+}
+
+/* ── Carrusel hero (reutilizable: landing y portal) ── */
+.hero-car { position: relative; overflow: hidden; height: clamp(420px, 55vw, 580px); }
+.hero-track { display: flex; height: 100%; transition: transform .55s cubic-bezier(.4,0,.2,1); }
+.hero-slide { min-width: 100%; height: 100%; position: relative; }
+.hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(13,33,55,.82) 0%, rgba(13,33,55,.4) 60%, transparent 100%); }
+.hero-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 0 7%; }
+.hero-tag { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 100px; background: rgba(75,174,240,.2); border: 1px solid rgba(75,174,240,.4); font-size: 11px; font-weight: 700; color: var(--blue2); margin-bottom: 18px; letter-spacing: .06em; width: fit-content; }
+.hero-h { font-weight: 900; font-size: clamp(28px,5vw,52px); line-height: 1.1; color: #fff; margin-bottom: 14px; max-width: 560px; }
+.hero-h em { color: var(--blue2); font-style: normal; }
+.hero-p { font-size: clamp(14px,2vw,16px); color: rgba(255,255,255,.75); line-height: 1.65; max-width: 440px; margin-bottom: 28px; }
+.hero-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.hero-dot { width: 8px; height: 8px; border-radius: 50%; cursor: pointer; transition: all .22s; background: rgba(255,255,255,.35); border: none; padding: 0; }
+.hero-dot.act { background: #fff; width: 22px; border-radius: 4px; }
+.hero-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #fff; transition: background .15s; z-index: 3; }
+.hero-arrow:hover { background: rgba(255,255,255,.24); }
+@media (max-width: 600px) {
+  .hero-content { padding: 0 5%; }
+  .hero-arrow { display: none; }
 }

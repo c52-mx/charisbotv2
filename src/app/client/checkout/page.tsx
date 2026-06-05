@@ -17,33 +17,33 @@ const CSS = `
     font-family:inherit; cursor:pointer; transition:all .18s;
     display:flex; align-items:center; gap:8px;
   }
-  .step-primary { background:#1565c0; color:white; border:none; box-shadow:0 4px 16px rgba(21,101,192,0.25); }
+  .step-primary { background:var(--blue); color:white; border:none; box-shadow:0 4px 16px rgba(21,101,192,0.25); }
   .step-primary:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
   .step-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
-  .step-ghost { background:white; color:#3a6080; border:1.5px solid #d0dde8; }
-  .step-ghost:hover { border-color:#1565c0; color:#1565c0; }
+  .step-ghost { background:white; color:var(--txt2); border:1.5px solid var(--field-border); }
+  .step-ghost:hover { border-color:var(--blue); color:var(--blue); }
 
   .input-field {
-    width:100%; padding:10px 14px; background:#f5f8fc;
-    border:1.5px solid #d0dde8; border-radius:9px;
-    color:#0d2137; font-size:14px; font-family:inherit;
+    width:100%; padding:10px 14px; background:var(--field-bg);
+    border:1.5px solid var(--field-border); border-radius:9px;
+    color:var(--txt); font-size:14px; font-family:inherit;
     outline:none; transition:all .18s; box-sizing:border-box;
   }
-  .input-field:focus { border-color:#1565c0; background:white; box-shadow:0 0 0 3px rgba(21,101,192,0.1); }
-  .input-field::placeholder { color:#8aaac4; }
+  .input-field:focus { border-color:var(--blue); background:white; box-shadow:0 0 0 3px rgba(21,101,192,0.1); }
+  .input-field::placeholder { color:var(--txt3); }
 
-  .field-label { font-size:11px; font-weight:700; color:#3a6080; letter-spacing:.06em; margin-bottom:5px; display:block; }
+  .field-label { font-size:11px; font-weight:700; color:var(--txt2); letter-spacing:.06em; margin-bottom:5px; display:block; }
 
-  .section-card { background:white; border-radius:14px; border:1px solid #e2eaf4; padding:20px; margin-bottom:16px; }
-  .section-title { font-family:Arial Black,sans-serif; font-weight:900; font-size:15px; color:#0d2137; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+  .section-card { background:white; border-radius:14px; border:1px solid var(--border); padding:20px; margin-bottom:16px; }
+  .section-title { font-family:Arial Black,sans-serif; font-weight:900; font-size:15px; color:var(--txt); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
 
   .payment-option {
     display:flex; align-items:flex-start; gap:12px; padding:14px 16px;
-    border:2px solid #e2eaf4; border-radius:10px; cursor:pointer;
+    border:2px solid var(--border); border-radius:10px; cursor:pointer;
     transition:all .18s; margin-bottom:8px;
   }
-  .payment-option:hover { border-color:#4baef0; }
-  .payment-option.selected { border-color:#1565c0; background:#f0f6ff; }
+  .payment-option:hover { border-color:var(--blue2); }
+  .payment-option.selected { border-color:var(--blue); background:#f0f6ff; }
 
   .status-badge {
     display:inline-flex; align-items:center; gap:5px;
@@ -120,23 +120,23 @@ export default function CheckoutPage() {
     <div style={{ maxWidth:560, margin:'40px auto', textAlign:'center', animation:'fadeUp .4s ease-out' }}>
       <style>{CSS}</style>
       <div style={{ fontSize:56, marginBottom:16 }}>🎉</div>
-      <h1 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:24, color:'#0d2137', marginBottom:8 }}>
+      <h1 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:24, color:'var(--txt)', marginBottom:8 }}>
         ¡Pedido recibido!
       </h1>
-      <p style={{ fontSize:14, color:'#3a6080', marginBottom:24, lineHeight:1.6 }}>
+      <p style={{ fontSize:14, color:'var(--txt2)', marginBottom:24, lineHeight:1.6 }}>
         Tu pedido fue registrado correctamente. Te notificaremos cuando sea confirmado.
       </p>
       <div style={{ background:'#f0f6ff', borderRadius:12, padding:'16px 20px', marginBottom:24, border:'1.5px solid #d0e4f7' }}>
-        <p style={{ fontSize:12, color:'#8aaac4', marginBottom:4 }}>NÚMERO DE PEDIDO</p>
-        <p style={{ fontFamily:'monospace', fontWeight:700, fontSize:16, color:'#1565c0' }}>
+        <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:4 }}>NÚMERO DE PEDIDO</p>
+        <p style={{ fontFamily:'monospace', fontWeight:700, fontSize:16, color:'var(--blue)' }}>
           #{orderId.slice(0,8).toUpperCase()}
         </p>
       </div>
       <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-        <Link href="/client/orders" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'#1565c0', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
+        <Link href="/client/orders" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
           Ver mis pedidos →
         </Link>
-        <Link href="/client" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'white', color:'#3a6080', fontSize:14, fontWeight:600, textDecoration:'none', border:'1.5px solid #e2eaf4' }}>
+        <Link href="/client" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'white', color:'var(--txt2)', fontSize:14, fontWeight:600, textDecoration:'none', border:'1.5px solid var(--border)' }}>
           Volver al inicio
         </Link>
       </div>
@@ -152,12 +152,12 @@ export default function CheckoutPage() {
         {STEPS.map((s, i) => (
           <div key={s} style={{ display:'flex', alignItems:'center', flex: i < STEPS.length-1 ? 1 : 'none' }}>
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-              <div style={{ width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, background: i < step ? '#22c55e' : i === step ? '#1565c0' : '#e2eaf4', color: i <= step ? 'white' : '#8aaac4', transition:'all .3s' }}>
+              <div style={{ width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, background: i < step ? 'var(--ok)' : i === step ? 'var(--blue)' : 'var(--border)', color: i <= step ? 'white' : 'var(--txt3)', transition:'all .3s' }}>
                 {i < step ? '✓' : i + 1}
               </div>
-              <span style={{ fontSize:10, fontWeight:600, color: i === step ? '#1565c0' : '#8aaac4', whiteSpace:'nowrap' }}>{s}</span>
+              <span style={{ fontSize:10, fontWeight:600, color: i === step ? 'var(--blue)' : 'var(--txt3)', whiteSpace:'nowrap' }}>{s}</span>
             </div>
-            {i < STEPS.length-1 && <div style={{ flex:1, height:2, background: i < step ? '#22c55e' : '#e2eaf4', margin:'0 6px', marginBottom:16, transition:'background .3s' }}/>}
+            {i < STEPS.length-1 && <div style={{ flex:1, height:2, background: i < step ? 'var(--ok)' : 'var(--border)', margin:'0 6px', marginBottom:16, transition:'background .3s' }}/>}
           </div>
         ))}
       </div>
@@ -167,7 +167,7 @@ export default function CheckoutPage() {
         {/* Main content */}
         <div>
           {error && (
-            <div style={{ padding:'10px 14px', borderRadius:10, background:'#fef2f2', color:'#dc2626', border:'1px solid #fecaca', fontSize:13, marginBottom:16 }}>⚠ {error}</div>
+            <div style={{ padding:'10px 14px', borderRadius:10, background:'var(--err-bg)', color:'var(--err-text)', border:'1px solid var(--err-border)', fontSize:13, marginBottom:16 }}>⚠ {error}</div>
           )}
 
           {/* STEP 0: Resumen */}
@@ -181,17 +181,17 @@ export default function CheckoutPage() {
               )}
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {cart.map((item, i) => (
-                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:'#f5f8fc', borderRadius:9, fontSize:13 }}>
+                  <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:'var(--field-bg)', borderRadius:9, fontSize:13 }}>
                     <div>
-                      <span style={{ fontWeight:700, color:'#0d2137' }}>{item.modelo}</span>
-                      <span style={{ color:'#8aaac4', marginLeft:8 }}>{item.tipo_case} · {item.color}</span>
+                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.modelo}</span>
+                      <span style={{ color:'var(--txt3)', marginLeft:8 }}>{item.tipo_case} · {item.color}</span>
                     </div>
-                    <span style={{ fontWeight:700, color:'#1565c0' }}>{item.cantidad} pzas</span>
+                    <span style={{ fontWeight:700, color:'var(--blue)' }}>{item.cantidad} pzas</span>
                   </div>
                 ))}
               </div>
               {config.politica_cancelacion && (
-                <div style={{ marginTop:14, padding:'10px 14px', borderRadius:9, background:'#f5f8fc', fontSize:12, color:'#8aaac4', lineHeight:1.6 }}>
+                <div style={{ marginTop:14, padding:'10px 14px', borderRadius:9, background:'var(--field-bg)', fontSize:12, color:'var(--txt3)', lineHeight:1.6 }}>
                   ℹ️ {config.politica_cancelacion}
                 </div>
               )}
@@ -238,7 +238,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="field-label">REFERENCIAS <span style={{ color:'#8aaac4', fontWeight:400, textTransform:'none' }}>(opcional)</span></label>
+                  <label className="field-label">REFERENCIAS <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional)</span></label>
                   <textarea className="input-field" placeholder="Entre calles, color de fachada, etc." value={entrega.referencias} onChange={setE('referencias')} rows={2} style={{ resize:'vertical' }}/>
                 </div>
               </div>
@@ -252,19 +252,19 @@ export default function CheckoutPage() {
 
               <div className={`payment-option${pago.metodo==='transferencia'?' selected':''}`}
                    onClick={() => setPago(p => ({...p, metodo:'transferencia'}))}>
-                <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${pago.metodo==='transferencia'?'#1565c0':'#d0dde8'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
-                  {pago.metodo==='transferencia' && <div style={{ width:10, height:10, borderRadius:'50%', background:'#1565c0' }}/>}
+                <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${pago.metodo==='transferencia'?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                  {pago.metodo==='transferencia' && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
                 </div>
                 <div>
-                  <p style={{ fontWeight:700, fontSize:14, color:'#0d2137', marginBottom:3 }}>🏦 Transferencia bancaria</p>
-                  <p style={{ fontSize:12, color:'#8aaac4' }}>Realiza la transferencia y sube tu comprobante</p>
+                  <p style={{ fontWeight:700, fontSize:14, color:'var(--txt)', marginBottom:3 }}>🏦 Transferencia bancaria</p>
+                  <p style={{ fontSize:12, color:'var(--txt3)' }}>Realiza la transferencia y sube tu comprobante</p>
                 </div>
               </div>
 
               {pago.metodo === 'transferencia' && config.datos_transferencia && (
                 <div style={{ background:'#f0f6ff', borderRadius:10, padding:'14px 16px', margin:'12px 0', border:'1px solid #d0e4f7' }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:'#1565c0', letterSpacing:'.06em', marginBottom:8 }}>DATOS BANCARIOS</p>
-                  <pre style={{ fontSize:13, color:'#0d2137', fontFamily:'monospace', margin:0, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>DATOS BANCARIOS</p>
+                  <pre style={{ fontSize:13, color:'var(--txt)', fontFamily:'monospace', margin:0, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
                     {config.datos_transferencia}
                   </pre>
                 </div>
@@ -276,9 +276,9 @@ export default function CheckoutPage() {
               </div>
 
               <div style={{ marginTop:12 }}>
-                <label className="field-label">URL DEL COMPROBANTE <span style={{ color:'#8aaac4', fontWeight:400, textTransform:'none' }}>(opcional — puedes enviarlo después)</span></label>
+                <label className="field-label">URL DEL COMPROBANTE <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional — puedes enviarlo después)</span></label>
                 <input className="input-field" placeholder="https://... o deja vacío para enviar después" value={pago.comprobante} onChange={e => setPago(p => ({...p, comprobante: e.target.value}))}/>
-                <p style={{ fontSize:11, color:'#8aaac4', marginTop:4 }}>
+                <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
                   También puedes enviar el comprobante por WhatsApp al {config.whatsapp_soporte || 'nuestro número de soporte'}.
                 </p>
               </div>
@@ -290,19 +290,19 @@ export default function CheckoutPage() {
             <div className="section-card">
               <p className="section-title">✅ Confirmar pedido</p>
               <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-                <div style={{ padding:'12px 14px', background:'#f5f8fc', borderRadius:9 }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:'#8aaac4', letterSpacing:'.06em', marginBottom:4 }}>ENTREGA</p>
-                  <p style={{ fontSize:13, color:'#0d2137' }}>{entrega.nombre} · {entrega.telefono}</p>
-                  <p style={{ fontSize:12, color:'#3a6080' }}>{entrega.calle}, {entrega.colonia}, {entrega.ciudad} {entrega.cp}</p>
+                <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>ENTREGA</p>
+                  <p style={{ fontSize:13, color:'var(--txt)' }}>{entrega.nombre} · {entrega.telefono}</p>
+                  <p style={{ fontSize:12, color:'var(--txt2)' }}>{entrega.calle}, {entrega.colonia}, {entrega.ciudad} {entrega.cp}</p>
                 </div>
-                <div style={{ padding:'12px 14px', background:'#f5f8fc', borderRadius:9 }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:'#8aaac4', letterSpacing:'.06em', marginBottom:4 }}>PAGO</p>
-                  <p style={{ fontSize:13, color:'#0d2137' }}>Transferencia bancaria</p>
-                  {pago.referencia && <p style={{ fontSize:12, color:'#3a6080' }}>Ref: {pago.referencia}</p>}
+                <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>PAGO</p>
+                  <p style={{ fontSize:13, color:'var(--txt)' }}>Transferencia bancaria</p>
+                  {pago.referencia && <p style={{ fontSize:12, color:'var(--txt2)' }}>Ref: {pago.referencia}</p>}
                 </div>
-                <div style={{ padding:'12px 14px', background:'#f5f8fc', borderRadius:9 }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:'#8aaac4', letterSpacing:'.06em', marginBottom:4 }}>PEDIDO</p>
-                  <p style={{ fontSize:13, color:'#0d2137' }}>{cart.length} artículos · {totalPiezas} piezas totales</p>
+                <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>PEDIDO</p>
+                  <p style={{ fontSize:13, color:'var(--txt)' }}>{cart.length} artículos · {totalPiezas} piezas totales</p>
                 </div>
               </div>
             </div>
@@ -332,22 +332,22 @@ export default function CheckoutPage() {
         </div>
 
         {/* Order summary sidebar */}
-        <div style={{ background:'white', borderRadius:14, border:'1px solid #e2eaf4', padding:20, position:'sticky', top:80 }}>
-          <h3 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:15, color:'#0d2137', marginBottom:14 }}>
+        <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', padding:20, position:'sticky', top:80 }}>
+          <h3 style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:15, color:'var(--txt)', marginBottom:14 }}>
             Tu pedido
           </h3>
           <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:14, maxHeight:200, overflowY:'auto' }}>
             {cart.map((item, i) => (
-              <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#3a6080' }}>
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--txt2)' }}>
                 <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{item.modelo} · {item.color}</span>
                 <span style={{ fontWeight:700, flexShrink:0, marginLeft:6 }}>{item.cantidad} pzas</span>
               </div>
             ))}
           </div>
-          <div style={{ borderTop:'1px solid #f0f4f8', paddingTop:12 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#0d2137', fontWeight:700 }}>
+          <div style={{ borderTop:'1px solid var(--bg)', paddingTop:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt)', fontWeight:700 }}>
               <span>Total piezas</span>
-              <span style={{ color:'#1565c0', fontSize:16 }}>{totalPiezas}</span>
+              <span style={{ color:'var(--blue)', fontSize:16 }}>{totalPiezas}</span>
             </div>
           </div>
         </div>

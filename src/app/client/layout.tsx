@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { CharisLogotipo } from '@/components/CharisLogo'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 
 const NAV = [
   { href: '/client',          label: 'Inicio',      icon: '🏠', exact: true  },
@@ -17,31 +18,37 @@ const CSS = `
 
   /* ── TOPBAR ── */
   .c-topbar {
-    background: #07111f;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    padding: 0 5%;
-    gap: 20px;
+    background: var(--navy-deep);
+    height: 40px;
     border-bottom: 1px solid rgba(255,255,255,.06);
   }
-  .c-topbar-item {
-    color: rgba(255,255,255,.7);
-    font-size: 12px;
+  .c-topbar-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 5%;
+    height: 100%;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 20px;
+  }
+  .c-topbar-item {
+    color: rgba(255,255,255,.75);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
     white-space: nowrap;
   }
   .c-topbar-sep { color: rgba(255,255,255,.18); }
   .c-topbar-badge {
-    background: #1a7fe3;
+    background: var(--blue-bright);
     color: white;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    padding: 1px 9px;
+    padding: 2px 12px;
     border-radius: 10px;
     margin-left: auto;
+    letter-spacing: .02em;
   }
 
   /* ── MAIN HEADER ── */
@@ -49,45 +56,52 @@ const CSS = `
     background: rgba(13,30,53,0.97);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    border-bottom: 2px solid #1a7fe3;
-    height: 60px;
-    padding: 0 5%;
-    display: flex;
-    align-items: center;
-    gap: 18px;
+    border-bottom: 2px solid var(--blue-bright);
+    height: 68px;
     position: sticky;
     top: 0;
     z-index: 50;
+  }
+  .c-header-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 5%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 20px;
   }
 
   /* ── SEARCH ── */
   .c-search {
     flex: 1;
-    max-width: 480px;
+    max-width: 520px;
     display: flex;
-    height: 36px;
-    border-radius: 6px;
+    align-items: stretch;
+    height: 42px;
+    border-radius: 9px;
     overflow: hidden;
-    border: 2px solid #1a7fe3;
+    border: 2px solid var(--blue-bright);
   }
   .c-search-input {
     flex: 1;
     border: none;
-    padding: 0 12px;
-    font-size: 12px;
+    padding: 0 14px;
+    font-size: 14px;
     outline: none;
     background: white;
-    color: #07111f;
+    color: var(--navy-deep);
     font-family: 'DM Sans', system-ui, sans-serif;
     min-width: 0;
+    line-height: 1;
   }
   .c-search-input::placeholder { color: #b0bac8; }
   .c-search-btn {
-    background: #1a7fe3;
+    background: var(--blue-bright);
     border: none;
-    padding: 0 16px;
+    padding: 0 18px;
     color: white;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
@@ -95,24 +109,31 @@ const CSS = `
     transition: background .15s;
     display: flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
+    gap: 6px;
   }
-  .c-search-btn:hover { background: #1569c4; }
+  .c-search-btn:hover { background: var(--blue-hover); }
 
   /* ── NAV LINKS (desktop) ── */
   .c-nav {
-    background: #07111f;
+    background: var(--navy-deep);
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    overflow-x: auto;
+    min-height: 44px;
+  }
+  .c-nav::-webkit-scrollbar { display: none; }
+  .c-nav-inner {
+    max-width: 1240px;
+    margin: 0 auto;
     padding: 0 5%;
     display: flex;
     align-items: stretch;
-    border-bottom: 1px solid rgba(255,255,255,.07);
-    overflow-x: auto;
+    min-height: 44px;
   }
-  .c-nav::-webkit-scrollbar { display: none; }
   .c-navlink {
-    padding: 10px 14px;
+    padding: 0 16px;
     color: rgba(255,255,255,.65);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
@@ -120,20 +141,20 @@ const CSS = `
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     transition: color .15s;
     font-family: 'DM Sans', system-ui, sans-serif;
   }
   .c-navlink:hover { color: white; }
-  .c-navlink.act   { color: #4baef0; border-bottom-color: #4baef0; font-weight: 600; }
+  .c-navlink.act   { color: var(--blue2); border-bottom-color: var(--blue2); font-weight: 700; }
   .c-nav-mayoreo {
     margin-left: auto;
     display: flex;
     align-items: center;
-    padding-left: 16px;
+    padding-left: 18px;
     border-left: 1px solid rgba(255,255,255,.08);
-    color: #4baef0;
-    font-size: 11px;
+    color: var(--blue2);
+    font-size: 13px;
     font-weight: 700;
     gap: 5px;
     white-space: nowrap;
@@ -146,31 +167,31 @@ const CSS = `
     gap: 5px;
     color: white;
     cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 11px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13px;
     text-decoration: none;
     transition: background .15s;
     font-family: 'DM Sans', system-ui, sans-serif;
   }
   .c-hact:hover { background: rgba(255,255,255,.08); }
-  .c-hact-lbl small { display: block; font-size: 9px; color: rgba(255,255,255,.45); line-height: 1; }
-  .c-hact-lbl span  { display: block; font-size: 11px; font-weight: 600; line-height: 1.3; }
-  .c-hact-icon { font-size: 18px; }
-  .c-divider { width: 1px; height: 28px; background: rgba(255,255,255,.1); }
+  .c-hact-lbl small { display: block; font-size: 11px; color: rgba(255,255,255,.45); line-height: 1; }
+  .c-hact-lbl span  { display: block; font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .c-hact-icon { font-size: 20px; }
+  .c-divider { width: 1px; height: 30px; background: rgba(255,255,255,.1); }
 
   /* ── CART BUTTON ── */
   .c-cart-wrap { position: relative; }
   .c-cart-badge {
     position: absolute;
     top: -2px;
-    right: 5px;
-    background: #4baef0;
-    color: #07111f;
+    right: 4px;
+    background: var(--blue2);
+    color: var(--navy-deep);
     border-radius: 50%;
-    width: 15px;
-    height: 15px;
-    font-size: 9px;
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -181,12 +202,12 @@ const CSS = `
   .c-user-chip {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px 10px 5px 5px;
+    gap: 8px;
+    padding: 5px 12px 5px 5px;
     border-radius: 100px;
     background: rgba(255,255,255,.08);
     border: 1px solid rgba(255,255,255,.12);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: white;
     cursor: pointer;
@@ -195,14 +216,14 @@ const CSS = `
   }
   .c-user-chip:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22); }
   .c-avatar {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #1565c0, #4baef0);
+    background: linear-gradient(135deg, var(--blue), var(--blue2));
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 900;
     color: white;
     flex-shrink: 0;
@@ -214,7 +235,7 @@ const CSS = `
     top: calc(100% + 8px);
     right: 0;
     background: white;
-    border: 1.5px solid #e2eaf4;
+    border: 1.5px solid var(--border);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,.12);
     min-width: 200px;
@@ -227,9 +248,9 @@ const CSS = `
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
-    font-size: 13px;
-    color: #0d2137;
+    padding: 11px 16px;
+    font-size: 14px;
+    color: var(--txt);
     text-decoration: none;
     transition: background .12s;
     cursor: pointer;
@@ -239,8 +260,8 @@ const CSS = `
     text-align: left;
     font-family: 'DM Sans', system-ui, sans-serif;
   }
-  .c-dd-item:hover { background: #f0f4f8; }
-  .c-dd-sep { height: 1px; background: #e2eaf4; }
+  .c-dd-item:hover { background: var(--bg); }
+  .c-dd-sep { height: 1px; background: var(--border); }
 
   /* ── CART DRAWER ── */
   @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
@@ -270,7 +291,7 @@ const CSS = `
     align-items: flex-start;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid #f0f4f8;
+    border-bottom: 1px solid var(--bg);
     transition: background .12s;
   }
   .c-drawer-item:hover { background: #fafcff; }
@@ -278,11 +299,11 @@ const CSS = `
   .c-qty-btn {
     width: 26px;
     height: 26px;
-    border: 1px solid #d0dde8;
-    background: #f5f8fc;
+    border: 1px solid var(--field-border);
+    background: var(--field-bg);
     cursor: pointer;
     font-size: 14px;
-    color: #0d2137;
+    color: var(--txt);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -291,11 +312,11 @@ const CSS = `
   }
   .c-qty-btn:first-child { border-radius: 5px 0 0 5px; }
   .c-qty-btn:last-child  { border-radius: 0 5px 5px 0; }
-  .c-qty-btn:hover { background: #e2eaf4; }
+  .c-qty-btn:hover { background: var(--border); }
   .c-qty-val {
     width: 36px;
     height: 26px;
-    border: 1px solid #d0dde8;
+    border: 1px solid var(--field-border);
     border-left: none;
     border-right: none;
     display: flex;
@@ -303,7 +324,7 @@ const CSS = `
     justify-content: center;
     font-size: 12px;
     font-weight: 700;
-    color: #0d2137;
+    color: var(--txt);
   }
 
   /* ── MOBILE BOTTOM NAV ── */
@@ -313,14 +334,17 @@ const CSS = `
     bottom: 0;
     left: 0;
     right: 0;
-    background: #07111f;
+    background: var(--navy-deep);
     border-top: 1px solid rgba(255,255,255,.08);
     z-index: 50;
     padding: 8px 0 max(10px, env(safe-area-inset-bottom));
   }
   .c-bottom-nav-inner {
+    max-width: 480px;
+    margin: 0 auto;
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
+    gap: 4px;
   }
   .c-bni {
     display: flex;
@@ -330,24 +354,25 @@ const CSS = `
     color: rgba(255,255,255,.4);
     cursor: pointer;
     text-decoration: none;
-    min-width: 50px;
+    flex: 1;
+    max-width: 80px;
     font-family: 'DM Sans', system-ui, sans-serif;
     position: relative;
     transition: color .15s;
   }
-  .c-bni.act { color: #4baef0; }
-  .c-bni-icon { font-size: 20px; }
-  .c-bni-label { font-size: 9px; }
+  .c-bni.act { color: var(--blue2); }
+  .c-bni-icon { font-size: 22px; }
+  .c-bni-label { font-size: 11px; }
   .c-bni-badge {
     position: absolute;
     top: -2px;
     right: 6px;
-    background: #1a7fe3;
+    background: var(--blue-bright);
     color: white;
     border-radius: 50%;
-    width: 13px;
-    height: 13px;
-    font-size: 8px;
+    width: 15px;
+    height: 15px;
+    font-size: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -363,7 +388,7 @@ const CSS = `
   }
   @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   .c-footer {
-    background: #07111f;
+    background: var(--navy-deep);
     border-top: 1px solid rgba(255,255,255,.07);
     padding: 28px 5%;
     margin-top: 48px;
@@ -378,22 +403,22 @@ const CSS = `
     gap: 24px;
   }
   .c-footer-col-title {
-    font-size: 10px;
+    font-size: 11.5px;
     font-weight: 700;
     color: rgba(255,255,255,.4);
     letter-spacing: .08em;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
   .c-footer-link {
     display: block;
-    font-size: 12px;
+    font-size: 14px;
     color: rgba(255,255,255,.45);
     text-decoration: none;
-    margin-bottom: 5px;
+    margin-bottom: 7px;
     transition: color .14s;
   }
-  .c-footer-link:hover { color: #4baef0; }
+  .c-footer-link:hover { color: var(--blue2); }
   .c-footer-copy {
     max-width: 1240px;
     margin: 16px auto 0;
@@ -404,7 +429,7 @@ const CSS = `
     text-align: center;
   }
   .c-wa-strip {
-    background: #075e54;
+    background: var(--wa-dark);
     padding: 12px 5%;
     display: flex;
     align-items: center;
@@ -414,7 +439,7 @@ const CSS = `
   .c-wa-strip-btn {
     margin-left: auto;
     background: white;
-    color: #075e54;
+    color: var(--wa-dark);
     border: none;
     padding: 7px 18px;
     border-radius: 6px;
@@ -426,7 +451,7 @@ const CSS = `
     transition: background .14s;
     flex-shrink: 0;
   }
-  .c-wa-strip-btn:hover { background: #f0fdf4; }
+  .c-wa-strip-btn:hover { background: var(--ok-bg); }
 
   @media (max-width: 768px) {
     .c-topbar        { display: none; }
@@ -438,7 +463,8 @@ const CSS = `
     .c-main          { padding: 16px 4% 88px; }
     .c-footer        { padding-bottom: 88px; margin-top: 24px; }
     .c-wa-strip      { display: none; }
-    .c-header        { height: 56px; padding: 0 4%; gap: 10px; }
+    .c-header        { height: 60px; }
+    .c-header-inner  { padding: 0 4%; gap: 10px; }
     .c-user-chip span { display: none; }
     .c-user-chip      { padding: 4px; }
     .c-footer-inner  { flex-direction: column; gap: 16px; }
@@ -510,33 +536,36 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     ?.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
 
   if (!ready) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100dvh', background:'#07111f' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100dvh', background:'var(--navy-deep)' }}>
       <div style={{ textAlign:'center' }}>
-        <div style={{ width:32, height:32, borderRadius:'50%', border:'3px solid rgba(26,127,227,.2)', borderTopColor:'#1a7fe3', animation:'spin .7s linear infinite', margin:'0 auto 12px' }}/>
+        <div style={{ width:32, height:32, borderRadius:'50%', border:'3px solid rgba(26,127,227,.2)', borderTopColor:'var(--blue-bright)', animation:'spin .7s linear infinite', margin:'0 auto 12px' }}/>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        <span style={{ fontSize:13, color:'rgba(255,255,255,.35)', fontFamily:'DM Sans,system-ui,sans-serif' }}>Cargando…</span>
+        <span style={{ fontSize:15, color:'rgba(255,255,255,.35)', fontFamily:'DM Sans,system-ui,sans-serif' }}>Cargando…</span>
       </div>
     </div>
   )
 
   return (
-    <div style={{ fontFamily:"'DM Sans', system-ui, sans-serif", background:'#f0f4f8', minHeight:'100dvh' }}>
+    <div style={{ fontFamily:"'DM Sans', system-ui, sans-serif", background:'var(--bg)', minHeight:'100dvh' }}>
       <style>{CSS}</style>
 
       {/* ── TOP BAR ── */}
       <div className="c-topbar">
-        <span className="c-topbar-item">📍 Entregar en: CDMX</span>
-        <span className="c-topbar-sep">|</span>
-        <span className="c-topbar-item">🚚 Envío gratis en pedidos +$500</span>
-        <span className="c-topbar-sep">|</span>
-        <span className="c-topbar-item">⏱ Entrega CDMX 24h</span>
-        <span className="c-topbar-badge">Portal Distribuidores</span>
+        <div className="c-topbar-inner">
+          <span className="c-topbar-item">📍 Entregar en: CDMX</span>
+          <span className="c-topbar-sep">|</span>
+          <span className="c-topbar-item">🚚 Envío gratis en pedidos de + $5,000</span>
+          <span className="c-topbar-sep">|</span>
+          <span className="c-topbar-item">⏱ Entrega CDMX 24h</span>
+          <span className="c-topbar-badge">Portal Distribuidores</span>
+        </div>
       </div>
 
       {/* ── MAIN HEADER ── */}
       <header className="c-header">
+        <div className="c-header-inner">
         <Link href="/client" style={{ textDecoration:'none', flexShrink:0 }}>
-          <CharisLogotipo height={34} variant="white" />
+          <CharisLogotipo height={40} variant="white" />
         </Link>
 
         {/* Search */}
@@ -557,7 +586,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         <div style={{ display:'flex', alignItems:'center', gap:4, marginLeft:'auto', flexShrink:0 }}>
           <Link href="/client/orders" className="c-hact">
             <span className="c-hact-icon">📦</span>
-            <div className="c-hact-lbl"><small>Mis</small><span>Pedidos</span></div>
+            <div className="c-hact-lbl"><span>Pedidos</span></div>
           </Link>
 
           <div className="c-divider" />
@@ -570,7 +599,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           >
             <span className="c-hact-icon">🛒</span>
             {cartCount > 0 && <span className="c-cart-badge">{cartCount}</span>}
-            <div className="c-hact-lbl"><small>Mi</small><span>Carrito</span></div>
+            <div className="c-hact-lbl"><span>Carrito</span></div>
           </button>
 
           <div className="c-divider" />
@@ -588,35 +617,38 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <>
                 <div style={{ position:'fixed', inset:0, zIndex:99 }} onClick={() => setDdOpen(false)} />
                 <div className="c-dropdown">
-                  <div style={{ padding:'10px 16px 8px' }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:'#0d2137' }}>{user?.nombre}</div>
-                    <div style={{ fontSize:11, color:'#8aaac4', marginTop:2 }}>{user?.email}</div>
+                  <div style={{ padding:'12px 16px 10px' }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--txt)' }}>{user?.nombre}</div>
+                    <div style={{ fontSize:13, color:'var(--txt3)', marginTop:2 }}>{user?.email}</div>
                   </div>
                   <div className="c-dd-sep" />
                   <Link href="/client/orders"  className="c-dd-item">📦 Mis pedidos</Link>
                   <Link href="/client/account" className="c-dd-item">👤 Mi cuenta</Link>
                   <div className="c-dd-sep" />
-                  <button onClick={logout} className="c-dd-item" style={{ color:'#ef4444' }}>↩ Cerrar sesión</button>
+                  <button onClick={logout} className="c-dd-item" style={{ color:'var(--err)' }}>↩ Cerrar sesión</button>
                 </div>
               </>
             )}
           </div>
         </div>
+        </div>{/* c-header-inner */}
       </header>
 
       {/* ── NAV ── */}
       <nav className="c-nav">
-        {NAV.map(n => (
-          <Link
-            key={n.href}
-            href={n.href}
-            className={`c-navlink${isActive(n.href, n.exact) ? ' act' : ''}`}
-          >
-            {n.icon} {n.label}
-          </Link>
-        ))}
-        <div className="c-nav-mayoreo">
-          % <span className="c-mayoreo-label">Mayoreo activo</span>
+        <div className="c-nav-inner">
+          {NAV.map(n => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={`c-navlink${isActive(n.href, n.exact) ? ' act' : ''}`}
+            >
+              {n.icon} {n.label}
+            </Link>
+          ))}
+          <div className="c-nav-mayoreo">
+            % <span className="c-mayoreo-label">Mayoreo activo</span>
+          </div>
         </div>
       </nav>
 
@@ -625,10 +657,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
       {/* ── WA STRIP ── */}
       <div className="c-wa-strip">
-        <span style={{ fontSize:22 }}>📱</span>
+        <WhatsAppIcon size={26} color="white" />
         <div>
-          <div style={{ color:'white', fontSize:13, fontWeight:700 }}>¿Prefieres pedir por WhatsApp?</div>
-          <div style={{ color:'rgba(255,255,255,.7)', fontSize:11 }}>CharisBot procesa tu pedido al instante — texto, foto o voz</div>
+          <div style={{ color:'white', fontSize:15, fontWeight:700 }}>¿Prefieres pedir por WhatsApp?</div>
+          <div style={{ color:'rgba(255,255,255,.7)', fontSize:13 }}>CharisBot procesa tu pedido al instante — texto, foto o voz</div>
         </div>
         <a
           href="https://wa.me/521XXXXXXXXXX"
@@ -697,34 +729,34 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className="c-drawer-overlay" onClick={() => setCartOpen(false)} />
           <div className="c-drawer">
             {/* Header */}
-            <div style={{ padding:'16px 20px', borderBottom:'1px solid #e2eaf4', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
               <div>
-                <h3 style={{ fontWeight:900, fontSize:16, color:'#0d2137' }}>🛒 Carrito</h3>
-                <p style={{ fontSize:12, color:'#8aaac4', marginTop:2 }}>
+                <h3 style={{ fontWeight:900, fontSize:16, color:'var(--txt)' }}>🛒 Carrito</h3>
+                <p style={{ fontSize:12, color:'var(--txt3)', marginTop:2 }}>
                   {cartItems.length} artículo{cartItems.length !== 1 ? 's' : ''} · {cartCount} piezas
                 </p>
               </div>
               <button
                 onClick={() => setCartOpen(false)}
-                style={{ background:'#f0f4f8', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16, color:'#3a6080', display:'flex', alignItems:'center', justifyContent:'center' }}
+                style={{ background:'var(--bg)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16, color:'var(--txt2)', display:'flex', alignItems:'center', justifyContent:'center' }}
               >✕</button>
             </div>
 
             {/* Items */}
             <div style={{ flex:1, overflowY:'auto' }}>
               {cartItems.length === 0 ? (
-                <div style={{ padding:40, textAlign:'center', color:'#8aaac4' }}>
+                <div style={{ padding:40, textAlign:'center', color:'var(--txt3)' }}>
                   <div style={{ fontSize:40, marginBottom:10 }}>🛒</div>
                   <p style={{ fontSize:14 }}>El carrito está vacío</p>
-                  <Link href="/client/catalog" onClick={() => setCartOpen(false)} style={{ display:'inline-block', marginTop:12, fontSize:13, color:'#1565c0', fontWeight:600, textDecoration:'none' }}>
+                  <Link href="/client/catalog" onClick={() => setCartOpen(false)} style={{ display:'inline-block', marginTop:12, fontSize:13, color:'var(--blue)', fontWeight:600, textDecoration:'none' }}>
                     Explorar catálogo →
                   </Link>
                 </div>
               ) : cartItems.map((item: any, i: number) => (
                 <div key={i} className="c-drawer-item">
                   <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'#0d2137', marginBottom:2 }}>{item.modelo}</p>
-                    <p style={{ fontSize:11, color:'#8aaac4' }}>{item.tipo_case} · {item.marca} · {item.color}</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)', marginBottom:2 }}>{item.modelo}</p>
+                    <p style={{ fontSize:11, color:'var(--txt3)' }}>{item.tipo_case} · {item.marca} · {item.color}</p>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                     <div className="c-qty-ctrl">
@@ -742,7 +774,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                     </div>
                     <button
                       onClick={() => { const nc = cartItems.filter((_: any, j: number) => j !== i); setCartItems(nc); saveAndNotify(nc) }}
-                      style={{ background:'rgba(239,68,68,.1)', border:'none', borderRadius:6, width:26, height:26, cursor:'pointer', color:'#ef4444', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center' }}
+                      style={{ background:'rgba(239,68,68,.1)', border:'none', borderRadius:6, width:26, height:26, cursor:'pointer', color:'var(--err)', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center' }}
                     >✕</button>
                   </div>
                 </div>
@@ -751,10 +783,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
             {/* Footer */}
             {cartItems.length > 0 && (
-              <div style={{ padding:'16px 20px', borderTop:'1px solid #e2eaf4', flexShrink:0 }}>
+              <div style={{ padding:'16px 20px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize:13 }}>
-                  <span style={{ color:'#3a6080', fontWeight:600 }}>Total piezas:</span>
-                  <span style={{ fontWeight:900, color:'#1a7fe3', fontSize:15 }}>{cartCount}</span>
+                  <span style={{ color:'var(--txt2)', fontWeight:600 }}>Total piezas:</span>
+                  <span style={{ fontWeight:900, color:'var(--blue-bright)', fontSize:15 }}>{cartCount}</span>
                 </div>
                 {cartCount >= 50 && (
                   <div style={{ background:'#e8f5e9', border:'1px solid #c8e6c9', borderRadius:6, padding:'6px 10px', fontSize:11, color:'#1b5e20', fontWeight:600, marginBottom:10 }}>
@@ -764,13 +796,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 <Link
                   href="/client/cart"
                   onClick={() => setCartOpen(false)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, width:'100%', padding:'12px', borderRadius:10, background:'#1565c0', color:'white', fontSize:14, fontWeight:700, textDecoration:'none', boxSizing:'border-box' as const, marginBottom:8 }}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, width:'100%', padding:'12px', borderRadius:10, background:'var(--blue)', color:'white', fontSize:14, fontWeight:700, textDecoration:'none', boxSizing:'border-box' as const, marginBottom:8 }}
                 >
                   Ver carrito completo →
                 </Link>
                 <button
                   onClick={() => { setCartItems([]); saveAndNotify([]) }}
-                  style={{ width:'100%', padding:'8px', borderRadius:9, border:'1.5px solid #e2eaf4', background:'transparent', color:'#8aaac4', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}
+                  style={{ width:'100%', padding:'8px', borderRadius:9, border:'1.5px solid var(--border)', background:'transparent', color:'var(--txt3)', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}
                 >
                   Vaciar carrito
                 </button>

@@ -9,42 +9,42 @@ interface Serie {
 }
 
 const SERIE_META: Record<string,{emoji:string; bg:string; fallback:string}> = {
-  '3 EN 1':   { emoji:'🎯', bg:'linear-gradient(135deg,#1e3a5f,#1565c0)', fallback:'https://images.unsplash.com/photo-1601593346740-925612772716?w=600&q=70' },
+  '3 EN 1':   { emoji:'🎯', bg:'linear-gradient(135deg,#1e3a5f,var(--blue))', fallback:'https://images.unsplash.com/photo-1601593346740-925612772716?w=600&q=70' },
   'ESCUDO':   { emoji:'🛡️', bg:'linear-gradient(135deg,#78350f,#d97706)', fallback:'https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=600&q=70' },
   'BLINDAJE': { emoji:'🔐', bg:'linear-gradient(135deg,#1e293b,#334155)', fallback:'https://images.unsplash.com/photo-1613588718956-c2e80305bf61?w=600&q=70' },
   'ANILLO':   { emoji:'💍', bg:'linear-gradient(135deg,#4c1d95,#7c3aed)', fallback:'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=70' },
 }
-const DEFAULT_META = { emoji:'📦', bg:'linear-gradient(135deg,#0d2137,#1565c0)', fallback:'' }
+const DEFAULT_META = { emoji:'📦', bg:'linear-gradient(135deg,var(--txt),var(--blue))', fallback:'' }
 
 const CSS = `
   @keyframes fadeUp  { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-  .skel { background:linear-gradient(90deg,#e2eaf4 25%,#f0f4f8 50%,#e2eaf4 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:14px; }
+  .skel { background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:14px; }
 
   .serie-card {
     border-radius:16px; overflow:hidden; text-decoration:none; display:block;
     transition:transform .22s, box-shadow .22s, border-color .2s;
     box-shadow:0 4px 16px rgba(0,0,0,.07); background:white;
-    border:1.5px solid #e2eaf4;
+    border:1.5px solid var(--border);
   }
-  .serie-card:hover { transform:translateY(-5px); box-shadow:0 16px 40px rgba(21,101,192,.15); border-color:#4baef0; }
+  .serie-card:hover { transform:translateY(-5px); box-shadow:0 16px 40px rgba(21,101,192,.15); border-color:var(--blue2); }
 
   .cat-tab {
     padding:8px 18px; border-radius:100px; font-size:13px; font-weight:600;
-    border:1.5px solid #e2eaf4; background:white; color:#3a6080;
+    border:1.5px solid var(--border); background:white; color:var(--txt2);
     cursor:pointer; transition:all .15s; font-family:inherit; white-space:nowrap;
     text-decoration: none; display: inline-block;
   }
-  .cat-tab:hover { border-color:#1565c0; color:#1565c0; }
-  .cat-tab.act { border-color:#1565c0; background:#1565c0; color:white; }
+  .cat-tab:hover { border-color:var(--blue); color:var(--blue); }
+  .cat-tab.act { border-color:var(--blue); background:var(--blue); color:white; }
 
   .search-field {
     padding:10px 14px 10px 36px; border-radius:10px;
-    border:1.5px solid #d0dde8; background:white; font-size:13px;
-    color:#0d2137; font-family:inherit; outline:none;
+    border:1.5px solid var(--field-border); background:white; font-size:13px;
+    color:var(--txt); font-family:inherit; outline:none;
     transition:border-color .18s; width:100%; max-width:360px; box-sizing:border-box;
   }
-  .search-field:focus { border-color:#1565c0; box-shadow:0 0 0 3px rgba(21,101,192,.1); }
+  .search-field:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(21,101,192,.1); }
   .search-wrap { position:relative; display:inline-block; }
   .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; pointer-events:none; }
 `
@@ -79,10 +79,10 @@ export default function CatalogPage() {
       <div style={{ marginBottom:24, animation:'fadeUp .3s ease-out' }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
           <div>
-            <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,24px)', color:'#0d2137', marginBottom:4 }}>
+            <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,24px)', color:'var(--txt)', marginBottom:4 }}>
               🗂️ Catálogo de productos
             </h1>
-            <p style={{ fontSize:13, color:'#8aaac4' }}>
+            <p style={{ fontSize:13, color:'var(--txt3)' }}>
               {loading ? 'Cargando…' : `${series.reduce((s,r)=>s+r.total_modelos,0)} modelos disponibles en ${series.length} categorías`}
             </p>
           </div>
@@ -119,10 +119,10 @@ export default function CatalogPage() {
         {loading ? [1,2,3,4].map(i => (
           <div key={i} style={{ height:280 }} className="skel" />
         )) : filtered.length === 0 ? (
-          <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'48px 20px', color:'#8aaac4', fontSize:14 }}>
+          <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'48px 20px', color:'var(--txt3)', fontSize:14 }}>
             <div style={{ fontSize:40, marginBottom:10 }}>🔍</div>
             Sin series para ese filtro.{' '}
-            <button onClick={() => { setSearch(''); setActive('todos') }} style={{ color:'#1565c0', fontWeight:600, cursor:'pointer', border:'none', background:'none', fontFamily:'inherit', fontSize:14 }}>
+            <button onClick={() => { setSearch(''); setActive('todos') }} style={{ color:'var(--blue)', fontWeight:600, cursor:'pointer', border:'none', background:'none', fontFamily:'inherit', fontSize:14 }}>
               Ver todo
             </button>
           </div>
@@ -150,15 +150,15 @@ export default function CatalogPage() {
               </div>
               {/* Footer */}
               <div style={{ padding:'14px 16px', background:'white' }}>
-                <p style={{ fontSize:12, color:'#3a6080', lineHeight:1.5, marginBottom:10, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' } as any}>
+                <p style={{ fontSize:12, color:'var(--txt2)', lineHeight:1.5, marginBottom:10, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' } as any}>
                   {s.descripcion || 'Cases de alta calidad disponibles en múltiples colores y marcas.'}
                 </p>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div style={{ display:'flex', gap:8 }}>
-                    <span style={{ fontSize:11, background:'#f0f4f8', color:'#3a6080', fontWeight:600, padding:'2px 8px', borderRadius:6 }}>{s.total_marcas} marcas</span>
-                    <span style={{ fontSize:11, background:'#f0f4f8', color:'#3a6080', fontWeight:600, padding:'2px 8px', borderRadius:6 }}>{s.total_colores} colores</span>
+                    <span style={{ fontSize:11, background:'var(--bg)', color:'var(--txt2)', fontWeight:600, padding:'2px 8px', borderRadius:6 }}>{s.total_marcas} marcas</span>
+                    <span style={{ fontSize:11, background:'var(--bg)', color:'var(--txt2)', fontWeight:600, padding:'2px 8px', borderRadius:6 }}>{s.total_colores} colores</span>
                   </div>
-                  <span style={{ fontSize:12, color:'#1565c0', fontWeight:700 }}>Ver →</span>
+                  <span style={{ fontSize:12, color:'var(--blue)', fontWeight:700 }}>Ver →</span>
                 </div>
               </div>
             </Link>

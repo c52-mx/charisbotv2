@@ -12,11 +12,11 @@ const ESTADO_META: Record<string,{label:string; color:string; bg:string; icon:st
   'PENDIENTE_PAGO':        { label:'Pendiente de pago',  color:'#92400e', bg:'#fef3c7', icon:'⏳', step:0 },
   'PENDIENTE_CONFIRMACION':{ label:'Por confirmar',       color:'#854d0e', bg:'#fefce8', icon:'⏱', step:0 },
   'PAGO_RECIBIDO':         { label:'Pago recibido',       color:'#065f46', bg:'#d1fae5', icon:'✅', step:1 },
-  'CONFIRMADO':            { label:'Confirmado',          color:'#1565c0', bg:'#eff6ff', icon:'✓',  step:1 },
+  'CONFIRMADO':            { label:'Confirmado',          color:'var(--blue)', bg:'#eff6ff', icon:'✓',  step:1 },
   'EN_PREPARACION':        { label:'En preparación',      color:'#6b21a8', bg:'#fdf4ff', icon:'📦', step:2 },
   'EN_REPARTO':            { label:'En camino',           color:'#0369a1', bg:'#e0f2fe', icon:'🚚', step:3 },
-  'ENTREGADO':             { label:'Entregado',           color:'#15803d', bg:'#f0fdf4', icon:'🎉', step:4 },
-  'CANCELADO':             { label:'Cancelado',           color:'#991b1b', bg:'#fef2f2', icon:'✕',  step:-1 },
+  'ENTREGADO':             { label:'Entregado',           color:'#15803d', bg:'var(--ok-bg)', icon:'🎉', step:4 },
+  'CANCELADO':             { label:'Cancelado',           color:'#991b1b', bg:'var(--err-bg)', icon:'✕',  step:-1 },
 }
 
 const TL_STEPS = [
@@ -29,14 +29,14 @@ const TL_STEPS = [
 const CSS = `
   @keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-  .skel { background:linear-gradient(90deg,#e2eaf4 25%,#f0f4f8 50%,#e2eaf4 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:12px; }
+  .skel { background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:12px; }
 
   .order-card {
-    background:white; border-radius:14px; border:1.5px solid #e2eaf4;
+    background:white; border-radius:14px; border:1.5px solid var(--border);
     overflow:hidden; transition:border-color .18s, box-shadow .18s; cursor:pointer;
   }
-  .order-card:hover  { border-color:#4baef0; box-shadow:0 6px 24px rgba(21,101,192,.08); }
-  .order-card.open   { border-color:#1565c0; }
+  .order-card:hover  { border-color:var(--blue2); box-shadow:0 6px 24px rgba(21,101,192,.08); }
+  .order-card.open   { border-color:var(--blue); }
 
   .estado-badge {
     display:inline-flex; align-items:center; gap:4px;
@@ -44,11 +44,11 @@ const CSS = `
   }
   .filter-btn {
     padding:6px 16px; border-radius:100px; font-size:12px; font-weight:600;
-    border:1.5px solid #e2eaf4; background:white; color:#3a6080;
+    border:1.5px solid var(--border); background:white; color:var(--txt2);
     cursor:pointer; transition:all .15s; font-family:inherit; white-space:nowrap;
   }
-  .filter-btn.act { border-color:#1565c0; background:#1565c0; color:white; }
-  .filter-btn:hover:not(.act) { border-color:#4baef0; color:#1565c0; }
+  .filter-btn.act { border-color:var(--blue); background:var(--blue); color:white; }
+  .filter-btn:hover:not(.act) { border-color:var(--blue2); color:var(--blue); }
 
   /* Timeline */
   .tl-dot {
@@ -56,21 +56,21 @@ const CSS = `
     display:flex; align-items:center; justify-content:center; font-size:11px;
     flex-shrink:0; z-index:1;
   }
-  .tl-dot.done    { background:#1565c0; color:white; }
-  .tl-dot.current { background:white; border:2px solid #1565c0; color:#1565c0; }
-  .tl-dot.pending { background:#f0f4f8; border:2px solid #d0dde8; color:#b0bac8; }
+  .tl-dot.done    { background:var(--blue); color:white; }
+  .tl-dot.current { background:white; border:2px solid var(--blue); color:var(--blue); }
+  .tl-dot.pending { background:var(--bg); border:2px solid var(--field-border); color:#b0bac8; }
   .tl-line { flex:1; height:2px; margin-bottom:16px; }
-  .tl-line.done    { background:#1565c0; }
-  .tl-line.pending { background:#e2eaf4; }
+  .tl-line.done    { background:var(--blue); }
+  .tl-line.pending { background:var(--border); }
 
   .action-btn {
     display:inline-flex; align-items:center; gap:5px;
     padding:7px 14px; border-radius:7px; font-size:12px; font-weight:600;
-    border:1.5px solid #e2eaf4; background:white; color:#0d2137;
+    border:1.5px solid var(--border); background:white; color:var(--txt);
     cursor:pointer; font-family:inherit; transition:all .15s; text-decoration:none;
   }
-  .action-btn:hover { border-color:#1565c0; color:#1565c0; }
-  .action-btn.primary { background:#1565c0; color:white; border-color:#1565c0; }
+  .action-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .action-btn.primary { background:var(--blue); color:white; border-color:var(--blue); }
   .action-btn.primary:hover { background:#1976d2; border-color:#1976d2; }
 `
 
@@ -126,12 +126,12 @@ export default function OrdersPage() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12, marginBottom:24, animation:'fadeUp .3s ease-out' }}>
         <div>
-          <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,24px)', color:'#0d2137', marginBottom:4 }}>📦 Mis pedidos</h1>
-          <p style={{ fontSize:13, color:'#8aaac4' }}>
+          <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,24px)', color:'var(--txt)', marginBottom:4 }}>📦 Mis pedidos</h1>
+          <p style={{ fontSize:13, color:'var(--txt3)' }}>
             {loading ? 'Cargando…' : `${orders.length} pedido${orders.length !== 1 ? 's' : ''} en total`}
           </p>
         </div>
-        <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'9px 18px', borderRadius:100, background:'#1565c0', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+        <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'9px 18px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
           + Nuevo pedido
         </Link>
       </div>
@@ -150,13 +150,13 @@ export default function OrdersPage() {
           {[1,2,3].map(i => <div key={i} style={{ height:90 }} className="skel" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'56px 20px', background:'white', borderRadius:14, border:'1px solid #e2eaf4' }}>
+        <div style={{ textAlign:'center', padding:'56px 20px', background:'white', borderRadius:14, border:'1px solid var(--border)' }}>
           <div style={{ fontSize:44, marginBottom:12, opacity:.25 }}>📦</div>
-          <h3 style={{ fontWeight:900, fontSize:17, color:'#0d2137', marginBottom:8 }}>
+          <h3 style={{ fontWeight:900, fontSize:17, color:'var(--txt)', marginBottom:8 }}>
             {filter === 'todos' ? 'Aún no tienes pedidos' : 'Sin pedidos en esta categoría'}
           </h3>
           {filter === 'todos' && (
-            <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, padding:'10px 22px', borderRadius:100, background:'#1565c0', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+            <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, padding:'10px 22px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
               Ir al catálogo →
             </Link>
           )}
@@ -164,7 +164,7 @@ export default function OrdersPage() {
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10, animation:'fadeUp .3s ease-out' }}>
           {filtered.map(order => {
-            const meta   = ESTADO_META[order.estado] || { label:order.estado, color:'#3a6080', bg:'#f0f4f8', icon:'•', step:0 }
+            const meta   = ESTADO_META[order.estado] || { label:order.estado, color:'var(--txt2)', bg:'var(--bg)', icon:'•', step:0 }
             const isOpen = open === order.id
             const items: any[] = order.pedido_json?.items || []
 
@@ -180,24 +180,24 @@ export default function OrdersPage() {
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
-                      <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:13, color:'#0d2137' }}>
+                      <span style={{ fontFamily:'monospace', fontWeight:700, fontSize:13, color:'var(--txt)' }}>
                         #{(order.numero_pedido || order.id.slice(0,8)).toUpperCase()}
                       </span>
                       <span className="estado-badge" style={{ color:meta.color, background:meta.bg }}>
                         {meta.label}
                       </span>
                     </div>
-                    <p style={{ fontSize:12, color:'#8aaac4' }}>
+                    <p style={{ fontSize:12, color:'var(--txt3)' }}>
                       {order.tipo_case} · {order.total_piezas || '?'} pzas · {formatDate(order.creado_en)}
                     </p>
                   </div>
-                  <span style={{ fontSize:13, color:'#8aaac4', flexShrink:0 }}>{isOpen ? '▲' : '▼'}</span>
+                  <span style={{ fontSize:13, color:'var(--txt3)', flexShrink:0 }}>{isOpen ? '▲' : '▼'}</span>
                 </div>
 
                 {/* Progress bar */}
                 {!['CANCELADO','ENTREGADO'].includes(order.estado) && (
-                  <div style={{ height:3, background:'#f0f4f8' }}>
-                    <div style={{ height:'100%', background:'#1565c0', transition:'width .5s', width:
+                  <div style={{ height:3, background:'var(--bg)' }}>
+                    <div style={{ height:'100%', background:'var(--blue)', transition:'width .5s', width:
                       order.estado==='PENDIENTE_PAGO'||order.estado==='PENDIENTE_CONFIRMACION' ? '8%' :
                       order.estado==='PAGO_RECIBIDO'||order.estado==='CONFIRMADO' ? '35%' :
                       order.estado==='EN_PREPARACION' ? '62%' :
@@ -208,7 +208,7 @@ export default function OrdersPage() {
 
                 {/* Expanded */}
                 {isOpen && (
-                  <div style={{ borderTop:'1px solid #e2eaf4', padding:'16px 18px', background:'#f9fbfe' }}>
+                  <div style={{ borderTop:'1px solid var(--border)', padding:'16px 18px', background:'#f9fbfe' }}>
 
                     {/* Timeline */}
                     {order.estado !== 'CANCELADO' && (
@@ -225,7 +225,7 @@ export default function OrdersPage() {
                                   <div className={`tl-dot ${done ? 'done' : curr ? 'current' : 'pending'}`}>
                                     {done ? '✓' : s.icon}
                                   </div>
-                                  <div style={{ fontSize:9, color: curr ? '#1565c0' : '#8aaac4', marginTop:4, fontWeight: curr ? 700 : 400, textAlign:'center', whiteSpace:'nowrap' }}>
+                                  <div style={{ fontSize:9, color: curr ? 'var(--blue)' : 'var(--txt3)', marginTop:4, fontWeight: curr ? 700 : 400, textAlign:'center', whiteSpace:'nowrap' }}>
                                     {s.label}
                                   </div>
                                 </div>
@@ -242,22 +242,22 @@ export default function OrdersPage() {
                     {/* Items list */}
                     {items.length > 0 && (
                       <div style={{ marginBottom:14 }}>
-                        <div style={{ fontSize:11, fontWeight:700, color:'#3a6080', marginBottom:8, letterSpacing:'.04em', textTransform:'uppercase' }}>Artículos</div>
+                        <div style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', marginBottom:8, letterSpacing:'.04em', textTransform:'uppercase' }}>Artículos</div>
                         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                           {items.slice(0,5).map((it: any, idx: number) => (
-                            <div key={idx} style={{ display:'flex', alignItems:'center', gap:10, background:'white', border:'1px solid #e2eaf4', borderRadius:8, padding:'8px 12px' }}>
+                            <div key={idx} style={{ display:'flex', alignItems:'center', gap:10, background:'white', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px' }}>
                               <span style={{ fontSize:16 }}>
                                 {it.tipo_case==='BLINDAJE'?'🔐':it.tipo_case==='3 EN 1'?'🎯':it.tipo_case==='ESCUDO'?'🛡️':'💍'}
                               </span>
                               <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ fontSize:12, fontWeight:700, color:'#0d2137', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.modelo}</div>
-                                <div style={{ fontSize:10, color:'#8aaac4' }}>{it.marca} · {it.color}</div>
+                                <div style={{ fontSize:12, fontWeight:700, color:'var(--txt)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.modelo}</div>
+                                <div style={{ fontSize:10, color:'var(--txt3)' }}>{it.marca} · {it.color}</div>
                               </div>
-                              <div style={{ fontSize:12, fontWeight:700, color:'#1565c0', flexShrink:0 }}>{it.cantidad} pzas</div>
+                              <div style={{ fontSize:12, fontWeight:700, color:'var(--blue)', flexShrink:0 }}>{it.cantidad} pzas</div>
                             </div>
                           ))}
                           {items.length > 5 && (
-                            <div style={{ fontSize:12, color:'#8aaac4', textAlign:'center', padding:'4px 0' }}>
+                            <div style={{ fontSize:12, color:'var(--txt3)', textAlign:'center', padding:'4px 0' }}>
                               +{items.length - 5} artículo{items.length - 5 !== 1 ? 's' : ''} más
                             </div>
                           )}

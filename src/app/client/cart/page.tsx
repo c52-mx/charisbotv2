@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 
 interface CartItem {
   _id?: string
@@ -25,13 +26,13 @@ const CSS = `
 
   .group-header {
     display:flex; align-items:center; gap:10px;
-    padding:12px 18px; background:#f5f8fc;
-    border-bottom:1px solid #e2eaf4;
-    font-weight:900; font-size:14px; color:#0d2137;
+    padding:12px 18px; background:var(--field-bg);
+    border-bottom:1px solid var(--border);
+    font-weight:900; font-size:14px; color:var(--txt);
   }
   .cart-row {
     display:flex; align-items:center; gap:12px;
-    padding:12px 18px; border-bottom:1px solid #f0f4f8;
+    padding:12px 18px; border-bottom:1px solid var(--bg);
     transition:background .12s;
   }
   .cart-row:last-child { border-bottom:none; }
@@ -39,26 +40,26 @@ const CSS = `
 
   .qty-ctrl { display:flex; align-items:center; flex-shrink:0; }
   .qty-btn  {
-    width:28px; height:28px; border:1px solid #d0dde8; background:#f5f8fc;
-    cursor:pointer; font-size:15px; color:#0d2137;
+    width:28px; height:28px; border:1px solid var(--field-border); background:var(--field-bg);
+    cursor:pointer; font-size:15px; color:var(--txt);
     display:flex; align-items:center; justify-content:center; transition:all .12s;
     font-family:inherit;
   }
-  .qty-btn:hover { background:#e2eaf4; }
+  .qty-btn:hover { background:var(--border); }
   .qty-input {
-    width:46px; height:28px; border:1px solid #d0dde8; border-left:none; border-right:none;
-    text-align:center; font-size:13px; font-weight:600; color:#0d2137;
+    width:46px; height:28px; border:1px solid var(--field-border); border-left:none; border-right:none;
+    text-align:center; font-size:13px; font-weight:600; color:var(--txt);
     font-family:inherit; outline:none; background:white;
   }
   .del-btn {
-    background:none; border:none; color:#8aaac4; cursor:pointer; font-size:12px;
+    background:none; border:none; color:var(--txt3); cursor:pointer; font-size:12px;
     font-weight:600; padding:4px 8px; border-radius:6px;
     transition:all .14s; font-family:inherit; white-space:nowrap; flex-shrink:0;
   }
-  .del-btn:hover { color:#ef4444; background:rgba(239,68,68,0.08); }
+  .del-btn:hover { color:var(--err); background:rgba(239,68,68,0.08); }
 
   .confirm-btn {
-    width:100%; padding:13px; background:#1565c0; color:white;
+    width:100%; padding:13px; background:var(--blue); color:white;
     border:none; border-radius:10px; font-size:15px; font-weight:700;
     font-family:inherit; cursor:pointer; transition:all .18s;
     display:flex; align-items:center; justify-content:center; gap:8px;
@@ -67,8 +68,8 @@ const CSS = `
   .confirm-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
   .confirm-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
 
-  .vol-bar { height:5px; background:#e2eaf4; border-radius:3px; overflow:hidden; margin-top:6px; }
-  .vol-fill { height:100%; background:#1565c0; border-radius:3px; transition:width .4s; }
+  .vol-bar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; margin-top:6px; }
+  .vol-fill { height:100%; background:var(--blue); border-radius:3px; transition:width .4s; }
 
   @media(max-width:768px){
     .cart-layout { grid-template-columns:1fr !important; }
@@ -160,7 +161,7 @@ export default function CartPage() {
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
-      <div style={{ width:28, height:28, borderRadius:'50%', border:'3px solid #e2eaf4', borderTopColor:'#1565c0', animation:'spin .7s linear infinite' }}/>
+      <div style={{ width:28, height:28, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
@@ -169,8 +170,8 @@ export default function CartPage() {
     <div style={{ textAlign:'center', padding:'70px 20px', animation:'fadeUp .4s ease-out' }}>
       <style>{CSS}</style>
       <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
-      <h2 style={{ fontWeight:900, fontSize:22, color:'#0d2137', marginBottom:8 }}>¡Pedido creado!</h2>
-      <p style={{ fontSize:14, color:'#8aaac4' }}>Redirigiendo a tus pedidos…</p>
+      <h2 style={{ fontWeight:900, fontSize:22, color:'var(--txt)', marginBottom:8 }}>¡Pedido creado!</h2>
+      <p style={{ fontSize:14, color:'var(--txt3)' }}>Redirigiendo a tus pedidos…</p>
     </div>
   )
 
@@ -181,27 +182,27 @@ export default function CartPage() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:24, animation:'fadeUp .3s ease-out' }}>
         <div>
-          <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,22px)', color:'#0d2137', marginBottom:4 }}>
+          <h1 style={{ fontWeight:900, fontSize:'clamp(18px,4vw,22px)', color:'var(--txt)', marginBottom:4 }}>
             🛒 Carrito de compras
           </h1>
-          <p style={{ fontSize:13, color:'#8aaac4' }}>{totalPiezas} piezas · {cart.length} artículo{cart.length !== 1 ? 's' : ''}</p>
+          <p style={{ fontSize:13, color:'var(--txt3)' }}>{totalPiezas} piezas · {cart.length} artículo{cart.length !== 1 ? 's' : ''}</p>
         </div>
         {cart.length > 0 && (
           <button
             onClick={clearAll}
-            style={{ padding:'8px 16px', borderRadius:8, border:'1.5px solid #e2eaf4', background:'white', color:'#8aaac4', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#ef4444')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = '#e2eaf4')}
+            style={{ padding:'8px 16px', borderRadius:8, border:'1.5px solid var(--border)', background:'white', color:'var(--txt3)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--err)')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
           >Vaciar carrito</button>
         )}
       </div>
 
       {cart.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'64px 20px', background:'white', borderRadius:16, border:'1px solid #e2eaf4' }}>
+        <div style={{ textAlign:'center', padding:'64px 20px', background:'white', borderRadius:16, border:'1px solid var(--border)' }}>
           <div style={{ fontSize:48, marginBottom:16, opacity:.25 }}>🛒</div>
-          <h3 style={{ fontWeight:900, fontSize:18, color:'#0d2137', marginBottom:8 }}>Carrito vacío</h3>
-          <p style={{ fontSize:14, color:'#8aaac4', marginBottom:24 }}>Agrega productos desde el catálogo</p>
-          <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 24px', borderRadius:100, background:'#1565c0', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
+          <h3 style={{ fontWeight:900, fontSize:18, color:'var(--txt)', marginBottom:8 }}>Carrito vacío</h3>
+          <p style={{ fontSize:14, color:'var(--txt3)', marginBottom:24 }}>Agrega productos desde el catálogo</p>
+          <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 24px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
             Ir al catálogo →
           </Link>
         </div>
@@ -209,24 +210,24 @@ export default function CartPage() {
         <div className="cart-layout" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:20, alignItems:'start', animation:'fadeUp .3s ease-out .05s both' }}>
 
           {/* ── ITEMS ── */}
-          <div style={{ background:'white', borderRadius:16, border:'1px solid #e2eaf4', overflow:'hidden' }}>
+          <div style={{ background:'white', borderRadius:16, border:'1px solid var(--border)', overflow:'hidden' }}>
             {Object.entries(groups).map(([tipo, items]) => (
               <div key={tipo}>
                 <div className="group-header">
                   <span>{TIPO_EMOJI[tipo] || '📦'}</span>
                   {tipo}
-                  <span style={{ fontSize:12, color:'#8aaac4', fontWeight:400 }}>
+                  <span style={{ fontSize:12, color:'var(--txt3)', fontWeight:400 }}>
                     {items.length} artículo{items.length !== 1 ? 's' : ''} · {items.reduce((s,i)=>s+i.cantidad,0)} pzas
                   </span>
                 </div>
                 {items.map(item => (
                   <div key={item._id} className="cart-row">
                     <div style={{ flex:1, minWidth:0 }}>
-                      <p style={{ fontSize:14, fontWeight:700, color:'#0d2137', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      <p style={{ fontSize:14, fontWeight:700, color:'var(--txt)', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {item.modelo}
                       </p>
-                      <p style={{ fontSize:11, color:'#8aaac4' }}>
-                        {item.marca} · <span style={{ background:'#f0f4f8', borderRadius:4, padding:'1px 6px', fontSize:10, fontWeight:600, color:'#3a6080' }}>{item.color}</span>
+                      <p style={{ fontSize:11, color:'var(--txt3)' }}>
+                        {item.marca} · <span style={{ background:'var(--bg)', borderRadius:4, padding:'1px 6px', fontSize:10, fontWeight:600, color:'var(--txt2)' }}>{item.color}</span>
                       </p>
                     </div>
                     <div className="qty-ctrl">
@@ -235,7 +236,7 @@ export default function CartPage() {
                         onChange={e => updateQty(item._id!, parseInt(e.target.value) || 1)} />
                       <button className="qty-btn" style={{ borderRadius:'0 7px 7px 0' }} onClick={() => updateQty(item._id!, item.cantidad + 1)}>+</button>
                     </div>
-                    <span style={{ fontSize:13, fontWeight:700, color:'#1565c0', minWidth:54, textAlign:'right', flexShrink:0 }}>
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--blue)', minWidth:54, textAlign:'right', flexShrink:0 }}>
                       {item.cantidad} pzas
                     </span>
                     <button className="del-btn" onClick={() => removeItem(item._id!)}>Eliminar</button>
@@ -253,29 +254,29 @@ export default function CartPage() {
           </div>
 
           {/* ── RESUMEN ── */}
-          <div className="cart-summary" style={{ background:'white', borderRadius:16, border:'1px solid #e2eaf4', padding:'20px', position:'sticky', top:88 }}>
-            <h3 style={{ fontWeight:900, fontSize:16, color:'#0d2137', marginBottom:16 }}>Resumen del pedido</h3>
+          <div className="cart-summary" style={{ background:'white', borderRadius:16, border:'1px solid var(--border)', padding:'20px', position:'sticky', top:88 }}>
+            <h3 style={{ fontWeight:900, fontSize:16, color:'var(--txt)', marginBottom:16 }}>Resumen del pedido</h3>
 
             {/* Vol progress */}
-            <div style={{ background:'#f5f8fc', borderRadius:10, padding:'12px', marginBottom:16 }}>
+            <div style={{ background:'var(--field-bg)', borderRadius:10, padding:'12px', marginBottom:16 }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-                <span style={{ fontWeight:700, color:'#0d2137' }}>{totalPiezas} pzas</span>
+                <span style={{ fontWeight:700, color:'var(--txt)' }}>{totalPiezas} pzas</span>
                 {desc > 0
                   ? <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ {desc}% desc.</span>
                   : nextTier
-                    ? <span style={{ color:'#8aaac4' }}>Faltan {nextTier - totalPiezas} pzas para {descuentoPct(nextTier)}%</span>
+                    ? <span style={{ color:'var(--txt3)' }}>Faltan {nextTier - totalPiezas} pzas para {descuentoPct(nextTier)}%</span>
                     : <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ Descuento máximo</span>
                 }
               </div>
               <div className="vol-bar"><div className="vol-fill" style={{ width:`${volPct}%` }} /></div>
             </div>
 
-            <div style={{ display:'flex', flexDirection:'column', gap:9, marginBottom:14, paddingBottom:14, borderBottom:'1px solid #f0f4f8' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
-                <span>Artículos</span><span style={{ fontWeight:600, color:'#0d2137' }}>{cart.length}</span>
+            <div style={{ display:'flex', flexDirection:'column', gap:9, marginBottom:14, paddingBottom:14, borderBottom:'1px solid var(--bg)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt2)' }}>
+                <span>Artículos</span><span style={{ fontWeight:600, color:'var(--txt)' }}>{cart.length}</span>
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#3a6080' }}>
-                <span>Total piezas</span><span style={{ fontWeight:600, color:'#0d2137' }}>{totalPiezas}</span>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt2)' }}>
+                <span>Total piezas</span><span style={{ fontWeight:600, color:'var(--txt)' }}>{totalPiezas}</span>
               </div>
               {desc > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#1b5e20', fontWeight:600 }}>
@@ -285,8 +286,8 @@ export default function CartPage() {
             </div>
 
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <span style={{ fontSize:14, fontWeight:700, color:'#0d2137' }}>Total</span>
-              <span style={{ fontSize:20, fontWeight:900, color:'#1565c0' }}>{totalPiezas} pzas</span>
+              <span style={{ fontSize:14, fontWeight:700, color:'var(--txt)' }}>Total</span>
+              <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>{totalPiezas} pzas</span>
             </div>
 
             <button className="confirm-btn" disabled={placing} onClick={handleCheckout}>
@@ -298,18 +299,18 @@ export default function CartPage() {
 
             <Link
               href="/client/catalog"
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', marginTop:10, padding:'9px', borderRadius:9, border:'1.5px solid #e2eaf4', fontSize:13, color:'#3a6080', textDecoration:'none', fontWeight:500, transition:'all .15s' }}
-              onMouseEnter={(e:any) => e.currentTarget.style.borderColor='#1565c0'}
-              onMouseLeave={(e:any) => e.currentTarget.style.borderColor='#e2eaf4'}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', marginTop:10, padding:'9px', borderRadius:9, border:'1.5px solid var(--border)', fontSize:13, color:'var(--txt2)', textDecoration:'none', fontWeight:500, transition:'all .15s' }}
+              onMouseEnter={(e:any) => e.currentTarget.style.borderColor='var(--blue)'}
+              onMouseLeave={(e:any) => e.currentTarget.style.borderColor='var(--border)'}
             >
               Seguir comprando
             </Link>
 
             {/* WA alternativa */}
             <div style={{ marginTop:16, padding:'10px 12px', background:'#e8f5e9', border:'1px solid #c8e6c9', borderRadius:8, display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
-              <span style={{ fontSize:18 }}>📱</span>
+              <WhatsAppIcon size={20} color="var(--wa)"/>
               <div>
-                <div style={{ fontSize:11, fontWeight:700, color:'#0d2137' }}>¿Preferes pedir por WhatsApp?</div>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--txt)' }}>¿Prefieres pedir por WhatsApp?</div>
                 <div style={{ fontSize:10, color:'#4a5568' }}>CharisBot lo procesa al instante</div>
               </div>
             </div>
