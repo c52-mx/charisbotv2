@@ -3,6 +3,8 @@ import { queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const s = await getSession(req)
   if (!s || s.rol !== 'ADMIN') return NextResponse.json({ error:'Sin permiso' }, { status:403 })

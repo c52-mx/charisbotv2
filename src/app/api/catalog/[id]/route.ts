@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // ── PATCH /api/catalog/[id] ───────────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
@@ -12,6 +14,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const body = await req.json()
   const { tipo_case, modelo, color, activo, identificador, ubicacion, stock } = body
+
+  if (tipo_case !== undefined) {
+    const tipoValido = await query(
+      `SELECT 1 FROM public.tipos_case WHERE nombre = $1 AND activo = true`,
+      [tipo_case.toUpperCase().trim()]
+    )
+    if (!tipoValido.length) {
+      return NextResponse.json({ error: 'Tipo de case inválido o inactivo' }, { status: 400 })
+    }
+  }
 
   const sets: string[]  = []
   const vals: any[]     = []

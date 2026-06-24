@@ -4,6 +4,8 @@ import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })

@@ -88,6 +88,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true)
   const [placing, setPlacing] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
   const skipSync = useRef(false)
 
   useEffect(() => {
@@ -153,7 +154,7 @@ export default function CartPage() {
 
   async function handleCheckout() {
     if (cart.length === 0 || placing) return
-    setPlacing(true)
+    setPlacing(true); setCheckoutError('')
     try {
       const res = await fetch('/api/client/orders', {
         method: 'POST',
@@ -161,12 +162,17 @@ export default function CartPage() {
         body: JSON.stringify({ items: cart }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error al crear el pedido')
+      if (!res.ok) {
+        const detalle = Array.isArray(data.faltantes) && data.faltantes.length
+          ? ` Quedan ${data.faltantes.map((f: any) => f.disponible).join(', ')} piezas disponibles de los artículos afectados — ajusta las cantidades en tu carrito.`
+          : ''
+        throw new Error((data.error || 'Error al crear el pedido') + detalle)
+      }
       updateCart(() => [])
       setSuccess(true)
       setTimeout(() => router.push('/client/orders'), 2000)
     } catch (e: any) {
-      alert(e.message)
+      setCheckoutError(e.message)
     } finally {
       setPlacing(false)
     }
@@ -313,6 +319,12 @@ export default function CartPage() {
               <span style={{ fontSize:14, fontWeight:700, color:'var(--txt)' }}>Total</span>
               <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>{totalPiezas} pzas</span>
             </div>
+
+            {checkoutError && (
+              <div style={{ background:'var(--err-bg)', border:'1px solid var(--err-border)', color:'var(--err-text)', borderRadius:8, padding:'10px 12px', fontSize:12, marginBottom:12, lineHeight:1.5 }}>
+                ⚠ {checkoutError}
+              </div>
+            )}
 
             <button className="btn-primary btn-block" disabled={placing} onClick={handleCheckout}>
               {placing

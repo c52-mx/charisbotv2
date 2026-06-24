@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verificarWebhookStripe } from '@/lib/payments/stripe'
 import { confirmarPagoPedido } from '@/lib/payments/confirm'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   const signature = req.headers.get('stripe-signature')
   if (!signature) return NextResponse.json({ error: 'Falta firma' }, { status: 400 })

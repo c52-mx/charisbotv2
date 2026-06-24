@@ -3,18 +3,19 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 
-const ESTADO_META: Record<string,{label:string;color:string;bg:string;icon:string}> = {
-  'PENDIENTE_PAGO':       {label:'Pendiente de pago', color:'#92400e',bg:'#fef3c7',icon:'⏳'},
-  'PAGO_RECIBIDO':        {label:'Pago recibido',     color:'#065f46',bg:'#d1fae5',icon:'✅'},
-  'CONFIRMADO':           {label:'Confirmado',        color:'var(--blue)',bg:'#eff6ff',icon:'✓'},
-  'EN_PREPARACION':       {label:'En preparación',    color:'#6b21a8',bg:'#fdf4ff',icon:'📦'},
-  'EN_REPARTO':           {label:'En camino',         color:'#0369a1',bg:'#e0f2fe',icon:'🚚'},
-  'ENTREGADO':            {label:'Entregado',         color:'#15803d',bg:'var(--ok-bg)',icon:'🎉'},
-  'CANCELADO':            {label:'Cancelado',         color:'#991b1b',bg:'var(--err-bg)',icon:'✕'},
-  'PENDIENTE_CONFIRMACION':{label:'Por confirmar',    color:'#854d0e',bg:'#fefce8',icon:'⏱'},
+const ESTADO_META: Record<string,{label:string;shortLabel:string;color:string;bg:string;icon:string}> = {
+  'PENDIENTE_PAGO':       {label:'Pendiente de pago', shortLabel:'Pendiente',  color:'#92400e',bg:'#fef3c7',icon:'⏳'},
+  'PAGO_RECIBIDO':        {label:'Pago recibido',     shortLabel:'Pago',       color:'#065f46',bg:'#d1fae5',icon:'✅'},
+  'CONFIRMADO':           {label:'Confirmado',        shortLabel:'Confirmado', color:'var(--blue)',bg:'#eff6ff',icon:'✓'},
+  'EN_PREPARACION':       {label:'En preparación',    shortLabel:'Preparando', color:'#6b21a8',bg:'#fdf4ff',icon:'📦'},
+  'EN_REPARTO':           {label:'En camino',         shortLabel:'En camino',  color:'#0369a1',bg:'#e0f2fe',icon:'🚚'},
+  'ENTREGADO':            {label:'Entregado',         shortLabel:'Entregado',  color:'#15803d',bg:'var(--ok-bg)',icon:'🎉'},
+  'CANCELADO':            {label:'Cancelado',         shortLabel:'Cancelado',  color:'#991b1b',bg:'var(--err-bg)',icon:'✕'},
+  'PENDIENTE_CONFIRMACION':{label:'Por confirmar',    shortLabel:'Por confirmar', color:'#854d0e',bg:'#fefce8',icon:'⏱'},
 }
 
 const TIMELINE_STEPS = ['PENDIENTE_PAGO','PAGO_RECIBIDO','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO']
+const MOTIVOS_CANCEL = ['Cambié de opinión', 'Encontré mejor precio', 'Error al pedir', 'Otro']
 
 const CSS = `
   @keyframes spin { to{transform:rotate(360deg)} }
@@ -31,6 +32,9 @@ export default function OrderDetailPage() {
   const [gateways, setGateways] = useState({ stripe: false, mercadopago: false })
   const [paying,   setPaying]   = useState<'STRIPE'|'MERCADOPAGO'|null>(null)
   const [payError, setPayError] = useState('')
+  const [cancelError, setCancelError] = useState('')
+  const [motivoSel, setMotivoSel] = useState(MOTIVOS_CANCEL[0])
+  const [motivoOtro, setMotivoOtro] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -65,14 +69,19 @@ export default function OrderDetailPage() {
   }
 
   async function handleCancel() {
-    setCanceling(true)
+    setCanceling(true); setCancelError('')
     try {
-      const res = await fetch(`/api/client/orders/${id}/cancel`, { method:'POST' })
+      const motivo = motivoSel === 'Otro' ? motivoOtro.trim() : motivoSel
+      const res = await fetch(`/api/client/orders/${id}/cancel`, {
+        method:'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ motivo }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setOrder((o: any) => ({ ...o, estado:'CANCELADO' }))
       setShowConfirm(false)
-    } catch (e: any) { alert(e.message) }
+    } catch (e: any) { setCancelError(e.message) }
     finally { setCanceling(false) }
   }
 
@@ -114,9 +123,12 @@ export default function OrderDetailPage() {
                 <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', borderRadius:100, fontSize:12, fontWeight:700, background:meta.bg, color:meta.color }}>
                   {meta.icon} {meta.label}
                 </span>
+                {order.estado === 'CANCELADO' && order.motivo_cancelacion && (
+                  <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>Motivo: {order.motivo_cancelacion}</p>
+                )}
               </div>
               {canCancel && (
-                <button onClick={() => setShowConfirm(true)}
+                <button onClick={() => { setCancelError(''); setShowConfirm(true) }}
                   style={{ padding:'8px 16px', borderRadius:9, border:'1.5px solid var(--err-border)', background:'var(--err-bg)', color:'var(--err-text)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
                   Cancelar pedido
                 </button>
@@ -136,7 +148,7 @@ export default function OrderDetailPage() {
                           {done?'✓':i+1}
                         </div>
                         <span style={{ fontSize:9, color:done?'var(--blue)':'var(--txt3)', whiteSpace:'nowrap', fontWeight:done?700:400 }}>
-                          {m?.label?.split(' ')[0]}
+                          {m?.shortLabel || m?.label}
                         </span>
                       </div>
                       {i<TIMELINE_STEPS.length-1 && (
@@ -264,15 +276,31 @@ export default function OrderDetailPage() {
              onClick={e => { if(e.target===e.currentTarget) setShowConfirm(false) }}>
           <div style={{ background:'white',borderRadius:16,padding:28,maxWidth:400,width:'100%' }}>
             <h3 style={{ fontFamily:'Arial Black,sans-serif',fontWeight:900,fontSize:18,color:'var(--txt)',marginBottom:10 }}>¿Cancelar pedido?</h3>
-            <p style={{ fontSize:14,color:'var(--txt2)',lineHeight:1.6,marginBottom:20 }}>
+            <p style={{ fontSize:14,color:'var(--txt2)',lineHeight:1.6,marginBottom:16 }}>
               Esta acción no se puede deshacer. ¿Estás seguro que deseas cancelar este pedido?
             </p>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)', marginBottom:6 }}>¿Por qué cancelas?</label>
+              <select value={motivoSel} onChange={e => setMotivoSel(e.target.value)}
+                style={{ width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', fontSize:13, fontFamily:'inherit', marginBottom: motivoSel==='Otro' ? 8 : 0 }}>
+                {MOTIVOS_CANCEL.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {motivoSel === 'Otro' && (
+                <textarea value={motivoOtro} onChange={e => setMotivoOtro(e.target.value)} placeholder="Cuéntanos qué pasó..."
+                  style={{ width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', fontSize:13, fontFamily:'inherit', minHeight:60, resize:'vertical' }} />
+              )}
+            </div>
+            {cancelError && (
+              <p style={{ fontSize:12, color:'var(--err-text)', background:'var(--err-bg)', border:'1px solid var(--err-border)', borderRadius:8, padding:'8px 10px', marginBottom:14 }}>
+                ⚠ {cancelError}
+              </p>
+            )}
             <div style={{ display:'flex',gap:10 }}>
               <button onClick={() => setShowConfirm(false)} className="btn-ghost" style={{ flex:1 }}>
                 No, regresar
               </button>
-              <button onClick={handleCancel} disabled={canceling}
-                style={{ flex:1,padding:'10px',borderRadius:9,border:'none',background:'var(--err-text)',color:'white',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit',opacity:canceling?.6:1 }}>
+              <button onClick={handleCancel} disabled={canceling || (motivoSel==='Otro' && !motivoOtro.trim())}
+                style={{ flex:1,padding:'10px',borderRadius:9,border:'none',background:'var(--err-text)',color:'white',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:'inherit',opacity:(canceling||(motivoSel==='Otro'&&!motivoOtro.trim()))?.6:1 }}>
                 {canceling ? 'Cancelando...' : 'Sí, cancelar'}
               </button>
             </div>

@@ -4,6 +4,8 @@ import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { liberarPedido } from '@/lib/stock'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -19,14 +21,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Este pedido ya no se puede cancelar' }, { status: 400 })
     }
 
+    const { motivo } = await req.json().catch(() => ({ motivo: null }))
+    const motivoFinal = motivo?.trim() || 'Cancelado por el cliente'
+
     await query(`
-      UPDATE public.pedidos SET estado='CANCELADO', cancelado_en=NOW() WHERE id=$1
-    `, [params.id])
+      UPDATE public.pedidos SET estado='CANCELADO', cancelado_en=NOW(), motivo_cancelacion=$2 WHERE id=$1
+    `, [params.id, motivoFinal])
 
     await query(`
       INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
-      VALUES ($1, 'CANCELADO', 'Cancelado por el cliente')
-    `, [params.id])
+      VALUES ($1, 'CANCELADO', $2)
+    `, [params.id, motivoFinal])
 
     await liberarPedido(params.id).catch(() => {})
 

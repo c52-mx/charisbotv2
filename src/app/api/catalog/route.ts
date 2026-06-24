@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // ── GET /api/catalog ──────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
@@ -94,6 +96,14 @@ export async function POST(req: NextRequest) {
 
   if (!tipo_case || !modelo || !color) {
     return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
+  }
+
+  const tipoValido = await query(
+    `SELECT 1 FROM public.tipos_case WHERE nombre = $1 AND activo = true`,
+    [tipo_case.toUpperCase().trim()]
+  )
+  if (!tipoValido.length) {
+    return NextResponse.json({ error: 'Tipo de case inválido o inactivo' }, { status: 400 })
   }
 
   const newCols = await hasNewColumns()

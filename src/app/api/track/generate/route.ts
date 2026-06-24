@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, buildTrackUrl } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // POST /api/track/generate
 // Genera un link firmado para que el cliente vea sus pedidos sin login
 // Usado por: portal admin, n8n (con header x-n8n-secret)

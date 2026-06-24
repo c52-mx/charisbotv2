@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarConfirmacion } from '@/lib/whatsapp'
-import { resolveCaseId, liberarPedidosVencidos } from '@/lib/stock'
+import { resolveCaseId, liberarPedidosVencidos, checkStockBajoYNotificar } from '@/lib/stock'
+
+export const dynamic = 'force-dynamic'
 
 // GET /api/orders
 export async function GET(req: NextRequest) {
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   // ALMACEN solo ve pedidos CONFIRMADO o superior
   if (session.rol === 'ALMACEN') {
-    conditions.push(`p.estado = ANY(ARRAY['CONFIRMADO','EN_PROCESO','COMPLETADO','CANCELADO'])`)
+    conditions.push(`p.estado = ANY(ARRAY['CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO','EN_PROCESO','COMPLETADO','CANCELADO'])`)
   }
 
   // Clientes solo ven sus pedidos
@@ -118,6 +120,7 @@ export async function POST(req: NextRequest) {
   )
 
   // Insertar items
+  const stockNotifyCaseIds: string[] = []
   for (const item of items) {
     const tipoCaseItem = (item.tipo_case || tipoPred).toUpperCase()
     const modeloItem   = (item.modelo || '').toUpperCase().trim()
@@ -134,8 +137,10 @@ export async function POST(req: NextRequest) {
     const caseId = await resolveCaseId(tipoCaseItem, modeloItem, colorItem)
     if (caseId && cantidadItem > 0) {
       await query(`UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2`, [cantidadItem, caseId])
+      stockNotifyCaseIds.push(caseId)
     }
   }
+  await checkStockBajoYNotificar(stockNotifyCaseIds)
 
   // Notificar por WhatsApp
   try {

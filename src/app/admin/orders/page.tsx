@@ -6,10 +6,15 @@ import { Combo, NumInput, ImageUploader, SHARED_CSS, getThemeVars } from '@/comp
 import { ThemeContext } from '@/lib/theme-context'
 import { can, type UserRol } from '@/lib/auth-shared'
 
-const ESTADOS = ['PENDIENTE','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PROCESO','COMPLETADO','CANCELADO']
+// Vocabulario unificado con el seguimiento que ve el cliente
+// (client/orders/[id]/page.tsx) — antes este admin solo ofrecía estados
+// viejos (EN_PROCESO/COMPLETADO) que el cliente nunca mostraba.
+const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO','CANCELADO']
 const BADGE: Record<string,string> = {
-  CONFIRMADO:'badge-ok',PENDIENTE_CONFIRMACION:'badge-warn',PENDIENTE:'badge-warn',
-  EN_PROCESO:'badge-blue',COMPLETADO:'badge-purple',CANCELADO:'badge-red',
+  CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn', PENDIENTE_PAGO:'badge-warn',
+  EN_PREPARACION:'badge-blue', EN_REPARTO:'badge-blue', ENTREGADO:'badge-purple', CANCELADO:'badge-red',
+  // legacy — pedidos históricos que aún tengan estos valores
+  EN_PROCESO:'badge-blue', COMPLETADO:'badge-purple', PENDIENTE:'badge-warn',
 }
 
 export default function OrdersPage() {
@@ -27,6 +32,11 @@ export default function OrdersPage() {
   const [filters,  setFilters]  = useState({ estado:'', origen:'', telefono:'' })
   const [montoInput, setMontoInput] = useState('')
   const [savingMonto, setSavingMonto] = useState(false)
+  const [pendingChange, setPendingChange] = useState<{ id:string; estado:string } | null>(null)
+  const [motivoCancel, setMotivoCancel] = useState('')
+  const [confirmError, setConfirmError] = useState('')
+  const [reactivating, setReactivating] = useState(false)
+  const [reactivateError, setReactivateError] = useState<{ msg:string; faltantes?:any[] } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -53,12 +63,47 @@ export default function OrdersPage() {
     await loadDetail(id)
     setSavingMonto(false)
   }
-  async function updateStatus(id: string, estado: string) {
-    setUpdating(true)
-    await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ estado }) })
-    await load()
-    if (selected?.id === id) await loadDetail(id)
-    setUpdating(false)
+
+  function requestStatusChange(id: string, estado: string) {
+    setMotivoCancel(''); setConfirmError('')
+    setPendingChange({ id, estado })
+  }
+
+  async function confirmStatusChange() {
+    if (!pendingChange) return
+    const { id, estado } = pendingChange
+    setUpdating(true); setConfirmError('')
+    try {
+      const r = await fetch(`/api/orders/${id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ estado, motivo_cancelacion: estado==='CANCELADO' ? motivoCancel : undefined }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'Error al actualizar')
+      await load()
+      if (selected?.id === id) await loadDetail(id)
+      setPendingChange(null)
+    } catch (e: any) {
+      setConfirmError(e.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  async function reactivate(id: string) {
+    setReactivating(true); setReactivateError(null)
+    try {
+      const r = await fetch(`/api/orders/${id}/reactivate`, { method:'POST' })
+      const data = await r.json()
+      if (!r.ok) throw new Error(JSON.stringify({ msg: data.error, faltantes: data.faltantes }))
+      await load()
+      await loadDetail(id)
+    } catch (e: any) {
+      try { setReactivateError(JSON.parse(e.message)) }
+      catch { setReactivateError({ msg: e.message }) }
+    } finally {
+      setReactivating(false)
+    }
   }
 
   const pages = Math.ceil(total / 20)
@@ -73,7 +118,12 @@ export default function OrdersPage() {
           <h1 style={{ fontFamily:'Syne,system-ui,sans-serif', fontSize:26, fontWeight:700, color:'var(--txt)', margin:0 }}>Pedidos</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>{total} pedidos en total</p>
         </div>
-        {can(userRol,'pedidos_crear') && <button className="cbtn cbtn-primary" onClick={() => setShowCreate(true)}>+ Nuevo pedido</button>}
+        <div style={{ display:'flex', gap:8 }}>
+          <button className="cbtn cbtn-secondary" onClick={() => load()} disabled={loading} title="Refrescar lista">
+            🔄 Refrescar
+          </button>
+          {can(userRol,'pedidos_crear') && <button className="cbtn cbtn-primary" onClick={() => setShowCreate(true)}>+ Nuevo pedido</button>}
+        </div>
       </div>
 
       {/* Filters */}
@@ -127,10 +177,14 @@ export default function OrdersPage() {
                   <td>
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                       <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => loadDetail(o.id)}>Ver</button>
-                      <select className="cinput" style={{ width:'auto', fontSize:11, padding:'4px 6px', borderRadius:6 }}
-                              value={o.estado} onChange={e => updateStatus(o.id, e.target.value)} disabled={updating}>
-                        {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g,' ')}</option>)}
-                      </select>
+                      {o.estado === 'CANCELADO' ? (
+                        <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => reactivate(o.id)} disabled={reactivating}>♻️ Reactivar</button>
+                      ) : (
+                        <select className="cinput" style={{ width:'auto', fontSize:11, padding:'4px 6px', borderRadius:6 }}
+                                value={o.estado} onChange={e => requestStatusChange(o.id, e.target.value)} disabled={updating}>
+                          {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g,' ')}</option>)}
+                        </select>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -152,7 +206,7 @@ export default function OrdersPage() {
 
       {/* Detail modal */}
       {selected && (
-        <div className="modal-overlay" onClick={e => { if (e.target===e.currentTarget) setSelected(null) }}>
+        <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setSelected(null) }}>
           <div className="modal-box" style={{ maxWidth:600 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
               <div>
@@ -174,6 +228,11 @@ export default function OrdersPage() {
               {selected.notas && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)', borderLeft:`3px solid var(--blue)` }}>
                   📝 {selected.notas}
+                </div>
+              )}
+              {selected.estado === 'CANCELADO' && selected.motivo_cancelacion && (
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
+                  ✕ Motivo de cancelación: {selected.motivo_cancelacion}
                 </div>
               )}
               {/* Evidencias — siempre visibles, permite agregar */}
@@ -213,16 +272,93 @@ export default function OrdersPage() {
                 </button>
               </div>
 
-              <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                {ESTADOS.map(e => (
-                  <button key={e} onClick={() => updateStatus(selected.id, e)} disabled={updating || selected.estado===e}
-                          style={{ fontSize:11,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'all 0.15s',
-                            background:selected.estado===e?'var(--blue)':'var(--bg4)',color:selected.estado===e?'white':'var(--txt2)',
-                            border:`1px solid ${selected.estado===e?'var(--blue)':'var(--border)'}`,opacity:updating?0.5:1 }}>
-                    {e.replace(/_/g,' ')}
+              {selected.estado === 'CANCELADO' ? (
+                <>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Reactivar pedido</div>
+                  {reactivateError && (
+                    <div style={{ marginBottom:10, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
+                      ⚠ {reactivateError.msg}
+                      {reactivateError.faltantes?.length ? (
+                        <div style={{ marginTop:4 }}>
+                          {reactivateError.faltantes.map((f:any,i:number)=>(
+                            <div key={i}>· Disponibles: {f.disponible}</div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                  <button className="cbtn cbtn-primary" disabled={reactivating} onClick={() => reactivate(selected.id)}>
+                    {reactivating ? 'Reactivando…' : '♻️ Reactivar pedido'}
                   </button>
-                ))}
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {ESTADOS.map(e => (
+                      <button key={e} onClick={() => requestStatusChange(selected.id, e)} disabled={updating || selected.estado===e}
+                              style={{ fontSize:11,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'all 0.15s',
+                                background:selected.estado===e?'var(--blue)':'var(--bg4)',color:selected.estado===e?'white':'var(--txt2)',
+                                border:`1px solid ${selected.estado===e?'var(--blue)':'var(--border)'}`,opacity:updating?0.5:1 }}>
+                        {e.replace(/_/g,' ')}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {selected.timeline?.length > 0 && (
+                <div style={{ marginTop:18 }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Historial</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {selected.timeline.map((t:any,i:number) => (
+                      <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'6px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
+                        <div>
+                          <span style={{ fontWeight:600, color:'var(--txt)' }}>{t.estado.replace(/_/g,' ')}</span>
+                          {t.nota ? <span> — {t.nota}</span> : null}
+                        </div>
+                        <div style={{ textAlign:'right', flexShrink:0, fontSize:11 }}>
+                          <div>{format(new Date(t.creado_en),'dd MMM HH:mm',{locale:es})}</div>
+                          <div style={{ color:'var(--txt3)' }}>{t.realizado_por_nombre || 'Sistema'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación de cambio de estado */}
+      {pendingChange && (
+        <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setPendingChange(null) }}>
+          <div className="modal-box" style={{ maxWidth:420 }}>
+            <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>
+                ¿Cambiar estado a {pendingChange.estado.replace(/_/g,' ')}?
+              </div>
+            </div>
+            <div style={{ padding:'18px 22px 22px' }}>
+              {pendingChange.estado === 'CANCELADO' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                    Motivo de cancelación *
+                  </label>
+                  <textarea className="cinput" style={{ minHeight:64 }} value={motivoCancel} onChange={e => setMotivoCancel(e.target.value)} placeholder="¿Por qué se cancela este pedido?" />
+                </div>
+              )}
+              {confirmError && (
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
+                  ⚠ {confirmError}
+                </div>
+              )}
+              <div style={{ display:'flex', gap:10 }}>
+                <button className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={() => setPendingChange(null)}>Cancelar</button>
+                <button className="cbtn cbtn-primary" style={{ flex:1 }} disabled={updating} onClick={confirmStatusChange}>
+                  {updating ? 'Aplicando…' : 'Confirmar'}
+                </button>
               </div>
             </div>
           </div>
@@ -243,13 +379,19 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
   const [catalogFull, setCatalogFull] = useState<{tipo:string,modelo:string,color:string}[]>([])
   const [catalogOpts, setCatalogOpts] = useState<{value:string,label:string,tipo:string}[]>([])
   // items start with empty color so user must pick one
-  const [items,    setItems]   = useState([{ tipo_case:'3 EN 1', modelo:'', color:'', cantidad:1 }])
+  const [items,    setItems]   = useState([{ tipo_case:'', modelo:'', color:'', cantidad:1 }])
   const [notas,    setNotas]   = useState('')
   const [pedidoId, setPedidoId]= useState<string|null>(null)
   const [loading,  setLoading] = useState(false)
   const [error,    setError]   = useState('')
+  const [tiposList, setTiposList] = useState<string[]>([])
 
   useEffect(() => {
+    fetch('/api/tipos-case').then(r=>r.json()).then(d=>{
+      const tipos = (d.items||[]).map((t:any)=>t.nombre)
+      setTiposList(tipos)
+      setItems(p => p.map(it => it.tipo_case ? it : { ...it, tipo_case: tipos[0] || '' }))
+    })
     fetch('/api/clients?limit=200').then(r=>r.json()).then(d=>{
       setClienteOpts((d.data||[]).map((c:any)=>({ value: c.telefono, label: `${c.nombre||'Sin nombre'} — ${c.telefono}` })))
     })
@@ -312,7 +454,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
 
   // If we have pedidoId, show evidence upload step
   if (pedidoId) return (
-    <div className="modal-overlay" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+    <div className="modal-mask" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
       <style>{SHARED_CSS}</style>
       <div className="modal-box" style={{ maxWidth:440 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
@@ -331,7 +473,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
   )
 
   return (
-    <div className="modal-overlay" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+    <div className="modal-mask" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
       <style>{SHARED_CSS + `
         .item-row-grid { display:grid; grid-template-columns:120px 1fr 100px 70px 28px; gap:8px; align-items:center; }
         @media(max-width:500px){
@@ -375,7 +517,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
                 <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em' }}>Items del pedido</label>
-                <button type="button" className="cbtn cbtn-ghost" onClick={() => setItems(p=>[...p,{tipo_case:'3 EN 1',modelo:'',color:'NEGRO',cantidad:1}])}>+ Fila</button>
+                <button type="button" className="cbtn cbtn-ghost" onClick={() => setItems(p=>[...p,{tipo_case:tiposList[0]||'',modelo:'',color:'NEGRO',cantidad:1}])}>+ Fila</button>
               </div>
               {/* Header — hidden on mobile */}
               <div className="item-hdr-row" style={{ display:'grid',gridTemplateColumns:'120px 1fr 100px 70px 28px',gap:8,marginBottom:5 }}>
@@ -386,7 +528,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
                   <div key={i} className="item-row-grid" style={{ display:'grid', gridTemplateColumns:'120px 1fr 100px 70px 28px', gap:8, alignItems:'center' }}>
                     <select className="cinput" style={{ fontSize:12 }} value={item.tipo_case}
                             onChange={e=>updateItem(i,'tipo_case',e.target.value)}>
-                      {['3 EN 1','BLINDAJE','ESCUDO','ANILLO'].map(t=><option key={t}>{t}</option>)}
+                      {tiposList.map(t=><option key={t}>{t}</option>)}
                     </select>
                     <Combo
                       value={item.modelo}

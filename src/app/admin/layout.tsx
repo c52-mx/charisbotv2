@@ -10,9 +10,11 @@ const NAV_ITEMS = [
   { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  roles:['ADMIN'] },
   { href:'/admin/orders',  label:'Pedidos',   icon:'📦', exact:false, roles:['ADMIN','VENDEDOR','ALMACEN'] },
   { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, roles:['ADMIN','VENDEDOR','ALMACEN'] },
+  { href:'/admin/tipos-case', label:'Tipos de case', icon:'🏷️', exact:false, roles:['ADMIN','ALMACEN'] },
   { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, roles:['ADMIN','VENDEDOR'] },
   { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, roles:['ADMIN'] },
   { href:'/admin/config',  label:'Configuración', icon:'⚙️', exact:false, roles:['ADMIN'] },
+  { href:'/admin/landing', label:'Landing',   icon:'🎠', exact:false, roles:['ADMIN'] },
 ]
 
 const ROL_STYLE: Record<string,{label:string;badgeClass:string}> = {

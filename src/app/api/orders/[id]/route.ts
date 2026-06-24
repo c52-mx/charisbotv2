@@ -4,7 +4,11 @@ import { getSession } from '@/lib/auth'
 import { notificarCambioEstatus } from '@/lib/whatsapp'
 import { finalizarPedido, liberarPedido } from '@/lib/stock'
 
-const ESTADOS_FINALES = ['CONFIRMADO', 'EN_PROCESO', 'COMPLETADO']
+export const dynamic = 'force-dynamic'
+
+// Solo CONFIRMADO descuenta stock — EN_PREPARACION/EN_REPARTO/ENTREGADO son
+// pasos de seguimiento posteriores que no vuelven a tocar el inventario.
+const ESTADOS_FINALES = ['CONFIRMADO']
 
 // GET /api/orders/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -26,10 +30,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     [params.id]
   )
 
+  const timeline = await query(
+    `SELECT t.id, t.estado, t.nota, t.creado_en, u.nombre as realizado_por_nombre
+     FROM public.pedido_timeline t
+     LEFT JOIN public.usuarios u ON u.id = t.realizado_por
+     WHERE t.pedido_id = $1
+     ORDER BY t.creado_en`,
+    [params.id]
+  )
+
   // Extraer evidencias guardadas en pedido_json
   const evidencias: string[] = pedido.pedido_json?.evidencias || []
 
-  return NextResponse.json({ ...pedido, items, evidencias })
+  return NextResponse.json({ ...pedido, items, timeline, evidencias })
 }
 
 // PATCH /api/orders/[id] - cambiar estado
@@ -39,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { estado, notas, monto_total } = await req.json()
+  const { estado, notas, monto_total, motivo_cancelacion } = await req.json()
 
   // Solo permitir actualizar el monto a cobrar, sin cambiar de estado
   if (estado === undefined && monto_total !== undefined) {
@@ -51,9 +64,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ ok: true, data: updated })
   }
 
-  const validStates = ['PENDIENTE', 'PENDIENTE_CONFIRMACION', 'CONFIRMADO', 'EN_PROCESO', 'COMPLETADO', 'CANCELADO']
+  const validStates = [
+    'PENDIENTE_PAGO', 'PENDIENTE_CONFIRMACION', 'CONFIRMADO',
+    'EN_PREPARACION', 'EN_REPARTO', 'ENTREGADO', 'CANCELADO',
+  ]
   if (!validStates.includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
+  }
+  if (estado === 'CANCELADO' && !motivo_cancelacion?.trim()) {
+    return NextResponse.json({ error: 'El motivo de cancelación es obligatorio' }, { status: 400 })
   }
 
   const before = await queryOne<{ estado: string }>(`SELECT estado FROM public.pedidos WHERE id = $1`, [params.id])
@@ -64,13 +83,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
      SET estado = $1,
          resumen = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE resumen END,
          monto_total = CASE WHEN $4::numeric IS NOT NULL THEN $4 ELSE monto_total END,
+         motivo_cancelacion = CASE WHEN $1 = 'CANCELADO' THEN $5 ELSE motivo_cancelacion END,
+         cancelado_en = CASE WHEN $1 = 'CANCELADO' THEN NOW() ELSE cancelado_en END,
          actualizado_en = NOW()
      WHERE id = $3
      RETURNING id, telefono, estado, resumen`,
-    [estado, notas || null, params.id, monto_total === undefined || monto_total === '' ? null : monto_total]
+    [
+      estado, notas || null, params.id,
+      monto_total === undefined || monto_total === '' ? null : monto_total,
+      motivo_cancelacion || null,
+    ]
   )
 
   if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  await query(
+    `INSERT INTO public.pedido_timeline (pedido_id, estado, nota, realizado_por)
+     VALUES ($1, $2, $3, $4)`,
+    [params.id, estado, estado === 'CANCELADO' ? motivo_cancelacion : (notas || null), session.sub]
+  )
 
   // Confirmado/pagado por primera vez → descuenta stock definitivo y libera la reserva.
   // Cancelado → libera la reserva sin tocar el stock (nunca se vendió).

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { verifyTrackLink } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/track?tel=521...&sig=... — returns orders for client (no auth cookie)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)

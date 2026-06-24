@@ -1,9 +1,11 @@
 // src/app/api/client/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { query } from '@/lib/db'
+import { query, withTransaction } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { sendEmail, emailNuevoPedido } from '@/lib/email'
-import { resolveCaseId, convertirCarritoAPedido, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
+import { resolveCaseId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
@@ -69,38 +71,6 @@ export async function POST(req: NextRequest) {
 
     const pedidoJson = { items, direccion_entrega }
 
-    const [pedido] = await query(`
-      INSERT INTO public.pedidos (
-        conversacion_id, telefono, tipo_case, estado,
-        requiere_firma, resumen, pedido_json,
-        metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-        creado_en
-      ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, NOW())
-      RETURNING id, numero_pedido
-    `, [
-      conv.id, session.email, tipo, resumen,
-      JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
-      referencia_pago || null, JSON.stringify(direccion_entrega || {}),
-      notas_cliente || null,
-    ])
-
-    // Insert items
-    if (items.length > 0) {
-      await query(`
-        INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad)
-        SELECT $1::uuid, x.modelo, x.tipo_case, COALESCE(NULLIF(x.color,''),'NEGRO'), x.cantidad
-        FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, tipo_case text, color text, cantidad int)
-        WHERE COALESCE(x.modelo,'') <> '' AND COALESCE(x.cantidad,0) > 0
-      `, [pedido.id, JSON.stringify(items)])
-    }
-
-    // Timeline inicial
-    await query(`
-      INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
-      VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente')
-    `, [pedido.id])
-
-    // Convertir reservas del carrito en reserva del pedido (con expiración de pago)
     const itemsConCaseId = (await Promise.all(
       items.map(async (i: any) => {
         const caseId = await resolveCaseId(i.tipo_case, i.modelo, i.color)
@@ -110,20 +80,51 @@ export async function POST(req: NextRequest) {
 
     const ttlPago = await getConfigMinutos('tiempo_reserva_pago_min', 1440)
 
+    // Todo en una sola transacción: si falta stock, se revierte completo y
+    // el pedido nunca llega a existir (sin registros CANCELADO fantasma).
+    let pedido: { id: string; numero_pedido: string }
     try {
-      await convertirCarritoAPedido(session.email, pedido.id, itemsConCaseId, ttlPago)
-      await query(
-        `UPDATE public.pedidos SET reserva_expira_en = NOW() + ($1::int * INTERVAL '1 minute') WHERE id = $2`,
-        [ttlPago, pedido.id]
-      )
+      pedido = await withTransaction(async (tx) => {
+        const [p] = await tx<{ id: string; numero_pedido: string }>(`
+          INSERT INTO public.pedidos (
+            conversacion_id, telefono, tipo_case, estado,
+            requiere_firma, resumen, pedido_json,
+            metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
+            creado_en
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, NOW())
+          RETURNING id, numero_pedido
+        `, [
+          conv.id, session.email, tipo, resumen,
+          JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
+          referencia_pago || null, JSON.stringify(direccion_entrega || {}),
+          notas_cliente || null,
+        ])
+
+        if (items.length > 0) {
+          await tx(`
+            INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad)
+            SELECT $1::uuid, x.modelo, x.tipo_case, COALESCE(NULLIF(x.color,''),'NEGRO'), x.cantidad
+            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, tipo_case text, color text, cantidad int)
+            WHERE COALESCE(x.modelo,'') <> '' AND COALESCE(x.cantidad,0) > 0
+          `, [p.id, JSON.stringify(items)])
+        }
+
+        await tx(`
+          INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
+          VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente')
+        `, [p.id])
+
+        await convertirCarritoAPedidoTx(tx, session.email, p.id, itemsConCaseId, ttlPago)
+
+        await tx(
+          `UPDATE public.pedidos SET reserva_expira_en = NOW() + ($1::int * INTERVAL '1 minute') WHERE id = $2`,
+          [ttlPago, p.id]
+        )
+
+        return p
+      })
     } catch (e) {
       if (e instanceof InsufficientStockError) {
-        await query(`UPDATE public.pedidos SET estado='CANCELADO', cancelado_en=NOW() WHERE id=$1`, [pedido.id])
-        await query(
-          `INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
-           VALUES ($1, 'CANCELADO', 'Cancelado automáticamente: stock insuficiente al confirmar')`,
-          [pedido.id]
-        )
         return NextResponse.json(
           { error: 'Algunos artículos ya no tienen stock suficiente', faltantes: e.faltantes },
           { status: 409 }
@@ -144,6 +145,19 @@ export async function POST(req: NextRequest) {
           totalPiezas
         ),
       }).catch(() => {})
+
+      const ventaImportante = await getConfigMinutos('venta_importante_piezas', 100)
+      if (totalPiezas >= ventaImportante) {
+        sendEmail({
+          to:      adminEmail,
+          subject: `🔥 Venta importante — #${(pedido.numero_pedido||pedido.id.slice(0,8)).toUpperCase()}`,
+          html:    emailNuevoPedido(
+            pedido.numero_pedido || pedido.id.slice(0,8),
+            session.nombre || session.email,
+            totalPiezas
+          ),
+        }).catch(() => {})
+      }
     }
 
     return NextResponse.json({ id: pedido.id, numero_pedido: pedido.numero_pedido, ok: true })

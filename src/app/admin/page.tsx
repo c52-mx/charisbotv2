@@ -6,6 +6,7 @@ import { es } from 'date-fns/locale'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
 import { useContext } from 'react'
+import Link from 'next/link'
 
 const ESTADO_COLORS: Record<string,string> = {
   CONFIRMADO:'#22c55e', PENDIENTE_CONFIRMACION:'#f59e0b',
@@ -45,6 +46,7 @@ export default function DashboardPage() {
     {label:'Esta semana',     value:st.pedidos_semana??0,      icon:'📆', color:'#818cf8'},
     {label:'Confirmados',     value:st.pedidos_confirmados??0, icon:'✅', color:'#22c55e'},
     {label:'Clientes únicos', value:st.clientes_unicos??0,     icon:'👥', color:'#f59e0b'},
+    {label:'Stock bajo',      value:data?.stockBajo??0,        icon:'⚠️', color:'#ef4444', href:'/admin/catalog'},
   ]
 
   return (
@@ -53,9 +55,11 @@ export default function DashboardPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
 
         /* ── Stat grid ── */
-        .dash-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; }
+        .dash-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
+        @media(max-width:1100px){ .dash-stats{ grid-template-columns:repeat(3,1fr); } }
         @media(max-width:900px){ .dash-stats{ grid-template-columns:repeat(2,1fr); } }
         @media(max-width:400px){ .dash-stats{ grid-template-columns:1fr 1fr; gap:10px; } }
+        .dash-stat-link { text-decoration:none; display:block; }
 
         /* ── Chart grid ── */
         .dash-charts { display:grid; grid-template-columns:1fr 300px; gap:14px; margin-bottom:14px; }
@@ -85,19 +89,22 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="dash-stats">
-        {stats.map(s=>(
-          <div className="dash-stat" key={s.label}>
-            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
-              <div style={{minWidth:0}}>
-                <div className="dash-stat-val">{s.value}</div>
-                <div style={{fontSize:11,fontWeight:600,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginTop:5,lineHeight:1.3}}>{s.label}</div>
-              </div>
-              <div style={{width:38,height:38,borderRadius:10,background:s.color+'20',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
-                {s.icon}
+        {stats.map(s=>{
+          const card = (
+            <div className="dash-stat" key={s.label}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+                <div style={{minWidth:0}}>
+                  <div className="dash-stat-val">{s.value}</div>
+                  <div style={{fontSize:11,fontWeight:600,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginTop:5,lineHeight:1.3}}>{s.label}</div>
+                </div>
+                <div style={{width:38,height:38,borderRadius:10,background:s.color+'20',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
+                  {s.icon}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+          return s.href ? <Link key={s.label} href={s.href} className="dash-stat-link">{card}</Link> : card
+        })}
       </div>
 
       {/* Charts */}

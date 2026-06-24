@@ -4,6 +4,8 @@ import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { getDisponibilidad } from '@/lib/stock'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { tipo: string } }

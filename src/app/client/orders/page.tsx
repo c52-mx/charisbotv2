@@ -95,18 +95,62 @@ export default function OrdersPage() {
     return new Date(d).toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
   }
 
-  function reordenar(pedido: Pedido) {
+  const [reordenando, setReordenando] = useState<string | null>(null)
+  const [reordenarError, setReordenarError] = useState('')
+
+  async function reordenar(pedido: Pedido) {
+    setReordenarError('')
     try {
       const items = pedido.pedido_json?.items || []
       if (!items.length) return
-      const cart = items.map((it: any) => ({
-        tipo_case: it.tipo_case, marca: it.marca || '', modelo: it.modelo, color: it.color || '', cantidad: it.cantidad
-      }))
+      setReordenando(pedido.id)
+
+      const cart: any[] = []
+      const sinStock: string[] = []
+      for (const it of items) {
+        const res = await fetch('/api/client/cart/reserve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: it.cantidad }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          // Reintenta con la cantidad disponible si quedó algo, si no se omite el artículo.
+          if (data.disponible > 0) {
+            const retry = await fetch('/api/client/cart/reserve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: data.disponible }),
+            })
+            if (retry.ok) {
+              cart.push({ tipo_case: it.tipo_case, marca: it.marca || '', modelo: it.modelo, color: it.color || '', cantidad: data.disponible })
+            }
+          }
+          sinStock.push(`${it.modelo} (${it.color || 'NEGRO'})`)
+          continue
+        }
+        cart.push({ tipo_case: it.tipo_case, marca: it.marca || '', modelo: it.modelo, color: it.color || '', cantidad: it.cantidad })
+      }
+
+      if (!cart.length) {
+        setReordenarError('Ninguno de los artículos de este pedido tiene stock disponible.')
+        setReordenando(null)
+        return
+      }
+
       localStorage.setItem('charis-cart', JSON.stringify(cart))
       window.dispatchEvent(new CustomEvent('charis-cart-updated'))
+
+      if (sinStock.length) {
+        setReordenarError(`Algunos artículos ya no tienen el stock completo: ${sinStock.join(', ')}. Se ajustó la cantidad disponible en el carrito.`)
+        setReordenando(null)
+        return
+      }
+
       window.location.href = '/client/cart'
     } catch {
-      window.location.href = '/client/catalog'
+      setReordenarError('No se pudo repetir el pedido, intenta de nuevo.')
+      setReordenando(null)
     }
   }
 
@@ -126,6 +170,14 @@ export default function OrdersPage() {
           + Nuevo pedido
         </Link>
       </div>
+
+      {reordenarError && (
+        <div style={{ background:'var(--err-bg)', border:'1px solid var(--err-border)', color:'var(--err-text)', borderRadius:10, padding:'10px 14px', fontSize:13, marginBottom:16, display:'flex', alignItems:'flex-start', gap:8 }}>
+          <span>⚠</span>
+          <span style={{ flex:1 }}>{reordenarError}</span>
+          <button onClick={() => setReordenarError('')} style={{ border:'none', background:'transparent', color:'inherit', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:20 }}>
@@ -262,8 +314,8 @@ export default function OrdersPage() {
                         Ver detalle completo
                       </Link>
                       {order.estado !== 'CANCELADO' && (
-                        <button className="btn-sm" onClick={() => reordenar(order)}>
-                          🔄 Repetir pedido
+                        <button className="btn-sm" disabled={reordenando===order.id} onClick={() => reordenar(order)}>
+                          {reordenando===order.id ? 'Verificando stock…' : '🔄 Repetir pedido'}
                         </button>
                       )}
                     </div>

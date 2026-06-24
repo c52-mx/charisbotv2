@@ -8,10 +8,12 @@ export async function middleware(req: NextRequest) {
   const isAdmin  = pathname.startsWith('/admin')
   const isClient = pathname.startsWith('/client')
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
+                    && pathname !== '/api/landing-promos'
   const isTrack  = pathname.startsWith('/track')
 
-  // /track es público — no requiere auth
-  if (isTrack) return NextResponse.next()
+  // /track y /api/landing-promos son públicos — no requieren auth
+  // (landing-promos alimenta el carrusel del home, visible sin sesión)
+  if (isTrack || pathname === '/api/landing-promos') return NextResponse.next()
   if (!isAdmin && !isClient && !isApi) return NextResponse.next()
 
   if (!token) {

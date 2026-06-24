@@ -4,6 +4,8 @@ import { query, queryOne } from '@/lib/db'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
+export const dynamic = 'force-dynamic'
+
 // POST /api/upload - upload order evidence images
 export async function POST(req: NextRequest) {
   const session = await getSession(req)

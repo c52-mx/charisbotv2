@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { resolveCaseId, reservarCarrito, liberarCarritoItem, getConfigMinutos } from '@/lib/stock'
 
+export const dynamic = 'force-dynamic'
+
 // ── POST: apartar/actualizar cantidad en el carrito ─────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession(req)

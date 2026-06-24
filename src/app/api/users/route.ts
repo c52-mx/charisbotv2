@@ -3,6 +3,8 @@ import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/users
 export async function GET(req: NextRequest) {
   const s = await getSession(req)

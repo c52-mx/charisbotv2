@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verificarFirmaMercadoPago, obtenerPagoMercadoPago } from '@/lib/payments/mercadopago'
 import { confirmarPagoPedido } from '@/lib/payments/confirm'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const dataId = body?.data?.id ? String(body.data.id) : null

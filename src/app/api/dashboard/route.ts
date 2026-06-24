@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session || session.rol !== 'ADMIN') {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const [stats, byEstado, byOrigen, topModelos, ultimosPedidos] = await Promise.all([
+  const [stats, byEstado, byOrigen, topModelos, ultimosPedidos, stockBajo] = await Promise.all([
     queryOne<any>(`SELECT * FROM public.v_dashboard_stats`),
 
     query(`
@@ -42,6 +44,11 @@ export async function GET(req: NextRequest) {
       ORDER BY p.creado_en DESC
       LIMIT 5
     `),
+
+    queryOne<{ count: string }>(`
+      SELECT COUNT(*) as count FROM public.catalogo_cases
+      WHERE stock <= COALESCE((SELECT valor::int FROM public.config_portal WHERE clave = 'stock_bajo_umbral'), 10)
+    `),
   ])
 
   // Pedidos por día (últimos 7 días)
@@ -62,5 +69,6 @@ export async function GET(req: NextRequest) {
     topModelos,
     ultimosPedidos,
     porDia,
+    stockBajo: parseInt(stockBajo?.count || '0'),
   })
 }

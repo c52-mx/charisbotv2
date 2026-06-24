@@ -135,6 +135,38 @@ export function emailEstadoPedido(
 </html>`
 }
 
+export function emailStockBajo(items: { modelo: string; color: string; tipo_case: string; stock: number }[]): string {
+  const filas = items.map(it => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${it.modelo} · ${it.color} <span style="color:#8aaac4;">(${it.tipo_case})</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;font-weight:700;color:${it.stock===0?'#991b1b':'#92400e'};text-align:right;">${it.stock} pzas</td>
+    </tr>`).join('')
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#92400e;padding:24px 36px;text-align:center;">
+          <p style="margin:0;font-size:18px;font-weight:900;color:white;">⚠️ Stock bajo</p>
+        </td></tr>
+        <tr><td style="padding:28px 36px;">
+          <p style="margin:0 0 16px;font-size:14px;color:#0d2137;">Los siguientes productos quedaron en o por debajo del umbral configurado:</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">${filas}</table>
+          <a href="${APP_URL}/admin/catalog" style="display:inline-block;padding:12px 28px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
+            Ver catálogo →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
 export function emailNuevoPedido(
   numeroPedido: string,
   cliente: string,

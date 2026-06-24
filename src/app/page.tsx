@@ -267,7 +267,18 @@ export default function LandingPage() {
   const [loadingSeries,  setLS]   = useState(true)
   const [loadingModelos, setLM]   = useState(true)
   const [search,    setSearch]    = useState('')
-  const hero = useAutoplay(HERO_IMGS.length)
+  const [promos, setPromos] = useState<{ imagen_url:string; titulo:string|null; subtitulo:string|null; cta_label:string|null; cta_href:string|null }[]>([])
+  // Si hay promos cargadas desde /admin/landing se usan esas; si no hay (o
+  // falla el fetch) se cae de vuelta a las imágenes estáticas — el landing
+  // nunca queda en blanco.
+  const heroImgs = promos.length ? promos.map(p => p.imagen_url) : HERO_IMGS
+  const hero = useAutoplay(heroImgs.length)
+
+  useEffect(() => {
+    fetch('/api/landing-promos').then(r => r.json()).then(d => {
+      if (d.items?.length) setPromos(d.items)
+    }).catch(() => {})
+  }, [])
 
   // Redirigir si ya hay sesión
   useEffect(() => {
@@ -320,7 +331,11 @@ export default function LandingPage() {
       cta:'Ver novedades', cta2:'Iniciar sesión',
     },
   ]
-  const hs = HERO_SLIDES[hero.idx]
+  const safeIdx = Math.min(hero.idx, heroImgs.length - 1)
+  const promo = promos[safeIdx]
+  const hs = promo
+    ? { tag:'', h: promo.titulo, p: promo.subtitulo||'', cta: promo.cta_label||'Ver catálogo', cta2:'Iniciar sesión', ctaHref: promo.cta_href||'/register' }
+    : { ...HERO_SLIDES[safeIdx], ctaHref:'/register' }
 
   return (
     <>
@@ -358,7 +373,7 @@ export default function LandingPage() {
       {/* ── HERO CAROUSEL ── */}
       <div className="hero-car">
         <div className="hero-track" style={{transform:`translateX(-${hero.idx*100}%)`}}>
-          {HERO_IMGS.map((img,i)=>(
+          {heroImgs.map((img,i)=>(
             <div key={i} className="hero-slide">
               <img className="hero-img" src={img} alt="" loading={i===0?'eager':'lazy'}/>
               <div className="hero-overlay"/>
@@ -368,11 +383,11 @@ export default function LandingPage() {
         {/* Content superpuesto — siempre arriba */}
         <div style={{position:'absolute',inset:0,zIndex:2}}>
           <div className="hero-content">
-            <div className="hero-tag">{hs.tag}</div>
+            {hs.tag ? <div className="hero-tag">{hs.tag}</div> : null}
             <h1 className="hero-h">{hs.h}</h1>
             <p className="hero-p">{hs.p}</p>
             <div className="hero-btns">
-              <Link href="/register" className="btn-primary">{hs.cta} →</Link>
+              <Link href={hs.ctaHref} className="btn-primary">{hs.cta} →</Link>
               <Link href="/login"    className="btn-ghost">{hs.cta2}</Link>
             </div>
           </div>
@@ -382,7 +397,7 @@ export default function LandingPage() {
         <button className="hero-arrow" style={{right:16}} onClick={hero.next}>›</button>
         {/* Dots */}
         <div style={{position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',display:'flex',gap:6,zIndex:3}}>
-          {HERO_IMGS.map((_,i)=>(
+          {heroImgs.map((_,i)=>(
             <button key={i} className={`hero-dot${i===hero.idx?' act':''}`} onClick={()=>hero.go(i)}/>
           ))}
         </div>

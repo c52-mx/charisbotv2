@@ -9,6 +9,8 @@ import { sendEmail, emailVerificacion } from '@/lib/email'
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-secret-2025')
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || ''
 
+export const dynamic = 'force-dynamic'
+
 async function verifyHCaptcha(token: string): Promise<boolean> {
   if (!HCAPTCHA_SECRET || !token) return false
   try {
@@ -80,6 +82,15 @@ export async function POST(req: NextRequest) {
     }
 
     const user = rows[0]
+
+    // Vincula (o crea) el cliente por teléfono — así un cliente que ya
+    // tenía pedidos por WhatsApp queda ligado a su cuenta del portal en
+    // vez de duplicarse en /admin/clients.
+    await query(`
+      INSERT INTO public.clientes (usuario_id, nombre, telefono, email)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (telefono) DO UPDATE SET usuario_id = EXCLUDED.usuario_id, nombre = EXCLUDED.nombre
+    `, [user.id, nombre.trim(), telefono.trim(), email.toLowerCase().trim()]).catch(e => console.error('[register] clientes sync error:', e))
 
     // Enviar email de verificación (no bloqueante)
     sendEmail({

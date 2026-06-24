@@ -26,8 +26,8 @@ interface FormState {
   stock:        string
 }
 
-const TIPOS = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO'].map(t => ({ value: t, label: t }))
-const TIPOS_LIST = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO']
+// Tipos de case ahora se administran desde /admin/tipos-case — se cargan
+// dinámicamente (ver useEffect más abajo) en vez de venir hardcodeados.
 const EMPTY_FORM: FormState = {
   tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0'
 }
@@ -51,6 +51,9 @@ export default function CatalogPage() {
   const [editId,    setEditId]    = useState<string | null>(null)
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState('')
+  const [stockBajoUmbral, setStockBajoUmbral] = useState(10)
+  const [tiposList, setTiposList] = useState<string[]>([])
+  const tiposOpts = tiposList.map(t => ({ value: t, label: t }))
 
   // ── Init ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -60,6 +63,19 @@ export default function CatalogPage() {
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user?.rol || 'VENDEDOR'))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/client/config').then(r => r.json()).then(d => {
+      const n = parseInt(d.stock_bajo_umbral)
+      if (Number.isFinite(n)) setStockBajoUmbral(n)
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/tipos-case').then(r => r.json()).then(d => {
+      setTiposList((d.items || []).map((t: any) => t.nombre))
+    }).catch(() => {})
   }, [])
 
   // ── Fetch catalog ─────────────────────────────────────────────────
@@ -218,7 +234,7 @@ export default function CatalogPage() {
         <select className="inp" style={inp({ maxWidth: 160 })}
                 value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
           <option value="">Todos los tipos</option>
-          {TIPOS_LIST.map(t => <option key={t} value={t}>{t}</option>)}
+          {tiposList.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select className="inp" style={inp({ maxWidth: 140 })}
                 value={filterAct} onChange={e => setFilterAct(e.target.value)}>
@@ -268,7 +284,7 @@ export default function CatalogPage() {
                     {p.ubicacion || '—'}
                   </td>
                   <td>
-                    <span className={`badge ${p.stock === 0 ? 'badge-red' : p.stock < 10 ? 'badge-warn' : 'badge-ok'}`}>
+                    <span className={`badge ${p.stock === 0 ? 'badge-red' : p.stock <= stockBajoUmbral ? 'badge-warn' : 'badge-ok'}`}>
                       {p.stock ?? 0}
                     </span>
                   </td>
@@ -327,7 +343,7 @@ export default function CatalogPage() {
                 <Combo
                   value={form.tipo_case}
                   onChange={v => setForm(f => ({ ...f, tipo_case: v }))}
-                  options={TIPOS}
+                  options={tiposOpts}
                   placeholder="Seleccionar tipo..."
                 />
               </div>

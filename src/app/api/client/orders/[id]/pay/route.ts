@@ -5,6 +5,8 @@ import { getSession } from '@/lib/auth'
 import { stripeConfigurado, crearLinkDePagoStripe } from '@/lib/payments/stripe'
 import { mercadopagoConfigurado, crearLinkDePagoMercadoPago } from '@/lib/payments/mercadopago'
 
+export const dynamic = 'force-dynamic'
+
 // ── POST /api/client/orders/[id]/pay ────────────────────────────────────
 // Genera el link de pago con la pasarela elegida y lo devuelve para redirigir al cliente.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {

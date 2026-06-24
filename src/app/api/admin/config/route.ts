@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // ── GET /api/admin/config ───────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession(req)

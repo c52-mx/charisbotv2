@@ -11,6 +11,8 @@ interface ConfigForm {
   tiempo_reserva_pago_min: string
   pago_stripe_habilitado: string
   pago_mercadopago_habilitado: string
+  stock_bajo_umbral: string
+  venta_importante_piezas: string
 }
 
 const EMPTY: ConfigForm = {
@@ -22,6 +24,8 @@ const EMPTY: ConfigForm = {
   tiempo_reserva_pago_min: '1440',
   pago_stripe_habilitado: 'false',
   pago_mercadopago_habilitado: 'false',
+  stock_bajo_umbral: '10',
+  venta_importante_piezas: '100',
 }
 
 export default function ConfigPage() {
@@ -61,7 +65,7 @@ export default function ConfigPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
       setMsg('✓ Configuración guardada correctamente')
-      setTimeout(() => setMsg(''), 3000)
+      setTimeout(() => setMsg(''), 4500)
     } catch (e: any) {
       setMsg('⚠ ' + e.message)
     } finally {
@@ -89,7 +93,13 @@ export default function ConfigPage() {
       </div>
 
       {msg && (
-        <div style={{ padding:'10px 14px', borderRadius:10, background: msg.startsWith('✓') ? 'var(--ok-bg,rgba(52,211,153,0.12))' : 'rgba(239,68,68,0.1)', color: msg.startsWith('✓') ? '#34d399' : '#f87171', border:`1px solid ${msg.startsWith('✓') ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.2)'}`, fontSize:13, marginBottom:16 }}>
+        <div style={{
+          position:'fixed', bottom:24, right:24, zIndex:300,
+          padding:'14px 20px', borderRadius:12, minWidth:260,
+          background: msg.startsWith('✓') ? '#16a34a' : '#dc2626', color:'white',
+          boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600,
+          display:'flex', alignItems:'center', gap:8,
+        }}>
           {msg}
         </div>
       )}
@@ -131,6 +141,24 @@ export default function ConfigPage() {
           <div>
             <label style={lbl}>Pedido sin pago (minutos)</label>
             <input type="number" min={1} style={inp} value={form.tiempo_reserva_pago_min} onChange={set('tiempo_reserva_pago_min')} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Alertas ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🔔 Alertas</h2>
+        <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+          Aviso visual en el catálogo y por correo cuando se cruzan estos umbrales.
+        </p>
+        <div className="g2">
+          <div>
+            <label style={lbl}>Stock bajo (piezas)</label>
+            <input type="number" min={0} style={inp} value={form.stock_bajo_umbral} onChange={set('stock_bajo_umbral')} />
+          </div>
+          <div>
+            <label style={lbl}>Venta importante (piezas)</label>
+            <input type="number" min={1} style={inp} value={form.venta_importante_piezas} onChange={set('venta_importante_piezas')} />
           </div>
         </div>
       </div>
