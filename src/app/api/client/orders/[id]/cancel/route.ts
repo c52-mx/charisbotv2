@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { liberarPedido } from '@/lib/stock'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
       VALUES ($1, 'CANCELADO', 'Cancelado por el cliente')
     `, [params.id])
+
+    await liberarPedido(params.id).catch(() => {})
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {

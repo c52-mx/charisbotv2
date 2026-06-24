@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const body = await req.json()
-  const { tipo_case, modelo, color, activo, identificador, ubicacion } = body
+  const { tipo_case, modelo, color, activo, identificador, ubicacion, stock } = body
 
   const sets: string[]  = []
   const vals: any[]     = []
@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (activo      !== undefined) { sets.push(`activo        = $${idx++}`); vals.push(activo) }
   if (identificador !== undefined) { sets.push(`identificador = $${idx++}`); vals.push(identificador?.trim() || null) }
   if (ubicacion   !== undefined) { sets.push(`ubicacion     = $${idx++}`); vals.push(ubicacion?.trim() || null) }
+  if (stock       !== undefined) { sets.push(`stock         = $${idx++}`); vals.push(Math.max(0, parseInt(stock) || 0)) }
 
   if (!sets.length) {
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })

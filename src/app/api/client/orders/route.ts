@@ -3,12 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { sendEmail, emailNuevoPedido } from '@/lib/email'
+import { resolveCaseId, convertirCarritoAPedido, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   try {
+    await liberarPedidosVencidos().catch(() => {})
+
     const rows = await query(`
       SELECT
         p.id, p.numero_pedido, p.estado, p.tipo_case,
@@ -96,6 +99,38 @@ export async function POST(req: NextRequest) {
       INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
       VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente')
     `, [pedido.id])
+
+    // Convertir reservas del carrito en reserva del pedido (con expiración de pago)
+    const itemsConCaseId = (await Promise.all(
+      items.map(async (i: any) => {
+        const caseId = await resolveCaseId(i.tipo_case, i.modelo, i.color)
+        return caseId ? { case_id: caseId, cantidad: i.cantidad } : null
+      })
+    )).filter(Boolean) as { case_id: string; cantidad: number }[]
+
+    const ttlPago = await getConfigMinutos('tiempo_reserva_pago_min', 1440)
+
+    try {
+      await convertirCarritoAPedido(session.email, pedido.id, itemsConCaseId, ttlPago)
+      await query(
+        `UPDATE public.pedidos SET reserva_expira_en = NOW() + ($1::int * INTERVAL '1 minute') WHERE id = $2`,
+        [ttlPago, pedido.id]
+      )
+    } catch (e) {
+      if (e instanceof InsufficientStockError) {
+        await query(`UPDATE public.pedidos SET estado='CANCELADO', cancelado_en=NOW() WHERE id=$1`, [pedido.id])
+        await query(
+          `INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
+           VALUES ($1, 'CANCELADO', 'Cancelado automáticamente: stock insuficiente al confirmar')`,
+          [pedido.id]
+        )
+        return NextResponse.json(
+          { error: 'Algunos artículos ya no tienen stock suficiente', faltantes: e.faltantes },
+          { status: 409 }
+        )
+      }
+      throw e
+    }
 
     // Notificar al equipo de ventas (no bloqueante)
     const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL

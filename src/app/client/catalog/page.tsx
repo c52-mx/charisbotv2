@@ -122,7 +122,7 @@ export default function CatalogPage() {
           <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'48px 20px', color:'var(--txt3)', fontSize:14 }}>
             <div style={{ fontSize:40, marginBottom:10 }}>🔍</div>
             Sin series para ese filtro.{' '}
-            <button onClick={() => { setSearch(''); setActive('todos') }} style={{ color:'var(--blue)', fontWeight:600, cursor:'pointer', border:'none', background:'none', fontFamily:'inherit', fontSize:14 }}>
+            <button onClick={() => { setSearch(''); setActive('todos') }} className="btn-sm-ghost" style={{ border:'none' }}>
               Ver todo
             </button>
           </div>

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { getDisponibilidad } from '@/lib/stock'
 
 export async function GET(
   req: NextRequest,
@@ -21,21 +22,24 @@ export async function GET(
 
     // Modelos agrupados por marca → modelo → colores
     const rows = await query(`
-      SELECT marca, modelo, color, foto_url, identificador
+      SELECT case_id, marca, modelo, color, foto_url, identificador
       FROM public.catalogo_cases
       WHERE activo = true AND tipo_case = $1
       ORDER BY marca, modelo, color
     `, [tipo])
 
-    // Estructurar: { marca: { modelo: { colores[], foto_url } } }
-    const byMarca: Record<string, Record<string, { colores: string[]; foto_url: string|null; identificador: string|null }>> = {}
+    const disponibilidad = await getDisponibilidad((rows as any[]).map(r => r.case_id))
+
+    // Estructurar: { marca: { modelo: { colores[], foto_url, stockPorColor } } }
+    const byMarca: Record<string, Record<string, { colores: string[]; foto_url: string|null; identificador: string|null; stockPorColor: Record<string, number> }>> = {}
 
     for (const r of rows as any[]) {
       const m = r.marca || 'OTROS'
       const mod = r.modelo
       if (!byMarca[m]) byMarca[m] = {}
-      if (!byMarca[m][mod]) byMarca[m][mod] = { colores: [], foto_url: r.foto_url, identificador: r.identificador }
+      if (!byMarca[m][mod]) byMarca[m][mod] = { colores: [], foto_url: r.foto_url, identificador: r.identificador, stockPorColor: {} }
       byMarca[m][mod].colores.push(r.color)
+      byMarca[m][mod].stockPorColor[r.color] = disponibilidad[r.case_id] ?? 0
     }
 
     // Fotos de la serie (máx 4 únicas, de distintos modelos)

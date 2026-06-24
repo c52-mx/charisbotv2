@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 
 const ROL_OPTS = ['ADMIN','VENDEDOR','ALMACEN']
-const ROL_STYLE: Record<string,{color:string,bg:string}> = {
-  ADMIN:   {color:'#4baef0',bg:'rgba(26,143,227,0.15)'},
-  VENDEDOR:{color:'#34d399',bg:'rgba(52,211,153,0.15)'},
-  ALMACEN: {color:'#fbbf24',bg:'rgba(251,191,36,0.15)'},
+const ROL_STYLE: Record<string,{badgeClass:string}> = {
+  ADMIN:   {badgeClass:'badge-blue'},
+  VENDEDOR:{badgeClass:'badge-ok'},
+  ALMACEN: {badgeClass:'badge-warn'},
 }
 const empty = {nombre:'',email:'',password:'',rol:'VENDEDOR'}
 
@@ -108,14 +108,12 @@ export default function UsersPage() {
                   <td style={{color:'var(--txt2)',fontSize:12}}>{u.email}</td>
                   <td>
                     {ROL_STYLE[u.rol] ? (
-                      <span className="badge" style={{background:ROL_STYLE[u.rol].bg,color:ROL_STYLE[u.rol].color}}>{u.rol}</span>
+                      <span className={`badge ${ROL_STYLE[u.rol].badgeClass}`}>{u.rol}</span>
                     ) : u.rol}
                   </td>
                   <td>
                     <button onClick={()=>toggleActivo(u)} style={{background:'none',border:'none',cursor:'pointer',padding:0}}>
-                      <span className="badge" style={u.activo
-                        ? {background:'rgba(52,211,153,0.15)',color:'#34d399'}
-                        : {background:'rgba(239,68,68,0.12)',color:'#f87171'}}>
+                      <span className={`badge ${u.activo ? 'badge-ok' : 'badge-red'}`}>
                         {u.activo ? '● Activo' : '● Inactivo'}
                       </span>
                     </button>

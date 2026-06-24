@@ -109,7 +109,7 @@ export default function DashboardPage() {
               <XAxis dataKey="fecha" tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false} width={24}/>
               <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:12}} cursor={{fill:'rgba(26,143,227,0.06)'}}/>
-              <Bar dataKey="pedidos" fill="#1a8fe3" radius={[5,5,0,0]}/>
+              <Bar dataKey="pedidos" fill="var(--blue3)" radius={[5,5,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
         </div>

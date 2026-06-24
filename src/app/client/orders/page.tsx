@@ -63,15 +63,6 @@ const CSS = `
   .tl-line.done    { background:var(--blue); }
   .tl-line.pending { background:var(--border); }
 
-  .action-btn {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:7px 14px; border-radius:7px; font-size:12px; font-weight:600;
-    border:1.5px solid var(--border); background:white; color:var(--txt);
-    cursor:pointer; font-family:inherit; transition:all .15s; text-decoration:none;
-  }
-  .action-btn:hover { border-color:var(--blue); color:var(--blue); }
-  .action-btn.primary { background:var(--blue); color:white; border-color:var(--blue); }
-  .action-btn.primary:hover { background:#1976d2; border-color:#1976d2; }
 `
 
 export default function OrdersPage() {
@@ -131,7 +122,7 @@ export default function OrdersPage() {
             {loading ? 'Cargando…' : `${orders.length} pedido${orders.length !== 1 ? 's' : ''} en total`}
           </p>
         </div>
-        <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'9px 18px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+        <Link href="/client/catalog" className="btn-sm">
           + Nuevo pedido
         </Link>
       </div>
@@ -156,7 +147,7 @@ export default function OrdersPage() {
             {filter === 'todos' ? 'Aún no tienes pedidos' : 'Sin pedidos en esta categoría'}
           </h3>
           {filter === 'todos' && (
-            <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:12, padding:'10px 22px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:13, fontWeight:700, textDecoration:'none' }}>
+            <Link href="/client/catalog" className="btn-primary" style={{ marginTop:12 }}>
               Ir al catálogo →
             </Link>
           )}
@@ -267,11 +258,11 @@ export default function OrdersPage() {
 
                     {/* Actions */}
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                      <Link href={`/client/orders/${order.id}`} className="action-btn">
+                      <Link href={`/client/orders/${order.id}`} className="btn-sm-ghost">
                         Ver detalle completo
                       </Link>
                       {order.estado !== 'CANCELADO' && (
-                        <button className="action-btn primary" onClick={() => reordenar(order)}>
+                        <button className="btn-sm" onClick={() => reordenar(order)}>
                           🔄 Repetir pedido
                         </button>
                       )}

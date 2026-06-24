@@ -12,6 +12,7 @@ interface Product {
   activo:       boolean
   identificador: string | null
   ubicacion:    string | null
+  stock:        number
   creado_en:    string
 }
 
@@ -22,12 +23,13 @@ interface FormState {
   activo:       boolean
   identificador: string
   ubicacion:    string
+  stock:        string
 }
 
 const TIPOS = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO'].map(t => ({ value: t, label: t }))
 const TIPOS_LIST = ['3 EN 1', 'ESCUDO', 'BLINDAJE', 'ANILLO']
 const EMPTY_FORM: FormState = {
-  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: ''
+  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0'
 }
 
 // ── Page ──────────────────────────────────────────────────────────────
@@ -103,6 +105,7 @@ export default function CatalogPage() {
       activo:       p.activo,
       identificador: p.identificador || '',
       ubicacion:    p.ubicacion || '',
+      stock:        String(p.stock ?? 0),
     })
     setEditId(p.case_id)
     setError('')
@@ -125,6 +128,7 @@ export default function CatalogPage() {
       activo:       form.activo,
       identificador: form.identificador.trim() || null,
       ubicacion:    form.ubicacion.trim()     || null,
+      stock:        Math.max(0, parseInt(form.stock) || 0),
     }
 
     const isEdit = modal === 'edit' && editId
@@ -239,6 +243,7 @@ export default function CatalogPage() {
                 <th>Color</th>
                 <th>Identificador</th>
                 <th>Ubicación</th>
+                <th>Stock</th>
                 <th>Estado</th>
                 {canEdit && <th>Acciones</th>}
               </tr>
@@ -263,9 +268,12 @@ export default function CatalogPage() {
                     {p.ubicacion || '—'}
                   </td>
                   <td>
-                    <span className="badge" style={p.activo
-                      ? { background: 'rgba(52,211,153,0.15)', color: '#34d399' }
-                      : { background: 'rgba(239,68,68,0.15)',  color: '#ef4444' }}>
+                    <span className={`badge ${p.stock === 0 ? 'badge-red' : p.stock < 10 ? 'badge-warn' : 'badge-ok'}`}>
+                      {p.stock ?? 0}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge ${p.activo ? 'badge-ok' : 'badge-red'}`}>
                       {p.activo ? '● Activo' : '○ Inactivo'}
                     </span>
                   </td>
@@ -275,7 +283,7 @@ export default function CatalogPage() {
                         <button className="cbtn cbtn-ghost"
                                 onClick={() => openEdit(p)}>Editar</button>
                         <button className="cbtn cbtn-ghost"
-                                style={{ color: p.activo ? '#ef4444' : '#34d399' }}
+                                style={{ color: p.activo ? '#f87171' : '#34d399' }}
                                 onClick={() => toggleActivo(p)}>
                           {p.activo ? 'Desactivar' : 'Activar'}
                         </button>
@@ -370,25 +378,40 @@ export default function CatalogPage() {
               />
             </div>
 
-            {/* ── Row 4: ubicacion (full width) ── */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Ubicación
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                  (estante, anaquel, zona de almacén…)
-                </span>
-              </label>
-              <input
-                className="inp"
-                style={inp()}
-                placeholder="Ej: Estante 62, Anaquel 3"
-                value={form.ubicacion}
-                onChange={e => setForm(f => ({ ...f, ubicacion: e.target.value }))}
-              />
+            {/* ── Row 4: ubicacion + stock ── */}
+            <div className="g2" style={{ marginBottom: 18 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Ubicación
+                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                    (estante, anaquel…)
+                  </span>
+                </label>
+                <input
+                  className="inp"
+                  style={inp()}
+                  placeholder="Ej: Estante 62, Anaquel 3"
+                  value={form.ubicacion}
+                  onChange={e => setForm(f => ({ ...f, ubicacion: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Stock disponible
+                </label>
+                <input
+                  type="number" min={0}
+                  className="inp"
+                  style={inp()}
+                  placeholder="0"
+                  value={form.stock}
+                  onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                />
+              </div>
             </div>
 
             {error && (
-              <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>
+              <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>
             )}
 
             {/* ── Actions ── */}

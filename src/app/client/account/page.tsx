@@ -15,13 +15,6 @@ const CSS = `
   .input-field:focus { border-color:var(--blue); background:white; box-shadow:0 0 0 3px rgba(21,101,192,0.1); }
   .input-field:disabled { opacity:.6; cursor:not-allowed; }
   .input-field::placeholder { color:var(--txt3); }
-  .save-btn {
-    padding:11px 24px; background:var(--blue); color:white; border:none;
-    border-radius:9px; font-size:14px; font-weight:700; font-family:inherit;
-    cursor:pointer; transition:all .18s; display:flex; align-items:center; gap:7px;
-  }
-  .save-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
-  .save-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
   .section-card { background:white; border-radius:14px; border:1px solid var(--border); padding:20px; margin-bottom:16px; }
   .section-title { fontFamily:Arial Black,sans-serif; font-weight:900; font-size:15px; color:var(--txt); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
   .field-label { font-size:11px; font-weight:700; color:var(--txt2); letter-spacing:.06em; margin-bottom:5px; display:block; }
@@ -167,7 +160,7 @@ export default function AccountPage() {
             </div>
           </div>
           <div style={{ marginTop:18 }}>
-            <button type="submit" className="save-btn" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? <><div style={{ width:14,height:14,borderRadius:'50%',border:'2px solid rgba(255,255,255,.3)',borderTopColor:'white',animation:'spin .7s linear infinite' }}/> Guardando...</> : '💾 Guardar cambios'}
             </button>
           </div>
@@ -202,7 +195,7 @@ export default function AccountPage() {
             ))}
           </div>
           <div style={{ marginTop:18 }}>
-            <button type="submit" className="save-btn" disabled={saving}>
+            <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? 'Guardando...' : '🔐 Actualizar contraseña'}
             </button>
           </div>

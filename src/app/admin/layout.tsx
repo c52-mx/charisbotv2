@@ -12,12 +12,13 @@ const NAV_ITEMS = [
   { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, roles:['ADMIN','VENDEDOR','ALMACEN'] },
   { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, roles:['ADMIN','VENDEDOR'] },
   { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, roles:['ADMIN'] },
+  { href:'/admin/config',  label:'Configuración', icon:'⚙️', exact:false, roles:['ADMIN'] },
 ]
 
-const ROL_STYLE: Record<string,{label:string;color:string;bg:string}> = {
-  ADMIN:    { label:'Admin',    color:'#4baef0', bg:'rgba(75,174,240,0.13)' },
-  VENDEDOR: { label:'Vendedor', color:'#34d399', bg:'rgba(52,211,153,0.13)' },
-  ALMACEN:  { label:'Almacén',  color:'#fbbf24', bg:'rgba(251,191,36,0.13)'  },
+const ROL_STYLE: Record<string,{label:string;badgeClass:string}> = {
+  ADMIN:    { label:'Admin',    badgeClass:'badge-blue' },
+  VENDEDOR: { label:'Vendedor', badgeClass:'badge-ok'   },
+  ALMACEN:  { label:'Almacén',  badgeClass:'badge-warn' },
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -66,8 +67,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ textAlign:'center' }}>
         <div style={{ width:32, height:32, borderRadius:'50%', margin:'0 auto 12px',
                       border:'2.5px solid rgba(26,143,227,0.15)',
-                      borderTopColor:'#1a8fe3', animation:'spin .7s linear infinite' }}/>
-        <span style={{ fontSize:12, color:'#4baef0', fontFamily:'system-ui' }}>Cargando…</span>
+                      borderTopColor:tv['--blue3'], animation:'spin .7s linear infinite' }}/>
+        <span style={{ fontSize:12, color:tv['--blue3'], fontFamily:'system-ui' }}>Cargando…</span>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -162,10 +163,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <CharisLogotipo height={28} variant={dark ? 'white' : 'color'} />
           {user && ROL_STYLE[rol] && (
-            <span style={{
-              fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10,
-              background: ROL_STYLE[rol].bg, color: ROL_STYLE[rol].color,
-            }}>{ROL_STYLE[rol].label}</span>
+            <span className={`badge ${ROL_STYLE[rol].badgeClass}`} style={{ padding:'2px 7px', borderRadius:10 }}>
+              {ROL_STYLE[rol].label}
+            </span>
           )}
         </div>
         <div style={{ display:'flex', gap:6 }}>
@@ -282,11 +282,9 @@ function SidebarContent({
                 overflow:'hidden', textOverflow:'ellipsis',
                 whiteSpace:'nowrap', maxWidth:120,
               }}>{user.nombre}</span>
-              <span style={{
-                fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:10,
-                background:ROL_STYLE[rol].bg, color:ROL_STYLE[rol].color,
-                flexShrink:0, marginLeft:4,
-              }}>{ROL_STYLE[rol].label}</span>
+              <span className={`badge ${ROL_STYLE[rol].badgeClass}`} style={{ padding:'2px 7px', borderRadius:10, flexShrink:0, marginLeft:4 }}>
+                {ROL_STYLE[rol].label}
+              </span>
             </div>
             <div style={{
               fontSize:11, color:'var(--txt3)', overflow:'hidden',
@@ -308,17 +306,8 @@ function SidebarContent({
         {/* Logout */}
         <button
           onClick={logout}
-          style={{
-            width:'100%', display:'flex', alignItems:'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap:7, padding:'7px 10px', borderRadius:9,
-            border:'1px solid rgba(239,68,68,0.2)',
-            background:'rgba(239,68,68,0.07)',
-            color:'#f87171', fontSize:12, fontWeight:600,
-            cursor:'pointer', fontFamily:'inherit', transition:'all .14s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.07)')}
+          className="cbtn cbtn-danger cbtn-sm"
+          style={{ width:'100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
         >
           <span>↩</span>
           {!collapsed && <span>Salir</span>}

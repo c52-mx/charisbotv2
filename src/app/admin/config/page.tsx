@@ -1,0 +1,194 @@
+'use client'
+import { useState, useEffect } from 'react'
+import { SHARED_CSS, getThemeVars } from '@/components/shared'
+
+interface ConfigForm {
+  minimo_pedido_piezas: string
+  politica_cancelacion: string
+  datos_transferencia: string
+  whatsapp_soporte: string
+  tiempo_reserva_carrito_min: string
+  tiempo_reserva_pago_min: string
+  pago_stripe_habilitado: string
+  pago_mercadopago_habilitado: string
+}
+
+const EMPTY: ConfigForm = {
+  minimo_pedido_piezas: '1',
+  politica_cancelacion: '',
+  datos_transferencia: '',
+  whatsapp_soporte: '',
+  tiempo_reserva_carrito_min: '30',
+  tiempo_reserva_pago_min: '1440',
+  pago_stripe_habilitado: 'false',
+  pago_mercadopago_habilitado: 'false',
+}
+
+export default function ConfigPage() {
+  const [dark]     = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const tv         = getThemeVars(dark)
+  const [form,    setForm]    = useState<ConfigForm>(EMPTY)
+  const [loading, setLoading] = useState(true)
+  const [saving,  setSaving]  = useState(false)
+  const [msg,     setMsg]     = useState('')
+  const [pagosEnv, setPagosEnv] = useState({ stripe_configurado: false, mercadopago_configurado: false })
+
+  useEffect(() => {
+    fetch('/api/admin/config').then(r => r.json()).then(d => {
+      setForm(f => ({ ...f, ...(d.config || {}) }))
+      setPagosEnv(d.pagos_env || { stripe_configurado: false, mercadopago_configurado: false })
+      setLoading(false)
+    })
+  }, [])
+
+  function set<K extends keyof ConfigForm>(k: K) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value }))
+  }
+
+  function toggle(k: 'pago_stripe_habilitado' | 'pago_mercadopago_habilitado') {
+    setForm(f => ({ ...f, [k]: f[k] === 'true' ? 'false' : 'true' }))
+  }
+
+  async function save() {
+    setSaving(true); setMsg('')
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al guardar')
+      setMsg('✓ Configuración guardada correctamente')
+      setTimeout(() => setMsg(''), 3000)
+    } catch (e: any) {
+      setMsg('⚠ ' + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
+
+  if (loading) return (
+    <div style={{ ...Object.fromEntries(Object.entries(tv)) as any, display:'flex', alignItems:'center', justifyContent:'center', padding:60 }}>
+      <style>{SHARED_CSS}</style>
+      <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid rgba(26,143,227,0.2)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }}/>
+    </div>
+  )
+
+  return (
+    <div style={{ ...Object.fromEntries(Object.entries(tv)) as any }}>
+      <style>{SHARED_CSS}</style>
+
+      <div style={{ marginBottom:20 }}>
+        <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Configuración del portal</h1>
+        <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Mínimo de pedido, política de cancelación, datos de transferencia y reservas de stock</p>
+      </div>
+
+      {msg && (
+        <div style={{ padding:'10px 14px', borderRadius:10, background: msg.startsWith('✓') ? 'var(--ok-bg,rgba(52,211,153,0.12))' : 'rgba(239,68,68,0.1)', color: msg.startsWith('✓') ? '#34d399' : '#f87171', border:`1px solid ${msg.startsWith('✓') ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.2)'}`, fontSize:13, marginBottom:16 }}>
+          {msg}
+        </div>
+      )}
+
+      {/* ── Pedidos ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 14px' }}>🛒 Pedidos</h2>
+        <div className="g2" style={{ marginBottom:12 }}>
+          <div>
+            <label style={lbl}>Mínimo de pedido (piezas)</label>
+            <input type="number" min={1} style={inp} value={form.minimo_pedido_piezas} onChange={set('minimo_pedido_piezas')} />
+          </div>
+          <div>
+            <label style={lbl}>WhatsApp de soporte</label>
+            <input style={inp} placeholder="+52 55 1234 5678" value={form.whatsapp_soporte} onChange={set('whatsapp_soporte')} />
+          </div>
+        </div>
+        <div style={{ marginBottom:12 }}>
+          <label style={lbl}>Política de cancelación</label>
+          <textarea style={{ ...inp, resize:'vertical' }} rows={3} value={form.politica_cancelacion} onChange={set('politica_cancelacion')} />
+        </div>
+        <div>
+          <label style={lbl}>Datos de transferencia bancaria</label>
+          <textarea style={{ ...inp, resize:'vertical', fontFamily:'monospace' }} rows={4} value={form.datos_transferencia} onChange={set('datos_transferencia')} />
+        </div>
+      </div>
+
+      {/* ── Reservas de stock ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>📦 Reserva de stock</h2>
+        <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+          Tiempo que se aparta el inventario antes de liberarse automáticamente.
+        </p>
+        <div className="g2">
+          <div>
+            <label style={lbl}>Carrito sin finalizar (minutos)</label>
+            <input type="number" min={1} style={inp} value={form.tiempo_reserva_carrito_min} onChange={set('tiempo_reserva_carrito_min')} />
+          </div>
+          <div>
+            <label style={lbl}>Pedido sin pago (minutos)</label>
+            <input type="number" min={1} style={inp} value={form.tiempo_reserva_pago_min} onChange={set('tiempo_reserva_pago_min')} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Pasarelas de pago ── */}
+      <div className="card" style={{ marginBottom:20 }}>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>💳 Pasarelas de pago</h2>
+        <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+          Se activan automáticamente al cargar las credenciales en variables de entorno del servidor.
+        </p>
+
+        <PagoToggle
+          label="Stripe"
+          enabled={form.pago_stripe_habilitado === 'true'}
+          configurado={pagosEnv.stripe_configurado}
+          onToggle={() => toggle('pago_stripe_habilitado')}
+        />
+        <div style={{ height:10 }} />
+        <PagoToggle
+          label="Mercado Pago"
+          enabled={form.pago_mercadopago_habilitado === 'true'}
+          configurado={pagosEnv.mercadopago_configurado}
+          onToggle={() => toggle('pago_mercadopago_habilitado')}
+        />
+      </div>
+
+      <button className="cbtn cbtn-primary" onClick={save} disabled={saving}>
+        {saving ? 'Guardando…' : '💾 Guardar configuración'}
+      </button>
+    </div>
+  )
+}
+
+function PagoToggle({ label, enabled, configurado, onToggle }: { label: string; enabled: boolean; configurado: boolean; onToggle: () => void }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:9, background:'var(--bg4)', border:'1px solid var(--border)' }}>
+      <div>
+        <div style={{ fontSize:13, fontWeight:600, color:'var(--txt)' }}>{label}</div>
+        <div style={{ fontSize:11, color: configurado ? '#34d399' : 'var(--txt3)', marginTop:2 }}>
+          {configurado ? '✓ Credenciales detectadas en el servidor' : '⚠ Faltan variables de entorno — agrega las credenciales para habilitar'}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={!configurado}
+        title={!configurado ? 'Agrega las credenciales en el servidor antes de activar' : undefined}
+        style={{
+          width:44, height:24, borderRadius:100, border:'none', cursor: configurado ? 'pointer' : 'not-allowed',
+          background: enabled && configurado ? 'var(--blue)' : 'var(--border)',
+          position:'relative', flexShrink:0, opacity: configurado ? 1 : 0.5, transition:'background .15s',
+        }}
+      >
+        <span style={{
+          position:'absolute', top:3, left: enabled && configurado ? 23 : 3,
+          width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left .15s',
+        }} />
+      </button>
+    </div>
+  )
+}

@@ -58,16 +58,6 @@ const CSS = `
   }
   .del-btn:hover { color:var(--err); background:rgba(239,68,68,0.08); }
 
-  .confirm-btn {
-    width:100%; padding:13px; background:var(--blue); color:white;
-    border:none; border-radius:10px; font-size:15px; font-weight:700;
-    font-family:inherit; cursor:pointer; transition:all .18s;
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    box-shadow:0 4px 20px rgba(21,101,192,0.25);
-  }
-  .confirm-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
-  .confirm-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
-
   .vol-bar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; margin-top:6px; }
   .vol-fill { height:100%; background:var(--blue); border-radius:3px; transition:width .4s; }
 
@@ -122,10 +112,44 @@ export default function CartPage() {
     })
   }
 
-  const removeItem = (id: string) => updateCart(c => c.filter(it => it._id !== id))
-  const updateQty  = (id: string, qty: number) =>
-    updateCart(c => c.map(it => it._id === id ? { ...it, cantidad: Math.max(1, qty) } : it))
-  const clearAll   = () => updateCart(() => [])
+  function releaseReserve(it: CartItem) {
+    fetch('/api/client/cart/reserve', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color }),
+    }).catch(() => {})
+  }
+
+  const removeItem = (id: string) => {
+    const item = cart.find(it => it._id === id)
+    if (item) releaseReserve(item)
+    updateCart(c => c.filter(it => it._id !== id))
+  }
+
+  async function updateQty(id: string, qty: number) {
+    const item = cart.find(it => it._id === id)
+    if (!item) return
+    const cantidad = Math.max(1, qty)
+
+    const res = await fetch('/api/client/cart/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // No hay suficiente stock — ajusta a lo máximo disponible
+      const disponible = Math.max(1, data.disponible ?? item.cantidad)
+      updateCart(c => c.map(it => it._id === id ? { ...it, cantidad: disponible } : it))
+      return
+    }
+    updateCart(c => c.map(it => it._id === id ? { ...it, cantidad } : it))
+  }
+
+  const clearAll = () => {
+    cart.forEach(releaseReserve)
+    updateCart(() => [])
+  }
 
   async function handleCheckout() {
     if (cart.length === 0 || placing) return
@@ -202,7 +226,7 @@ export default function CartPage() {
           <div style={{ fontSize:48, marginBottom:16, opacity:.25 }}>🛒</div>
           <h3 style={{ fontWeight:900, fontSize:18, color:'var(--txt)', marginBottom:8 }}>Carrito vacío</h3>
           <p style={{ fontSize:14, color:'var(--txt3)', marginBottom:24 }}>Agrega productos desde el catálogo</p>
-          <Link href="/client/catalog" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 24px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
+          <Link href="/client/catalog" className="btn-primary">
             Ir al catálogo →
           </Link>
         </div>
@@ -290,19 +314,14 @@ export default function CartPage() {
               <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>{totalPiezas} pzas</span>
             </div>
 
-            <button className="confirm-btn" disabled={placing} onClick={handleCheckout}>
+            <button className="btn-primary btn-block" disabled={placing} onClick={handleCheckout}>
               {placing
                 ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando…</>
                 : `Confirmar pedido (${totalPiezas} pzas)`
               }
             </button>
 
-            <Link
-              href="/client/catalog"
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', marginTop:10, padding:'9px', borderRadius:9, border:'1.5px solid var(--border)', fontSize:13, color:'var(--txt2)', textDecoration:'none', fontWeight:500, transition:'all .15s' }}
-              onMouseEnter={(e:any) => e.currentTarget.style.borderColor='var(--blue)'}
-              onMouseLeave={(e:any) => e.currentTarget.style.borderColor='var(--border)'}
-            >
+            <Link href="/client/catalog" className="btn-sm-ghost" style={{ width:'100%', marginTop:10 }}>
               Seguir comprando
             </Link>
 

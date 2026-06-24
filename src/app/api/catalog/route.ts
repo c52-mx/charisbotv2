@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
   }
 
   const selectCols = hasNewCols
-    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, creado_en'
-    : 'case_id, tipo_case, modelo, color, activo, creado_en'
+    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, stock, creado_en'
+    : 'case_id, tipo_case, modelo, color, activo, stock, creado_en'
 
   const [rows, countRow] = await Promise.all([
     query(
@@ -90,19 +90,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { tipo_case, modelo, color, activo = true, identificador, ubicacion } = await req.json()
+  const { tipo_case, modelo, color, activo = true, identificador, ubicacion, stock = 0 } = await req.json()
 
   if (!tipo_case || !modelo || !color) {
     return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
   }
 
   const newCols = await hasNewColumns()
+  const stockVal = Math.max(0, parseInt(stock) || 0)
 
   let rows: any[]
   if (newCols) {
     rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion, stock)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (tipo_case, modelo, color) DO NOTHING
        RETURNING *`,
       [
@@ -112,12 +113,13 @@ export async function POST(req: NextRequest) {
         activo,
         identificador?.trim() || null,
         ubicacion?.trim()     || null,
+        stockVal,
       ]
     )
   } else {
     rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, stock)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (tipo_case, modelo, color) DO NOTHING
        RETURNING *`,
       [
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
         modelo.toUpperCase().trim(),
         color.toUpperCase().trim(),
         activo,
+        stockVal,
       ]
     )
   }

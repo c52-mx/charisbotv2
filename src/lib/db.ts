@@ -42,4 +42,27 @@ export async function queryOne<T = any>(
   return rows[0] ?? null
 }
 
+// Ejecuta varias queries dentro de una misma transacción (BEGIN/COMMIT/ROLLBACK).
+// Usar para operaciones de varios pasos donde la atomicidad importa (ej. reservas de stock).
+export async function withTransaction<T>(
+  fn: (tx: <U = any>(text: string, params?: any[]) => Promise<U[]>) => Promise<T>
+): Promise<T> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const tx = async <U = any>(text: string, params?: any[]): Promise<U[]> => {
+      const result = await client.query(text, params)
+      return result.rows as U[]
+    }
+    const result = await fn(tx)
+    await client.query('COMMIT')
+    return result
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 export default pool

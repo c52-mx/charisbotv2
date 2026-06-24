@@ -28,6 +28,9 @@ export default function OrderDetailPage() {
   const [loading,  setLoading]  = useState(true)
   const [canceling,setCanceling]= useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [gateways, setGateways] = useState({ stripe: false, mercadopago: false })
+  const [paying,   setPaying]   = useState<'STRIPE'|'MERCADOPAGO'|null>(null)
+  const [payError, setPayError] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -35,7 +38,31 @@ export default function OrderDetailPage() {
       .then(r => r.json())
       .then(d => { setOrder(d); setLoading(false) })
       .catch(() => setLoading(false))
+
+    fetch('/api/client/config').then(r => r.json()).then(d => {
+      setGateways({
+        stripe:      d.pago_stripe_habilitado === 'true',
+        mercadopago: d.pago_mercadopago_habilitado === 'true',
+      })
+    }).catch(() => {})
   }, [id])
+
+  async function handlePay(gateway: 'STRIPE'|'MERCADOPAGO') {
+    setPaying(gateway); setPayError('')
+    try {
+      const res = await fetch(`/api/client/orders/${id}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gateway }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'No se pudo generar el link de pago')
+      window.location.href = data.url
+    } catch (e: any) {
+      setPayError(e.message)
+      setPaying(null)
+    }
+  }
 
   async function handleCancel() {
     setCanceling(true)
@@ -179,6 +206,33 @@ export default function OrderDetailPage() {
             {!order.referencia_pago && order.estado==='PENDIENTE_PAGO' && (
               <p style={{ fontSize:11, color:'#f59e0b', marginTop:4 }}>⏳ Esperando comprobante de pago</p>
             )}
+
+            {order.estado==='PENDIENTE_PAGO' && (gateways.stripe || gateways.mercadopago) && (
+              <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid var(--border)' }}>
+                {order.monto_total ? (
+                  <>
+                    <p style={{ fontSize:12, color:'var(--txt2)', marginBottom:8 }}>
+                      O paga en línea — <strong style={{ color:'var(--txt)' }}>${Number(order.monto_total).toLocaleString('es-MX',{minimumFractionDigits:2})} MXN</strong>
+                    </p>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {gateways.stripe && (
+                        <button className="btn-sm" disabled={paying!==null} onClick={() => handlePay('STRIPE')}>
+                          {paying==='STRIPE' ? 'Redirigiendo…' : '💳 Pagar con tarjeta (Stripe)'}
+                        </button>
+                      )}
+                      {gateways.mercadopago && (
+                        <button className="btn-sm-ghost" disabled={paying!==null} onClick={() => handlePay('MERCADOPAGO')}>
+                          {paying==='MERCADOPAGO' ? 'Redirigiendo…' : '🅼 Pagar con Mercado Pago'}
+                        </button>
+                      )}
+                    </div>
+                    {payError && <p style={{ fontSize:11, color:'var(--err)', marginTop:6 }}>⚠ {payError}</p>}
+                  </>
+                ) : (
+                  <p style={{ fontSize:11, color:'var(--txt3)' }}>El pago en línea estará disponible cuando el equipo de ventas confirme el monto de tu pedido.</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Entrega */}
@@ -214,8 +268,7 @@ export default function OrderDetailPage() {
               Esta acción no se puede deshacer. ¿Estás seguro que deseas cancelar este pedido?
             </p>
             <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setShowConfirm(false)}
-                style={{ flex:1,padding:'10px',borderRadius:9,border:'1.5px solid var(--border)',background:'white',color:'var(--txt2)',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit' }}>
+              <button onClick={() => setShowConfirm(false)} className="btn-ghost" style={{ flex:1 }}>
                 No, regresar
               </button>
               <button onClick={handleCancel} disabled={canceling}

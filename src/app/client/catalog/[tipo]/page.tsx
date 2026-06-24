@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 
 interface Config  { tipo_case:string; descripcion:string|null; foto_url:string|null }
-interface Modelos { [marca:string]: { [modelo:string]: { colores:string[]; foto_url:string|null } } }
+interface Modelos { [marca:string]: { [modelo:string]: { colores:string[]; foto_url:string|null; stockPorColor:Record<string,number> } } }
 interface CartItem { tipo_case:string; marca:string; modelo:string; color:string; cantidad:number }
 
 const SERIE_META: Record<string,{emoji:string}> = {
@@ -47,19 +47,6 @@ const CSS = `
   .color-pill:hover { border-color:var(--blue); background:#f0f6ff; }
   .color-pill.sel   { border-color:var(--blue); background:var(--blue); color:white; }
 
-  .add-btn {
-    padding:10px 20px; background:var(--blue); color:white; border:none;
-    border-radius:9px; font-size:13px; font-weight:700; font-family:inherit;
-    cursor:pointer; transition:all .18s; display:flex; align-items:center; gap:6px;
-  }
-  .add-btn:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
-  .add-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
-
-  
-
-  
-  
-  
   .qty-btn:hover { background:var(--border); }
 
   .img-carousel { position:relative; border-radius:16px; overflow:hidden; background:var(--bg); }
@@ -147,22 +134,56 @@ export default function SeriesDetailPage() {
     }
   }
 
-  function addToCart() {
+  function getDisponible(marca:string|null, modelo:string|null, color:string|null): number {
+    if (!marca || !modelo || !color) return 0
+    return byMarca[marca]?.[modelo]?.stockPorColor?.[color] ?? 0
+  }
+
+  async function addToCart() {
     if (!selModel || !selMarca || !selColor) return
-    // Read current cart from localStorage, merge, save back
+    const disponible = getDisponible(selMarca, selModel, selColor)
+    if (disponible <= 0) return
+
+    // Read current cart from localStorage para saber la cantidad final que se va a reservar
     let current: CartItem[] = []
     try { current = JSON.parse(localStorage.getItem('charis-cart') || '[]') } catch {}
     const existing = current.findIndex(i => i.modelo === selModel && i.color === selColor && i.tipo_case === tipo)
+    const cantidadFinal = Math.min((existing >= 0 ? current[existing].cantidad : 0) + qty, disponible)
+
+    // Reservar en backend antes de tocar el carrito local
+    const res = await fetch('/api/client/cart/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo_case: tipo, modelo: selModel, color: selColor, cantidad: cantidadFinal }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      // Refleja la disponibilidad real que devolvió el servidor
+      setByMarca(b => {
+        const next = { ...b }
+        if (next[selMarca!]?.[selModel!]) {
+          next[selMarca!][selModel!] = {
+            ...next[selMarca!][selModel!],
+            stockPorColor: { ...next[selMarca!][selModel!].stockPorColor, [selColor!]: data.disponible ?? 0 },
+          }
+        }
+        return next
+      })
+      setAddMsg(`⚠ Solo hay ${data.disponible ?? 0} pzas disponibles de ese color`)
+      setTimeout(() => setAddMsg(''), 3000)
+      return
+    }
+
     if (existing >= 0) {
-      current[existing].cantidad += qty
+      current[existing].cantidad = cantidadFinal
     } else {
-      current.push({ tipo_case: tipo, marca: selMarca!, modelo: selModel!, color: selColor!, cantidad: qty })
+      current.push({ tipo_case: tipo, marca: selMarca!, modelo: selModel!, color: selColor!, cantidad: cantidadFinal })
     }
     localStorage.setItem('charis-cart', JSON.stringify(current))
     // Notify layout cart drawer
     window.dispatchEvent(new CustomEvent('charis-cart-updated'))
     window.dispatchEvent(new CustomEvent('charis-cart-open'))  // also open the drawer
-    setAddMsg(`✓ ${selModel} · ${selColor} · ${qty} pzas`)
+    setAddMsg(`✓ ${selModel} · ${selColor} · ${cantidadFinal} pzas`)
     setTimeout(() => setAddMsg(''), 2500)
   }
 
@@ -192,8 +213,7 @@ export default function SeriesDetailPage() {
         <Link href="/client/catalog" style={{color:'var(--txt3)',textDecoration:'none'}}>Catálogo</Link>
         <span>›</span>
         <span style={{color:'var(--txt)',fontWeight:600}}>{meta.emoji} {tipo}</span>
-        <button onClick={()=>router.back()} style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:100,border:'1.5px solid var(--field-border)',background:'white',fontSize:12,fontWeight:600,color:'var(--txt2)',cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}
-          onMouseEnter={e=>(e.currentTarget.style.borderColor='var(--blue)')} onMouseLeave={e=>(e.currentTarget.style.borderColor='var(--field-border)')}>
+        <button onClick={()=>router.back()} className="btn-sm-ghost" style={{ marginLeft:'auto' }}>
           ← Volver a series
         </button>
       </div>
@@ -280,17 +300,25 @@ export default function SeriesDetailPage() {
                             <div style={{padding:'10px 16px 14px',background:'#fafcff',borderTop:'1px solid var(--bg)'}}>
                               <p style={{fontSize:11,fontWeight:700,color:'var(--txt3)',letterSpacing:'.06em',marginBottom:8}}>SELECCIONA EL COLOR</p>
                               <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
-                                {data.colores.map(c=>(
-                                  <button key={c} className={`color-pill${selColor===c?' sel':''}`} onClick={e=>{e.stopPropagation();setSelColor(c)}}>
-                                    <span style={{width:10,height:10,borderRadius:'50%',background:c==='NEGRO'?'#111':c==='BLANCO'||c==='TRANSPARENTE'?'#f0f0f0':c==='ROJO'?'var(--err)':c==='AZUL'?'#3b82f6':c==='VERDE'?'var(--ok)':c==='ROSA'?'#ec4899':c==='MORADO'?'#a855f7':'#94a3b8',border:'1px solid rgba(0,0,0,0.1)',flexShrink:0}}/>
-                                    {c}
-                                  </button>
-                                ))}
+                                {data.colores.map(c=>{
+                                  const disp = data.stockPorColor?.[c] ?? 0
+                                  const agotado = disp <= 0
+                                  return (
+                                    <button key={c} disabled={agotado}
+                                      className={`color-pill${selColor===c?' sel':''}`}
+                                      style={agotado ? { opacity:.4, cursor:'not-allowed' } : undefined}
+                                      onClick={e=>{e.stopPropagation(); if(!agotado) setSelColor(c)}}>
+                                      <span style={{width:10,height:10,borderRadius:'50%',background:c==='NEGRO'?'#111':c==='BLANCO'||c==='TRANSPARENTE'?'#f0f0f0':c==='ROJO'?'var(--err)':c==='AZUL'?'#3b82f6':c==='VERDE'?'var(--ok)':c==='ROSA'?'#ec4899':c==='MORADO'?'#a855f7':'#94a3b8',border:'1px solid rgba(0,0,0,0.1)',flexShrink:0}}/>
+                                      {c}
+                                      <span style={{ fontSize:10, opacity:.7 }}>{agotado ? '· Agotado' : `· ${disp} disp.`}</span>
+                                    </button>
+                                  )
+                                })}
                               </div>
                               <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-                                <button className="add-btn" disabled={!selColor} onClick={addToCart}>
+                                <button className="btn-sm" disabled={!selColor || getDisponible(selMarca,selModel,selColor) <= 0} onClick={addToCart}>
                                   🛒 Agregar al carrito
-                                  {selColor&&<span style={{background:'rgba(255,255,255,0.2)',padding:'1px 7px',borderRadius:100,fontSize:11}}>{qty} pzas</span>}
+                                  {selColor&&<span style={{background:'rgba(255,255,255,0.2)',padding:'1px 7px',borderRadius:100,fontSize:11}}>{Math.min(qty, getDisponible(selMarca,selModel,selColor))} pzas</span>}
                                 </button>
                                 {addMsg && <span style={{fontSize:12,color:'var(--ok)',fontWeight:600}}>{addMsg}</span>}
                               </div>

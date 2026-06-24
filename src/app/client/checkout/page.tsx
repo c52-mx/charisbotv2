@@ -12,17 +12,6 @@ const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   @keyframes spin   { to{transform:rotate(360deg)} }
 
-  .step-btn {
-    padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700;
-    font-family:inherit; cursor:pointer; transition:all .18s;
-    display:flex; align-items:center; gap:8px;
-  }
-  .step-primary { background:var(--blue); color:white; border:none; box-shadow:0 4px 16px rgba(21,101,192,0.25); }
-  .step-primary:hover:not(:disabled) { background:#1976d2; transform:translateY(-1px); }
-  .step-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
-  .step-ghost { background:white; color:var(--txt2); border:1.5px solid var(--field-border); }
-  .step-ghost:hover { border-color:var(--blue); color:var(--blue); }
-
   .input-field {
     width:100%; padding:10px 14px; background:var(--field-bg);
     border:1.5px solid var(--field-border); border-radius:9px;
@@ -133,10 +122,10 @@ export default function CheckoutPage() {
         </p>
       </div>
       <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-        <Link href="/client/orders" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'var(--blue)', color:'white', fontSize:14, fontWeight:700, textDecoration:'none' }}>
+        <Link href="/client/orders" className="btn-primary">
           Ver mis pedidos →
         </Link>
-        <Link href="/client" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'11px 22px', borderRadius:100, background:'white', color:'var(--txt2)', fontSize:14, fontWeight:600, textDecoration:'none', border:'1.5px solid var(--border)' }}>
+        <Link href="/client" className="btn-ghost">
           Volver al inicio
         </Link>
       </div>
@@ -311,17 +300,17 @@ export default function CheckoutPage() {
           {/* Navigation buttons */}
           <div style={{ display:'flex', gap:10, justifyContent:'space-between', marginTop:8 }}>
             {step > 0
-              ? <button className="step-btn step-ghost" onClick={() => setStep(s => s-1)}>← Anterior</button>
-              : <Link href="/client/cart" className="step-btn step-ghost" style={{ textDecoration:'none' }}>← Carrito</Link>
+              ? <button className="btn-ghost" onClick={() => setStep(s => s-1)}>← Anterior</button>
+              : <Link href="/client/cart" className="btn-ghost">← Carrito</Link>
             }
             {step < 3 ? (
-              <button className="step-btn step-primary"
+              <button className="btn-primary"
                 disabled={step === 0 && !minimoOk}
                 onClick={() => setStep(s => s+1)}>
                 Continuar →
               </button>
             ) : (
-              <button className="step-btn step-primary" disabled={placing} onClick={handleConfirm}>
+              <button className="btn-primary" disabled={placing} onClick={handleConfirm}>
                 {placing
                   ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando...</>
                   : '✓ Confirmar pedido'

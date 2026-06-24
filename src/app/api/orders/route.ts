@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarConfirmacion } from '@/lib/whatsapp'
+import { resolveCaseId, liberarPedidosVencidos } from '@/lib/stock'
 
 // GET /api/orders
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  await liberarPedidosVencidos().catch(() => {})
 
   const { searchParams } = new URL(req.url)
   const estado = searchParams.get('estado')
@@ -116,17 +119,22 @@ export async function POST(req: NextRequest) {
 
   // Insertar items
   for (const item of items) {
+    const tipoCaseItem = (item.tipo_case || tipoPred).toUpperCase()
+    const modeloItem   = (item.modelo || '').toUpperCase().trim()
+    const colorItem    = (item.color || 'NEGRO').toUpperCase()
+    const cantidadItem = item.cantidad || 0
+
     await queryOne(
       `INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad)
        VALUES ($1, $2, $3, $4, $5)`,
-      [
-        pedido!.id,
-        (item.modelo || '').toUpperCase().trim(),
-        (item.tipo_case || tipoPred).toUpperCase(),
-        (item.color || 'NEGRO').toUpperCase(),
-        item.cantidad || 0,
-      ]
+      [pedido!.id, modeloItem, tipoCaseItem, colorItem, cantidadItem]
     )
+
+    // Pedido manual: ya nace CONFIRMADO, así que el stock se descuenta directo (sin reserva).
+    const caseId = await resolveCaseId(tipoCaseItem, modeloItem, colorItem)
+    if (caseId && cantidadItem > 0) {
+      await query(`UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2`, [cantidadItem, caseId])
+    }
   }
 
   // Notificar por WhatsApp

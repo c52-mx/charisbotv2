@@ -25,6 +25,8 @@ export default function OrdersPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [filters,  setFilters]  = useState({ estado:'', origen:'', telefono:'' })
+  const [montoInput, setMontoInput] = useState('')
+  const [savingMonto, setSavingMonto] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -41,7 +43,15 @@ export default function OrdersPage() {
 
   async function loadDetail(id: string) {
     const r = await fetch(`/api/orders/${id}`)
-    setSelected(await r.json())
+    const data = await r.json()
+    setSelected(data)
+    setMontoInput(data.monto_total != null ? String(data.monto_total) : '')
+  }
+  async function saveMonto(id: string) {
+    setSavingMonto(true)
+    await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ monto_total: montoInput }) })
+    await loadDetail(id)
+    setSavingMonto(false)
   }
   async function updateStatus(id: string, estado: string) {
     setUpdating(true)
@@ -186,6 +196,23 @@ export default function OrdersPage() {
                   </div>
                 ))}
               </div>
+              <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
+                💳 Monto a cobrar (MXN) <span style={{ fontWeight:400, textTransform:'none', fontSize:11 }}>— necesario para generar el link de pago</span>
+              </div>
+              <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+                <input
+                  type="number" min={0} step="0.01"
+                  className="cinput"
+                  placeholder="0.00"
+                  value={montoInput}
+                  onChange={e => setMontoInput(e.target.value)}
+                  style={{ flex:1 }}
+                />
+                <button className="cbtn cbtn-secondary" disabled={savingMonto} onClick={() => saveMonto(selected.id)}>
+                  {savingMonto ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
+
               <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                 {ESTADOS.map(e => (
