@@ -10,9 +10,10 @@ interface SendEmailParams {
   to:      string
   subject: string
   html:    string
+  attachments?: { filename: string; content: Buffer | string }[]
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
+export async function sendEmail({ to, subject, html, attachments }: SendEmailParams): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY no configurada')
     return false
@@ -24,7 +25,13 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type':  'application/json',
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify({
+        from: FROM_EMAIL, to, subject, html,
+        attachments: attachments?.map(a => ({
+          filename: a.filename,
+          content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+        })),
+      }),
     })
     if (!res.ok) {
       const err = await res.json()
@@ -216,6 +223,35 @@ export function emailStockBajo(items: { modelo: string; color: string; tipo_case
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">${filas}</table>
           <a href="${APP_URL}/admin/catalog" style="display:inline-block;padding:12px 28px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
             Ver catálogo →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
+export function emailOrdenCompra(nombre: string, numeroPedido: string): string {
+  const url = `${APP_URL}/client/orders`
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#1565c0;padding:28px 36px;text-align:center;">
+          <p style="margin:0;font-size:28px;font-weight:900;color:white;letter-spacing:2px;">CHARIS</p>
+        </td></tr>
+        <tr><td style="padding:36px;">
+          <p style="margin:0 0 16px;font-size:20px;font-weight:900;color:#0d2137;">¡Gracias por tu pedido, ${nombre}!</p>
+          <p style="margin:0 0 20px;font-size:14px;color:#3a6080;line-height:1.6;">
+            Tu pedido <strong>#${numeroPedido.toUpperCase()}</strong> fue registrado correctamente. Adjuntamos tu orden de compra en PDF con el detalle completo.
+          </p>
+          <a href="${url}" style="display:inline-block;padding:13px 32px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
+            Ver mis pedidos →
           </a>
         </td></tr>
       </table>

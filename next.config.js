@@ -5,7 +5,7 @@ const nextConfig = {
     domains: ['localhost'],
   },
   experimental: {
-    serverComponentsExternalPackages: ['pg', 'bcryptjs'],
+    serverComponentsExternalPackages: ['pg', 'bcryptjs', 'pdfkit'],
     instrumentationHook: true,
   },
 }

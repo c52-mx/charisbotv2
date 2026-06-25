@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { calcularTotal, type DescuentoTier } from '@/lib/pricing'
+import { AddressForm, type AddressFormValues } from '@/components/AddressForm'
+
+interface Address extends AddressFormValues { id: string; predeterminada: boolean }
 
 interface CartItem {
   _id?: string; tipo_case: string; marca: string
@@ -60,14 +63,31 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState('')
   const [tiers,   setTiers]   = useState<DescuentoTier[]>([])
 
-  const [entrega, setEntrega] = useState({
-    nombre: '', telefono: '', calle: '', colonia: '',
-    ciudad: '', estado_mx: '', cp: '', referencias: '',
-  })
+  const [metodoEntrega, setMetodoEntrega] = useState<'envio'|'pickup'>('envio')
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addrLoading, setAddrLoading] = useState(true)
+  const [direccionId, setDireccionId] = useState<string|null>(null)
+  const [showAddrForm, setShowAddrForm] = useState(false)
+  const [addrSaving, setAddrSaving] = useState(false)
+  const [notas, setNotas] = useState('')
+
   const [pago, setPago] = useState({
     metodo: 'transferencia',
     referencia: '',
   })
+
+  function loadAddresses() {
+    fetch('/api/client/addresses').then(r => r.json()).then(d => {
+      const items: Address[] = d.items || []
+      setAddresses(items)
+      setAddrLoading(false)
+      if (!direccionId) {
+        const def = items.find(a => a.predeterminada) || items[0]
+        if (def) setDireccionId(def.id)
+        else setShowAddrForm(items.length === 0)
+      }
+    }).catch(() => setAddrLoading(false))
+  }
 
   useEffect(() => {
     try {
@@ -78,14 +98,27 @@ export default function CheckoutPage() {
 
     fetch('/api/client/config').then(r => r.json()).then(d => setConfig(d))
     fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
+    loadAddresses()
   }, [])
+
+  async function handleSaveAddress(values: AddressFormValues) {
+    setAddrSaving(true)
+    try {
+      const res = await fetch('/api/client/addresses', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setShowAddrForm(false)
+      setDireccionId(data.id)
+      loadAddresses()
+    } catch (e: any) { setError(e.message) }
+    finally { setAddrSaving(false) }
+  }
 
   const { subtotal, descuentoPct: desc, total } = calcularTotal(cart, tiers)
   const totalPiezas = cart.reduce((s, i) => s + i.cantidad, 0)
   const minimoOk    = totalPiezas >= (parseInt(config.minimo_pedido_piezas) || 1)
-
-  const setE = (k: string) => (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) =>
-    setEntrega(f => ({ ...f, [k]: e.target.value }))
 
   async function handleConfirm() {
     setPlacing(true); setError('')
@@ -97,8 +130,9 @@ export default function CheckoutPage() {
           items: cart,
           metodo_pago: pago.metodo,
           referencia_pago: pago.referencia,
-          direccion_entrega: entrega,
-          notas_cliente: entrega.referencias,
+          metodo_entrega: metodoEntrega,
+          direccion_id: metodoEntrega === 'envio' ? direccionId : null,
+          notas_cliente: notas,
         }),
       })
       const data = await res.json()
@@ -201,46 +235,74 @@ export default function CheckoutPage() {
           {/* STEP 1: Entrega */}
           {step === 1 && (
             <div className="section-card">
-              <p className="section-title">📦 Datos de entrega</p>
-              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                  <div>
-                    <label className="field-label">NOMBRE COMPLETO *</label>
-                    <input className="input-field" placeholder="Quien recibe" value={entrega.nombre} onChange={setE('nombre')} required/>
-                  </div>
-                  <div>
-                    <label className="field-label">TELÉFONO *</label>
-                    <input className="input-field" placeholder="55 1234 5678" value={entrega.telefono} onChange={setE('telefono')} required/>
-                  </div>
+              <p className="section-title">📦 Método de entrega</p>
+
+              <div className={`payment-option${metodoEntrega==='envio'?' selected':''}`} onClick={() => setMetodoEntrega('envio')}>
+                <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${metodoEntrega==='envio'?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                  {metodoEntrega==='envio' && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
                 </div>
-                <div>
-                  <label className="field-label">CALLE Y NÚMERO *</label>
-                  <input className="input-field" placeholder="Av. Ejemplo 123, Int. 4" value={entrega.calle} onChange={setE('calle')} required/>
+                <div><p style={{ fontWeight:700, fontSize:14, color:'var(--txt)' }}>🚚 Envío a domicilio</p></div>
+              </div>
+              <div className={`payment-option${metodoEntrega==='pickup'?' selected':''}`} onClick={() => setMetodoEntrega('pickup')}>
+                <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${metodoEntrega==='pickup'?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                  {metodoEntrega==='pickup' && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                  <div>
-                    <label className="field-label">COLONIA *</label>
-                    <input className="input-field" placeholder="Col. Centro" value={entrega.colonia} onChange={setE('colonia')} required/>
-                  </div>
-                  <div>
-                    <label className="field-label">CIUDAD *</label>
-                    <input className="input-field" placeholder="Ciudad de México" value={entrega.ciudad} onChange={setE('ciudad')} required/>
-                  </div>
+                <div><p style={{ fontWeight:700, fontSize:14, color:'var(--txt)' }}>🏬 Recoger en tienda</p></div>
+              </div>
+
+              {metodoEntrega === 'pickup' ? (
+                <div style={{ background:'#f0f6ff', borderRadius:10, padding:'14px 16px', marginTop:12, border:'1px solid #d0e4f7' }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:6 }}>RECOGE TU PEDIDO EN</p>
+                  <p style={{ fontSize:14, fontWeight:700, color:'var(--txt)' }}>{config.negocio_nombre || 'Nuestra tienda'}</p>
+                  <p style={{ fontSize:13, color:'var(--txt2)' }}>{config.negocio_direccion || 'Te confirmaremos la dirección por WhatsApp.'}</p>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                  <div>
-                    <label className="field-label">ESTADO *</label>
-                    <input className="input-field" placeholder="CDMX" value={entrega.estado_mx} onChange={setE('estado_mx')} required/>
-                  </div>
-                  <div>
-                    <label className="field-label">CÓDIGO POSTAL *</label>
-                    <input className="input-field" placeholder="06600" value={entrega.cp} onChange={setE('cp')} required/>
-                  </div>
+              ) : (
+                <div style={{ marginTop:14 }}>
+                  {addrLoading ? (
+                    <p style={{ fontSize:13, color:'var(--txt3)' }}>Cargando direcciones…</p>
+                  ) : (
+                    <>
+                      {addresses.map(a => (
+                        <div key={a.id} className={`payment-option${direccionId===a.id?' selected':''}`} onClick={() => setDireccionId(a.id)}>
+                          <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                            {direccionId===a.id && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
+                          </div>
+                          <div>
+                            <p style={{ fontWeight:700, fontSize:14, color:'var(--txt)', marginBottom:3 }}>
+                              {a.nombre_contacto} {a.predeterminada && <span style={{ fontSize:11, color:'var(--blue)' }}>· Predeterminada</span>}
+                            </p>
+                            <p style={{ fontSize:12, color:'var(--txt3)' }}>{a.calle}, {a.colonia}, {a.ciudad}, {a.estado_mx} {a.cp}</p>
+                          </div>
+                        </div>
+                      ))}
+
+                      {!showAddrForm && (
+                        <button type="button" className="btn-sm-ghost" onClick={() => setShowAddrForm(true)}>+ Nueva dirección</button>
+                      )}
+
+                      {showAddrForm && (
+                        <div style={{ background:'var(--field-bg)', borderRadius:10, padding:16, marginTop:10 }}>
+                          <AddressForm
+                            saving={addrSaving}
+                            onSave={handleSaveAddress}
+                            onCancel={addresses.length ? () => setShowAddrForm(false) : undefined}
+                          />
+                        </div>
+                      )}
+
+                      {!addresses.length && !showAddrForm && (
+                        <p style={{ fontSize:13, color:'#92400e', background:'#fef3c7', border:'1px solid #fde68a', borderRadius:8, padding:'10px 14px' }}>
+                          ⚠ Necesitas agregar una dirección para continuar.
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
-                <div>
-                  <label className="field-label">REFERENCIAS <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional)</span></label>
-                  <textarea className="input-field" placeholder="Entre calles, color de fachada, etc." value={entrega.referencias} onChange={setE('referencias')} rows={2} style={{ resize:'vertical' }}/>
-                </div>
+              )}
+
+              <div style={{ marginTop:16 }}>
+                <label className="field-label">NOTAS PARA TU PEDIDO <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional)</span></label>
+                <textarea className="input-field" placeholder="Algo que debamos saber sobre tu pedido..." value={notas} onChange={e => setNotas(e.target.value)} rows={2} style={{ resize:'vertical' }}/>
               </div>
             </div>
           )}
@@ -310,8 +372,20 @@ export default function CheckoutPage() {
               <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
                 <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>ENTREGA</p>
-                  <p style={{ fontSize:13, color:'var(--txt)' }}>{entrega.nombre} · {entrega.telefono}</p>
-                  <p style={{ fontSize:12, color:'var(--txt2)' }}>{entrega.calle}, {entrega.colonia}, {entrega.ciudad} {entrega.cp}</p>
+                  {metodoEntrega === 'pickup' ? (
+                    <>
+                      <p style={{ fontSize:13, color:'var(--txt)' }}>🏬 Recoger en tienda</p>
+                      <p style={{ fontSize:12, color:'var(--txt2)' }}>{config.negocio_nombre} — {config.negocio_direccion}</p>
+                    </>
+                  ) : (() => {
+                    const a = addresses.find(x => x.id === direccionId)
+                    return a ? (
+                      <>
+                        <p style={{ fontSize:13, color:'var(--txt)' }}>{a.nombre_contacto} · {a.telefono_contacto}</p>
+                        <p style={{ fontSize:12, color:'var(--txt2)' }}>{a.calle}, {a.colonia}, {a.ciudad} {a.cp}</p>
+                      </>
+                    ) : <p style={{ fontSize:12, color:'var(--txt2)' }}>Sin dirección seleccionada</p>
+                  })()}
                 </div>
                 <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>PAGO</p>
@@ -334,7 +408,7 @@ export default function CheckoutPage() {
             }
             {step < 3 ? (
               <button className="btn-primary"
-                disabled={step === 0 && !minimoOk}
+                disabled={(step === 0 && !minimoOk) || (step === 1 && metodoEntrega === 'envio' && !direccionId)}
                 onClick={() => setStep(s => s+1)}>
                 Continuar →
               </button>

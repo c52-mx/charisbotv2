@@ -2,6 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
+import { AddressForm, type AddressFormValues } from '@/components/AddressForm'
+
+interface Address extends AddressFormValues { id: string; predeterminada: boolean }
 
 const CSS = `
   @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
@@ -26,11 +29,51 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState('')
-  const [tab,     setTab]     = useState<'perfil'|'seguridad'>('perfil')
+  const [tab,     setTab]     = useState<'perfil'|'direcciones'|'seguridad'>('perfil')
 
   const [form, setForm] = useState({ nombre:'', empresa:'', telefono:'', email:'' })
   const [pwForm, setPwForm] = useState({ actual:'', nueva:'', confirmar:'' })
   const [showPw, setShowPw] = useState({ actual:false, nueva:false, confirmar:false })
+
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addrLoading, setAddrLoading] = useState(true)
+  const [addrModal, setAddrModal] = useState<'create'|string|null>(null)
+  const [addrSaving, setAddrSaving] = useState(false)
+
+  function loadAddresses() {
+    setAddrLoading(true)
+    fetch('/api/client/addresses').then(r => r.json()).then(d => { setAddresses(d.items || []); setAddrLoading(false) })
+  }
+  useEffect(() => { loadAddresses() }, [])
+
+  async function saveAddress(values: AddressFormValues) {
+    setAddrSaving(true)
+    try {
+      const isEdit = addrModal && addrModal !== 'create'
+      const res = await fetch(isEdit ? `/api/client/addresses/${addrModal}` : '/api/client/addresses', {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+      setAddrModal(null)
+      loadAddresses()
+    } catch (e: any) { setMsg('⚠ ' + e.message) }
+    finally { setAddrSaving(false) }
+  }
+
+  async function deleteAddress(id: string) {
+    if (!confirm('¿Eliminar esta dirección?')) return
+    await fetch(`/api/client/addresses/${id}`, { method: 'DELETE' })
+    loadAddresses()
+  }
+
+  async function setDefaultAddress(id: string) {
+    await fetch(`/api/client/addresses/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ predeterminada: true }),
+    })
+    loadAddresses()
+  }
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => {
@@ -119,10 +162,10 @@ export default function AccountPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', gap:4, marginBottom:16, background:'var(--bg)', padding:4, borderRadius:10, width:'fit-content' }}>
-        {(['perfil','seguridad'] as const).map(t => (
+        {(['perfil','direcciones','seguridad'] as const).map(t => (
           <button key={t} onClick={() => { setTab(t); setMsg('') }}
             style={{ padding:'7px 18px', borderRadius:8, border:'none', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', background:tab===t?'white':'transparent', color:tab===t?'var(--blue)':'var(--txt2)', boxShadow:tab===t?'0 1px 4px rgba(0,0,0,0.1)':'none', transition:'all .15s', textTransform:'capitalize' }}>
-            {t === 'perfil' ? '📋 Perfil' : '🔐 Seguridad'}
+            {t === 'perfil' ? '📋 Perfil' : t === 'direcciones' ? '📍 Direcciones' : '🔐 Seguridad'}
           </button>
         ))}
       </div>
@@ -165,6 +208,63 @@ export default function AccountPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {tab === 'direcciones' && (
+        <div className="section-card" style={{ animation:'fadeUp .3s ease-out' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+            <p style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:15, color:'var(--txt)' }}>
+              📍 Mis direcciones
+            </p>
+            {addrModal === null && (
+              <button type="button" className="btn-sm" onClick={() => setAddrModal('create')}>+ Nueva dirección</button>
+            )}
+          </div>
+
+          {addrModal !== null && (
+            <div style={{ background:'var(--field-bg)', borderRadius:10, padding:16, marginBottom:16 }}>
+              <AddressForm
+                initial={addrModal === 'create' ? undefined : addresses.find(a => a.id === addrModal)}
+                saving={addrSaving}
+                onSave={saveAddress}
+                onCancel={() => setAddrModal(null)}
+              />
+            </div>
+          )}
+
+          {addrLoading ? (
+            <p style={{ fontSize:13, color:'var(--txt3)' }}>Cargando…</p>
+          ) : addresses.length === 0 && addrModal === null ? (
+            <p style={{ fontSize:13, color:'var(--txt3)' }}>Aún no tienes direcciones guardadas.</p>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {addresses.map(a => (
+                <div key={a.id} style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:10, border: a.predeterminada ? '1.5px solid var(--blue)' : '1px solid var(--border)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                    <div>
+                      <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)' }}>
+                        {a.nombre_contacto} {a.predeterminada && <span style={{ fontSize:11, color:'var(--blue)', fontWeight:700 }}>· Predeterminada</span>}
+                      </p>
+                      <p style={{ fontSize:12, color:'var(--txt2)', marginTop:2 }}>{a.telefono_contacto}</p>
+                      <p style={{ fontSize:12, color:'var(--txt2)', marginTop:2 }}>{a.calle}, {a.colonia}, {a.ciudad}, {a.estado_mx} {a.cp}</p>
+                      {a.instrucciones_entrega && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>ℹ️ {a.instrucciones_entrega}</p>}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                    <button type="button" className="btn-sm-ghost" onClick={() => setAddrModal(a.id)}>Editar</button>
+                    {!a.predeterminada && (
+                      <button type="button" className="btn-sm-ghost" onClick={() => setDefaultAddress(a.id)}>Hacer predeterminada</button>
+                    )}
+                    <button type="button" onClick={() => deleteAddress(a.id)}
+                      style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--txt3)', cursor:'pointer', fontSize:12, fontWeight:600, fontFamily:'inherit' }}>
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'seguridad' && (

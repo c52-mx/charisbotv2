@@ -316,12 +316,22 @@ export default function OrderDetailPage() {
           {order.direccion_entrega && (
             <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', padding:'16px' }}>
               <p style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:13, color:'var(--txt)', marginBottom:10 }}>📍 Entrega</p>
-              <p style={{ fontSize:13, color:'var(--txt)', fontWeight:600 }}>{order.direccion_entrega.nombre}</p>
-              <p style={{ fontSize:12, color:'var(--txt2)', lineHeight:1.6 }}>
-                {order.direccion_entrega.calle}<br/>
-                {order.direccion_entrega.colonia}, {order.direccion_entrega.ciudad}<br/>
-                CP {order.direccion_entrega.cp}
-              </p>
+              {order.direccion_entrega.tipo === 'pickup' ? (
+                <>
+                  <p style={{ fontSize:13, color:'var(--txt)', fontWeight:600 }}>🏬 Recoger en tienda</p>
+                  <p style={{ fontSize:12, color:'var(--txt2)', lineHeight:1.6 }}>{config.negocio_nombre}<br/>{config.negocio_direccion}</p>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize:13, color:'var(--txt)', fontWeight:600 }}>{order.direccion_entrega.nombre_contacto || order.direccion_entrega.nombre}</p>
+                  <p style={{ fontSize:12, color:'var(--txt2)', lineHeight:1.6 }}>
+                    {order.direccion_entrega.calle}<br/>
+                    {order.direccion_entrega.colonia}, {order.direccion_entrega.ciudad}<br/>
+                    CP {order.direccion_entrega.cp}
+                    {order.direccion_entrega.instrucciones_entrega && <><br/>ℹ️ {order.direccion_entrega.instrucciones_entrega}</>}
+                  </p>
+                </>
+              )}
             </div>
           )}
 

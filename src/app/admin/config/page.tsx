@@ -19,6 +19,8 @@ interface ConfigForm {
   instrucciones_efectivo: string
   stock_bajo_umbral: string
   venta_importante_piezas: string
+  negocio_nombre: string
+  negocio_direccion: string
 }
 
 const EMPTY: ConfigForm = {
@@ -38,6 +40,8 @@ const EMPTY: ConfigForm = {
   instrucciones_efectivo: '',
   stock_bajo_umbral: '10',
   venta_importante_piezas: '100',
+  negocio_nombre: '',
+  negocio_direccion: '',
 }
 
 export default function ConfigPage() {
@@ -115,6 +119,24 @@ export default function ConfigPage() {
           {msg}
         </div>
       )}
+
+      {/* ── Datos del negocio ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🏢 Datos del negocio</h2>
+        <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+          Se muestran al cliente cuando elige "Recoger en tienda" al pagar.
+        </p>
+        <div className="g2">
+          <div>
+            <label style={lbl}>Nombre del negocio</label>
+            <input style={inp} placeholder="Charis Distribuidor Mayorista" value={form.negocio_nombre} onChange={set('negocio_nombre')} />
+          </div>
+          <div>
+            <label style={lbl}>Dirección para recolección</label>
+            <input style={inp} placeholder="Calle, colonia, ciudad, CP" value={form.negocio_direccion} onChange={set('negocio_direccion')} />
+          </div>
+        </div>
+      </div>
 
       {/* ── Pedidos ── */}
       <div className="card" style={{ marginBottom:16 }}>

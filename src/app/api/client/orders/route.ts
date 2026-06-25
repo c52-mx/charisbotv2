@@ -2,9 +2,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, withTransaction } from '@/lib/db'
 import { getSession } from '@/lib/auth'
-import { sendEmail, emailNuevoPedido } from '@/lib/email'
+import { sendEmail, emailNuevoPedido, emailOrdenCompra } from '@/lib/email'
 import { resolveCaseId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
+import { generarOrdenCompraPdf } from '@/lib/purchaseOrderPdf'
 
 const METODO_CONFIG_KEY: Record<string, string> = {
   efectivo: 'pago_efectivo_habilitado',
@@ -52,9 +53,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { items, metodo_pago, referencia_pago, direccion_entrega, notas_cliente } = body
+    const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente } = body
 
     if (!items?.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
+
+    // Resolver la dirección elegida (o pickup) — la dirección guardada se
+    // copia como foto fija al pedido, no se referencia en vivo.
+    const entrega = metodo_entrega === 'pickup' ? 'pickup' : 'envio'
+    let direccion_entrega: any = { tipo: 'pickup' }
+    if (entrega === 'envio') {
+      if (!direccion_id) return NextResponse.json({ error: 'Selecciona una dirección de envío' }, { status: 400 })
+      const [addr] = await query<any>(
+        `SELECT * FROM public.direcciones_cliente WHERE id = $1 AND usuario_id = $2`,
+        [direccion_id, session.sub]
+      )
+      if (!addr) return NextResponse.json({ error: 'Dirección no encontrada' }, { status: 404 })
+      direccion_entrega = { tipo: 'envio', ...addr }
+    }
 
     const totalPiezas = items.reduce((s: number, i: any) => s + (i.cantidad || 0), 0)
 
@@ -91,7 +106,7 @@ export async function POST(req: NextRequest) {
     const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
       `SELECT piezas_minimas, porcentaje FROM public.descuentos_volumen WHERE activo = true`, []
     )
-    const { total: montoTotal } = calcularTotal(itemsConPrecio, tiers)
+    const { total: montoTotal, subtotal: montoSubtotal, descuentoPct: montoDescuentoPct } = calcularTotal(itemsConPrecio, tiers)
 
     // Obtener o crear conversacion
     const [conv] = await query(`
@@ -126,14 +141,14 @@ export async function POST(req: NextRequest) {
             conversacion_id, telefono, tipo_case, estado,
             requiere_firma, resumen, pedido_json,
             metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-            monto_total, creado_en
-          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, NOW())
+            monto_total, metodo_entrega, creado_en
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, NOW())
           RETURNING id, numero_pedido
         `, [
           conv.id, session.email, tipo, resumen,
           JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
           referencia_pago || null, JSON.stringify(direccion_entrega || {}),
-          notas_cliente || null, montoTotal,
+          notas_cliente || null, montoTotal, entrega,
         ])
 
         if (itemsConPrecio.length > 0) {
@@ -195,6 +210,38 @@ export async function POST(req: NextRequest) {
         }).catch(() => {})
       }
     }
+
+    // Orden de compra en PDF al cliente (best-effort, no bloquea la respuesta)
+    ;(async () => {
+      try {
+        const negocioRows = await query<{ clave: string; valor: string }>(
+          `SELECT clave, valor FROM public.config_portal WHERE clave IN ('negocio_nombre','negocio_direccion')`, []
+        )
+        const negocio = Object.fromEntries(negocioRows.map(r => [r.clave, r.valor]))
+        const pdf = await generarOrdenCompraPdf({
+          numeroPedido: pedido.numero_pedido || pedido.id.slice(0, 8),
+          fecha: new Date(),
+          cliente: session.nombre || session.email,
+          metodoPago: metodo_pago || 'transferencia',
+          metodoEntrega: entrega,
+          direccion: entrega === 'envio' ? direccion_entrega : undefined,
+          negocioNombre: negocio.negocio_nombre,
+          negocioDireccion: negocio.negocio_direccion,
+          items: itemsConPrecio.map((it: any) => ({ modelo: it.modelo, tipo_case: it.tipo_case, color: colorNorm(it.color), cantidad: it.cantidad, precio: it.precio })),
+          subtotal: montoSubtotal,
+          descuentoPct: montoDescuentoPct,
+          total: montoTotal,
+        })
+        await sendEmail({
+          to: session.email,
+          subject: `Orden de compra #${(pedido.numero_pedido || pedido.id.slice(0, 8)).toUpperCase()}`,
+          html: emailOrdenCompra(session.nombre || session.email, pedido.numero_pedido || pedido.id.slice(0, 8)),
+          attachments: [{ filename: `orden-${(pedido.numero_pedido || pedido.id.slice(0, 8)).toUpperCase()}.pdf`, content: pdf }],
+        })
+      } catch (e) {
+        console.error('[POST /api/client/orders] orden de compra PDF', e)
+      }
+    })()
 
     return NextResponse.json({ id: pedido.id, numero_pedido: pedido.numero_pedido, ok: true })
   } catch (e: any) {
