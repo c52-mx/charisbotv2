@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { getReporteVentas } from '@/lib/reports'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   // Pedidos por día (últimos 7 días)
   const porDia = await query(`
-    SELECT 
+    SELECT
       DATE(creado_en) as fecha,
       COUNT(*) as pedidos
     FROM public.pedidos
@@ -61,6 +62,11 @@ export async function GET(req: NextRequest) {
     GROUP BY DATE(creado_en)
     ORDER BY fecha
   `)
+
+  const primerDiaMes = new Date()
+  primerDiaMes.setDate(1)
+  primerDiaMes.setHours(0, 0, 0, 0)
+  const ventasMes = await getReporteVentas({ desde: primerDiaMes.toISOString() })
 
   return NextResponse.json({
     stats,
@@ -70,5 +76,6 @@ export async function GET(req: NextRequest) {
     ultimosPedidos,
     porDia,
     stockBajo: parseInt(stockBajo?.count || '0'),
+    ventasMes: ventasMes.totalVentas,
   })
 }

@@ -8,12 +8,14 @@ export async function middleware(req: NextRequest) {
   const isAdmin  = pathname.startsWith('/admin')
   const isClient = pathname.startsWith('/client')
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
-                    && pathname !== '/api/landing-promos'
+                    && pathname !== '/api/landing-promos' && pathname !== '/api/internal/cron'
   const isTrack  = pathname.startsWith('/track')
 
   // /track y /api/landing-promos son públicos — no requieren auth
-  // (landing-promos alimenta el carrusel del home, visible sin sesión)
-  if (isTrack || pathname === '/api/landing-promos') return NextResponse.next()
+  // (landing-promos alimenta el carrusel del home, visible sin sesión).
+  // /api/internal/cron tiene su propia auth por secreto compartido (lo
+  // llama src/instrumentation.ts desde el mismo proceso, sin cookie).
+  if (isTrack || pathname === '/api/landing-promos' || pathname === '/api/internal/cron') return NextResponse.next()
   if (!isAdmin && !isClient && !isApi) return NextResponse.next()
 
   if (!token) {

@@ -1,5 +1,6 @@
 // src/lib/email.ts
 // Servicio de email con Resend
+import { query } from './db'
 
 const RESEND_API_KEY  = process.env.RESEND_API_KEY  || ''
 const FROM_EMAIL      = process.env.RESEND_FROM_EMAIL || 'noreply@charis.com.mx'
@@ -81,6 +82,39 @@ export function emailVerificacion(nombre: string, token: string): string {
 </html>`
 }
 
+export function emailSurtidoTardio(pedidos: { numeroPedido: string; telefono: string; resumen: string }[]): string {
+  const filas = pedidos.map(p => `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;font-family:monospace;">#${p.numeroPedido.toUpperCase()}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${p.telefono}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:12px;color:#3a6080;">${p.resumen}</td>
+    </tr>`).join('')
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#92400e;padding:24px 36px;text-align:center;">
+          <p style="margin:0;font-size:18px;font-weight:900;color:white;">⏰ Pedidos por surtir a tiempo</p>
+        </td></tr>
+        <tr><td style="padding:28px 36px;">
+          <p style="margin:0 0 16px;font-size:14px;color:#0d2137;">Estos pedidos confirmados están cerca de su límite de surtido sin haber avanzado — atiéndelos antes de perder la venta:</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">${filas}</table>
+          <a href="${APP_URL}/admin/orders" style="display:inline-block;padding:12px 28px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
+            Ver pedidos →
+          </a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
 export function emailEstadoPedido(
   nombre: string,
   numeroPedido: string,
@@ -133,6 +167,30 @@ export function emailEstadoPedido(
   </table>
 </body>
 </html>`
+}
+
+// Busca el correo del cliente por teléfono y le manda el email de estado
+// (reusa emailEstadoPedido). Best-effort: si no tiene email registrado
+// (clientes que solo usan WhatsApp) simplemente no manda nada.
+export async function notificarClienteEmail(
+  telefono: string, numeroPedido: string, estado: string, nota?: string
+): Promise<void> {
+  try {
+    const rows = await query<{ nombre: string | null; email: string | null }>(
+      `SELECT nombre, email FROM public.clientes WHERE telefono = $1 AND email IS NOT NULL AND email <> '' LIMIT 1`,
+      [telefono]
+    )
+    const cliente = rows[0]
+    if (!cliente?.email) return
+
+    await sendEmail({
+      to: cliente.email,
+      subject: `Actualización de tu pedido #${numeroPedido.toUpperCase()}`,
+      html: emailEstadoPedido(cliente.nombre || 'Cliente', numeroPedido, estado, nota),
+    })
+  } catch (e) {
+    console.error('[notificarClienteEmail]', e)
+  }
 }
 
 export function emailStockBajo(items: { modelo: string; color: string; tipo_case: string; stock: number }[]): string {

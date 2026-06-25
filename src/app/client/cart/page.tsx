@@ -89,14 +89,56 @@ export default function CartPage() {
   const [placing, setPlacing] = useState(false)
   const [success, setSuccess] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [revalidateNotice, setRevalidateNotice] = useState('')
   const skipSync = useRef(false)
 
   useEffect(() => {
-    setCart(loadCart())
+    const initial = loadCart()
+    setCart(initial)
     setLoading(false)
     const sync = () => { if (!skipSync.current) setCart(loadCart()) }
     window.addEventListener('charis-cart-updated', sync)
     window.addEventListener('storage', sync)
+
+    // La reserva de carrito vence sola (config_portal.tiempo_reserva_carrito_min).
+    // Si el cliente dejó la pestaña abierta más de eso, el localStorage sigue
+    // mostrando los artículos viejos aunque el servidor ya liberó el stock —
+    // al entrar aquí se vuelve a apartar cada artículo y se ajusta lo que ya
+    // no alcance, en vez de descubrirlo hasta el checkout.
+    ;(async () => {
+      if (!initial.length) return
+      const ajustados: string[] = []
+      const eliminados: string[] = []
+      const next: CartItem[] = []
+      for (const item of initial) {
+        const res = await fetch('/api/client/cart/reserve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad: item.cantidad }),
+        }).catch(() => null)
+        if (!res) { next.push(item); continue }
+        const data = await res.json().catch(() => ({}))
+        if (res.ok) { next.push(item); continue }
+        const disponible = Math.max(0, data.disponible ?? 0)
+        if (disponible > 0) {
+          next.push({ ...item, cantidad: disponible })
+          ajustados.push(`${item.modelo} (${item.color})`)
+        } else {
+          eliminados.push(`${item.modelo} (${item.color})`)
+        }
+      }
+      if (ajustados.length || eliminados.length) {
+        skipSync.current = true
+        setCart(next)
+        saveCart(next)
+        setTimeout(() => { skipSync.current = false }, 60)
+        const partes = []
+        if (ajustados.length)  partes.push(`se ajustó la cantidad de: ${ajustados.join(', ')}`)
+        if (eliminados.length) partes.push(`se quitó por falta de stock: ${eliminados.join(', ')}`)
+        setRevalidateNotice(`Tu reserva había expirado — ${partes.join('; ')}.`)
+      }
+    })()
+
     return () => {
       window.removeEventListener('charis-cart-updated', sync)
       window.removeEventListener('storage', sync)
@@ -208,6 +250,14 @@ export default function CartPage() {
   return (
     <>
       <style>{CSS}</style>
+
+      {revalidateNotice && (
+        <div style={{ background:'#fef3c7', border:'1px solid #fde68a', color:'#92400e', borderRadius:10, padding:'10px 14px', fontSize:13, marginBottom:16, display:'flex', alignItems:'flex-start', gap:8 }}>
+          <span>⏳</span>
+          <span style={{ flex:1 }}>{revalidateNotice}</span>
+          <button onClick={() => setRevalidateNotice('')} style={{ border:'none', background:'transparent', color:'inherit', cursor:'pointer', fontSize:14, lineHeight:1 }}>✕</button>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, marginBottom:24, animation:'fadeUp .3s ease-out' }}>

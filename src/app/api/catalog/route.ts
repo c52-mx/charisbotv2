@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
+import { registrarMovimiento } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
 
@@ -144,6 +145,13 @@ export async function POST(req: NextRequest) {
 
   if (!rows.length) {
     return NextResponse.json({ error: 'Ya existe un producto con ese tipo, modelo y color' }, { status: 409 })
+  }
+
+  if (stockVal > 0) {
+    await registrarMovimiento({
+      case_id: rows[0].case_id, tipo: 'ENTRADA', cantidad: stockVal, stock_resultante: stockVal,
+      motivo: 'Alta de producto', realizado_por: session.sub,
+    })
   }
 
   return NextResponse.json({

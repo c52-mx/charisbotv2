@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { notificarCambioEstatus } from '@/lib/whatsapp'
+import { notificarClienteEmail } from '@/lib/email'
 import { finalizarPedido, liberarPedido } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -85,9 +86,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
          monto_total = CASE WHEN $4::numeric IS NOT NULL THEN $4 ELSE monto_total END,
          motivo_cancelacion = CASE WHEN $1 = 'CANCELADO' THEN $5 ELSE motivo_cancelacion END,
          cancelado_en = CASE WHEN $1 = 'CANCELADO' THEN NOW() ELSE cancelado_en END,
+         confirmado_en = CASE WHEN $1 = 'CONFIRMADO' AND confirmado_en IS NULL THEN NOW() ELSE confirmado_en END,
          actualizado_en = NOW()
      WHERE id = $3
-     RETURNING id, telefono, estado, resumen`,
+     RETURNING id, telefono, estado, resumen, numero_pedido`,
     [
       estado, notas || null, params.id,
       monto_total === undefined || monto_total === '' ? null : monto_total,
@@ -106,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Confirmado/pagado por primera vez → descuenta stock definitivo y libera la reserva.
   // Cancelado → libera la reserva sin tocar el stock (nunca se vendió).
   if (ESTADOS_FINALES.includes(estado) && !ESTADOS_FINALES.includes(before.estado)) {
-    await finalizarPedido(params.id).catch(e => console.error('[finalizarPedido]', e))
+    await finalizarPedido(params.id, session.sub).catch(e => console.error('[finalizarPedido]', e))
   } else if (estado === 'CANCELADO' && before.estado !== 'CANCELADO') {
     await liberarPedido(params.id).catch(e => console.error('[liberarPedido]', e))
   }
@@ -122,6 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } catch (e) {
     console.warn('[WA notify failed]', e)
   }
+  await notificarClienteEmail(updated.telefono, updated.numero_pedido || updated.id.slice(0, 8), updated.estado, notas || undefined)
 
   return NextResponse.json({ ok: true, data: updated })
 }

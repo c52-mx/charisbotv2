@@ -9,6 +9,9 @@ interface ConfigForm {
   whatsapp_soporte: string
   tiempo_reserva_carrito_min: string
   tiempo_reserva_pago_min: string
+  aviso_vencimiento_min: string
+  tiempo_surtido_horas: string
+  aviso_surtido_horas_antes: string
   pago_stripe_habilitado: string
   pago_mercadopago_habilitado: string
   stock_bajo_umbral: string
@@ -22,6 +25,9 @@ const EMPTY: ConfigForm = {
   whatsapp_soporte: '',
   tiempo_reserva_carrito_min: '30',
   tiempo_reserva_pago_min: '1440',
+  aviso_vencimiento_min: '120',
+  tiempo_surtido_horas: '72',
+  aviso_surtido_horas_antes: '24',
   pago_stripe_habilitado: 'false',
   pago_mercadopago_habilitado: 'false',
   stock_bajo_umbral: '10',
@@ -143,6 +149,26 @@ export default function ConfigPage() {
             <input type="number" min={1} style={inp} value={form.tiempo_reserva_pago_min} onChange={set('tiempo_reserva_pago_min')} />
           </div>
         </div>
+        <div style={{ marginTop:12 }}>
+          <label style={lbl}>Avisar antes de cancelar (minutos antes de vencer)</label>
+          <input type="number" min={1} style={inp} value={form.aviso_vencimiento_min} onChange={set('aviso_vencimiento_min')} />
+          <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
+            Se manda un WhatsApp al cliente avisando que su reserva está por vencer, antes de cancelarse automáticamente.
+          </p>
+        </div>
+        <div className="g2" style={{ marginTop:12 }}>
+          <div>
+            <label style={lbl}>Tiempo de surtido (horas)</label>
+            <input type="number" min={1} style={inp} value={form.tiempo_surtido_horas} onChange={set('tiempo_surtido_horas')} />
+          </div>
+          <div>
+            <label style={lbl}>Avisar antes de vencer surtido (horas)</label>
+            <input type="number" min={1} style={inp} value={form.aviso_surtido_horas_antes} onChange={set('aviso_surtido_horas_antes')} />
+          </div>
+        </div>
+        <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
+          Si un pedido confirmado no avanza dentro de este tiempo, se manda un correo interno de atención antes de perder la venta.
+        </p>
       </div>
 
       {/* ── Alertas ── */}

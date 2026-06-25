@@ -42,6 +42,22 @@ Tu pedido fue registrado y está en proceso. Te notificaremos cuando esté listo
   return sendTextMessage(pedido.telefono, mensaje)
 }
 
+export async function notificarVencimientoProximo(pedido: {
+  id: string
+  telefono: string
+  numeroPedido?: string
+  expiraEn: string
+}) {
+  const fecha = new Date(pedido.expiraEn).toLocaleString('es-MX', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' })
+  const mensaje = `⏳ *Tu pedido está por vencer* #${(pedido.numeroPedido || pedido.id.slice(0, 8)).toUpperCase()}
+
+Si no confirmas el pago antes de las ${fecha}, se cancelará automáticamente y se liberará el stock apartado.
+
+Completa tu pago para asegurar tu pedido. 💳`
+
+  return sendTextMessage(pedido.telefono, mensaje)
+}
+
 export async function notificarCambioEstatus(pedido: {
   id: string
   telefono: string

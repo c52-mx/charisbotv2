@@ -21,6 +21,22 @@ export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
   const [userRol, setUserRol] = useState<UserRol>('VENDEDOR')
   useEffect(()=>{ fetch('/api/auth/me').then(r=>r.json()).then(d=>setUserRol(d.user?.rol||'VENDEDOR')) },[])
+  const [slaSurtido, setSlaSurtido] = useState({ tiempoHoras: 72, avisoHoras: 24 })
+  useEffect(()=>{
+    fetch('/api/client/config').then(r=>r.json()).then(d=>{
+      const tiempoHoras = parseInt(d.tiempo_surtido_horas)
+      const avisoHoras  = parseInt(d.aviso_surtido_horas_antes)
+      setSlaSurtido({
+        tiempoHoras: Number.isFinite(tiempoHoras) ? tiempoHoras : 72,
+        avisoHoras:  Number.isFinite(avisoHoras)  ? avisoHoras  : 24,
+      })
+    }).catch(()=>{})
+  },[])
+  function necesitaAtencion(o: any): boolean {
+    if (!['CONFIRMADO','EN_PREPARACION'].includes(o.estado) || !o.confirmado_en) return false
+    const limite = new Date(o.confirmado_en).getTime() + slaSurtido.tiempoHoras * 3_600_000 - slaSurtido.avisoHoras * 3_600_000
+    return Date.now() >= limite
+  }
   const tv = getThemeVars(dark)
   const [orders,   setOrders]   = useState<any[]>([])
   const [total,    setTotal]    = useState(0)
@@ -130,15 +146,24 @@ export default function OrdersPage() {
       <div className="ccard" style={{ padding:'14px 16px', marginBottom:14, display:'flex', flexWrap:'wrap', gap:10 }}>
         <input className="cinput" style={{ flex:1, minWidth:180 }} placeholder="Buscar teléfono..."
                value={filters.telefono} onChange={e => setFilters(f => ({ ...f, telefono: e.target.value }))} />
-        <select className="cinput" style={{ width:200 }} value={filters.estado} onChange={e => setFilters(f => ({ ...f, estado: e.target.value }))}>
-          <option value="">Todos los estados</option>
-          {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g,' ')}</option>)}
-        </select>
-        <select className="cinput" style={{ width:160 }} value={filters.origen} onChange={e => setFilters(f => ({ ...f, origen: e.target.value }))}>
-          <option value="">Todos los orígenes</option>
-          <option value="WHATSAPP">📱 WhatsApp</option>
-          <option value="PORTAL">🌐 Portal</option>
-        </select>
+        <div style={{ width:200 }}>
+          <Combo
+            value={filters.estado}
+            onChange={v => setFilters(f => ({ ...f, estado: v }))}
+            options={[{ value:'', label:'Todos los estados' }, ...ESTADOS.map(e => ({ value:e, label:e.replace(/_/g,' ') }))]}
+          />
+        </div>
+        <div style={{ width:160 }}>
+          <Combo
+            value={filters.origen}
+            onChange={v => setFilters(f => ({ ...f, origen: v }))}
+            options={[
+              { value:'', label:'Todos los orígenes' },
+              { value:'WHATSAPP', label:'📱 WhatsApp' },
+              { value:'PORTAL', label:'🌐 Portal' },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -172,7 +197,10 @@ export default function OrdersPage() {
                       {o.origen==='PORTAL'?'🌐':'📱'} {o.origen}
                     </span>
                   </td>
-                  <td><span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{o.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}</span></td>
+                  <td>
+                    <span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{o.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}</span>
+                    {necesitaAtencion(o) && <span className="badge badge-red" style={{ marginLeft:6 }} title="Cerca de su límite de surtido">⏰ Atención</span>}
+                  </td>
                   <td className="no-mob" style={{ fontSize:12, color:'var(--txt2)' }}>{format(new Date(o.creado_en),'dd MMM HH:mm',{locale:es})}</td>
                   <td>
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
@@ -271,6 +299,19 @@ export default function OrdersPage() {
                   {savingMonto ? 'Guardando…' : 'Guardar'}
                 </button>
               </div>
+
+              {['CONFIRMADO','EN_PREPARACION'].includes(selected.estado) && (
+                <div style={{ marginBottom:16 }}>
+                  <a className="cbtn cbtn-secondary" href={`/api/orders/${selected.id}/picking`} target="_blank" rel="noreferrer"
+                     style={{ display:'inline-block', textDecoration:'none' }}
+                     onClick={() => setTimeout(() => { loadDetail(selected.id); load() }, 1500)}>
+                    📋 Exportar orden de surtido
+                  </a>
+                  {selected.estado === 'CONFIRMADO' && (
+                    <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>Al exportarla, el pedido pasa a "En preparación" automáticamente.</p>
+                  )}
+                </div>
+              )}
 
               {selected.estado === 'CANCELADO' ? (
                 <>

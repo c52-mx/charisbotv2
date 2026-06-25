@@ -47,6 +47,7 @@ export default function CatalogPage() {
 
   // Modal state
   const [modal,     setModal]     = useState<'create' | 'edit' | null>(null)
+  const [showImport, setShowImport] = useState(false)
   const [form,      setForm]      = useState<FormState>(EMPTY_FORM)
   const [editId,    setEditId]    = useState<string | null>(null)
   const [saving,    setSaving]    = useState(false)
@@ -219,9 +220,14 @@ export default function CatalogPage() {
             {total.toLocaleString()} productos registrados
           </p>
         </div>
-        {canCreate && (
-          <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nuevo producto</button>
-        )}
+        <div style={{ display:'flex', gap:8 }}>
+          {canCreate && (
+            <button className="cbtn cbtn-secondary" onClick={() => setShowImport(true)}>📥 Importar inventario</button>
+          )}
+          {canCreate && (
+            <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nuevo producto</button>
+          )}
+        </div>
       </div>
 
       {/* ── Filters ── */}
@@ -231,17 +237,24 @@ export default function CatalogPage() {
           placeholder="🔍 Buscar modelo, color, identificador..."
           value={search} onChange={e => setSearch(e.target.value)}
         />
-        <select className="inp" style={inp({ maxWidth: 160 })}
-                value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
-          <option value="">Todos los tipos</option>
-          {tiposList.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select className="inp" style={inp({ maxWidth: 140 })}
-                value={filterAct} onChange={e => setFilterAct(e.target.value)}>
-          <option value="">Todos</option>
-          <option value="true">Activos</option>
-          <option value="false">Inactivos</option>
-        </select>
+        <div style={{ maxWidth: 160, width: 160 }}>
+          <Combo
+            value={filterTipo}
+            onChange={setFilterTipo}
+            options={[{ value:'', label:'Todos los tipos' }, ...tiposList.map(t => ({ value:t, label:t }))]}
+          />
+        </div>
+        <div style={{ maxWidth: 140, width: 140 }}>
+          <Combo
+            value={filterAct}
+            onChange={setFilterAct}
+            options={[
+              { value:'', label:'Todos' },
+              { value:'true', label:'Activos' },
+              { value:'false', label:'Inactivos' },
+            ]}
+          />
+        </div>
       </div>
 
       {/* ── Table ── */}
@@ -442,6 +455,68 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
+
+      {showImport && <ImportModal onClose={() => setShowImport(false)} onDone={() => fetchItems(page)} />}
+    </div>
+  )
+}
+
+// ── Importar inventario ────────────────────────────────────────────────
+function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [resultado, setResultado] = useState<{ creados: number; actualizados: number; errores: { fila: number; motivo: string }[] } | null>(null)
+
+  async function handleImport() {
+    if (!file) return
+    setLoading(true); setError(''); setResultado(null)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const res = await fetch('/api/admin/catalog/import', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al importar')
+      setResultado(data)
+      onDone()
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-box" style={{ maxWidth: 460 }}>
+        <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>📥 Importar inventario</h2>
+        <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
+          Sube un archivo .xlsx con columnas <code>tipo_case, modelo, color, stock, identificador, ubicacion</code>.
+          El stock del archivo <strong>remplaza</strong> el stock actual de cada producto.
+        </p>
+        <a href="/api/admin/catalog/import/template" style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>
+          ⬇ Descargar plantilla
+        </a>
+        <input type="file" accept=".xlsx" className="inp" style={{ width: '100%', marginBottom: 14 }}
+          onChange={e => { setFile(e.target.files?.[0] || null); setResultado(null) }} />
+
+        {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>}
+
+        {resultado && (
+          <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'var(--bg4)', fontSize: 13 }}>
+            <p>✅ {resultado.creados} creados · {resultado.actualizados} actualizados</p>
+            {resultado.errores.length > 0 && (
+              <div style={{ marginTop: 8, color: '#f87171' }}>
+                <p style={{ fontWeight: 700 }}>{resultado.errores.length} fila(s) con error:</p>
+                {resultado.errores.map((e, i) => <p key={i} style={{ fontSize: 12 }}>Fila {e.fila}: {e.motivo}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button className="cbtn cbtn-secondary" onClick={onClose}>Cerrar</button>
+          <button className="cbtn cbtn-primary" onClick={handleImport} disabled={!file || loading}>
+            {loading ? 'Importando…' : 'Importar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

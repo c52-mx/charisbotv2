@@ -47,6 +47,7 @@ export default function DashboardPage() {
     {label:'Confirmados',     value:st.pedidos_confirmados??0, icon:'✅', color:'#22c55e'},
     {label:'Clientes únicos', value:st.clientes_unicos??0,     icon:'👥', color:'#f59e0b'},
     {label:'Stock bajo',      value:data?.stockBajo??0,        icon:'⚠️', color:'#ef4444', href:'/admin/catalog'},
+    {label:'Ventas (mes)',    value:`$${Number(data?.ventasMes??0).toLocaleString('es-MX',{minimumFractionDigits:0})}`, icon:'💰', color:'#22c55e', href:'/admin/reportes'},
   ]
 
   return (
@@ -55,8 +56,8 @@ export default function DashboardPage() {
         @keyframes spin{to{transform:rotate(360deg)}}
 
         /* ── Stat grid ── */
-        .dash-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
-        @media(max-width:1100px){ .dash-stats{ grid-template-columns:repeat(3,1fr); } }
+        .dash-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:18px; }
+        @media(max-width:1300px){ .dash-stats{ grid-template-columns:repeat(3,1fr); } }
         @media(max-width:900px){ .dash-stats{ grid-template-columns:repeat(2,1fr); } }
         @media(max-width:400px){ .dash-stats{ grid-template-columns:1fr 1fr; gap:10px; } }
         .dash-stat-link { text-decoration:none; display:block; }

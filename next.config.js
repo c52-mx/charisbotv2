@@ -6,6 +6,7 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ['pg', 'bcryptjs'],
+    instrumentationHook: true,
   },
 }
 

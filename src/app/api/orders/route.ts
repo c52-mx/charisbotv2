@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarConfirmacion } from '@/lib/whatsapp'
-import { resolveCaseId, liberarPedidosVencidos, checkStockBajoYNotificar } from '@/lib/stock'
+import { resolveCaseId, liberarPedidosVencidos, checkStockBajoYNotificar, registrarMovimiento } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     query(
       `SELECT p.id, p.telefono, c.nombre as cliente_nombre, p.tipo_case,
               p.estado, p.origen, p.requiere_firma, p.resumen,
-              p.creado_en, p.actualizado_en,
+              p.creado_en, p.actualizado_en, p.confirmado_en,
               COUNT(pi.id) as total_modelos,
               COALESCE(SUM(pi.cantidad), 0) as total_piezas
        FROM public.pedidos p
@@ -105,9 +105,9 @@ export async function POST(req: NextRequest) {
   const resumen = `${items.length} modelos, ${totalPiezas} piezas${notas ? ` · ${notas}` : ''}`
 
   const pedido = await queryOne<any>(
-    `INSERT INTO public.pedidos 
-       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen)
-     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL')
+    `INSERT INTO public.pedidos
+       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen, confirmado_en)
+     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL', NOW())
      RETURNING id`,
     [
       conv?.id,
@@ -136,7 +136,14 @@ export async function POST(req: NextRequest) {
     // Pedido manual: ya nace CONFIRMADO, así que el stock se descuenta directo (sin reserva).
     const caseId = await resolveCaseId(tipoCaseItem, modeloItem, colorItem)
     if (caseId && cantidadItem > 0) {
-      await query(`UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2`, [cantidadItem, caseId])
+      const [updatedCase] = await query<{ stock: number }>(
+        `UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2 RETURNING stock`,
+        [cantidadItem, caseId]
+      )
+      await registrarMovimiento({
+        case_id: caseId, tipo: 'SALIDA', cantidad: cantidadItem, stock_resultante: updatedCase.stock,
+        motivo: 'Pedido manual', pedido_id: pedido!.id, realizado_por: session.sub,
+      })
       stockNotifyCaseIds.push(caseId)
     }
   }
