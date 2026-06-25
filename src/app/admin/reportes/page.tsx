@@ -4,7 +4,7 @@ import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 
 type Tab = 'pedidos' | 'inventario' | 'ventas'
 
-const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO','CANCELADO']
+const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','ENTREGADO','CANCELADO']
 
 export default function ReportesPage() {
   const [dark]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)

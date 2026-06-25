@@ -334,7 +334,7 @@ export async function avisarSurtidoTardio(): Promise<void> {
 
   const pedidos = await query<{ id: string; numero_pedido: string | null; telefono: string; confirmado_en: string; resumen: string | null }>(
     `SELECT id, numero_pedido, telefono, confirmado_en, resumen FROM public.pedidos
-     WHERE estado IN ('CONFIRMADO', 'EN_PREPARACION')
+     WHERE estado IN ('CONFIRMADO', 'EN_PREPARACION', 'POR_VALIDAR_SURTIDO')
        AND aviso_surtido_enviado = false
        AND confirmado_en IS NOT NULL
        AND confirmado_en + ($1::int * INTERVAL '1 hour') - ($2::int * INTERVAL '1 hour') <= NOW()`,

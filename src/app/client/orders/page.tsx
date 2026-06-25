@@ -74,7 +74,14 @@ export default function OrdersPage() {
   useEffect(() => {
     fetch('/api/client/orders')
       .then(r => r.json())
-      .then(d => { setOrders(d.items || []); setLoading(false) })
+      .then(d => {
+        // "Por validar surtido" es un estado interno de almacén/ventas —
+        // de cara al cliente se ve igual que "En preparación".
+        const items = (d.items || []).map((o: Pedido) =>
+          o.estado === 'POR_VALIDAR_SURTIDO' ? { ...o, estado: 'EN_PREPARACION' } : o
+        )
+        setOrders(items); setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 

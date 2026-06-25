@@ -7,10 +7,10 @@ import { createHmac } from 'crypto'
 export type UserRol = 'ADMIN' | 'VENDEDOR' | 'ALMACEN' | 'CLIENTE'
 
 export const PERMISOS = {
-  ADMIN:   { dashboard:true,  pedidos_ver:true,  pedidos_crear:true,  pedidos_estado:true, pedidos_solo_confirmados:false, catalogo_ver:true,  catalogo_editar:true,  catalogo_crear:true,  clientes_ver:true,  clientes_crear:true,  usuarios:true,  config_editar:true  },
-  VENDEDOR:{ dashboard:false, pedidos_ver:true,  pedidos_crear:true,  pedidos_estado:true, pedidos_solo_confirmados:false, catalogo_ver:true,  catalogo_editar:false, catalogo_crear:false, clientes_ver:true,  clientes_crear:false, usuarios:false, config_editar:false },
-  ALMACEN: { dashboard:false, pedidos_ver:true,  pedidos_crear:false, pedidos_estado:true, pedidos_solo_confirmados:true,  catalogo_ver:true,  catalogo_editar:true,  catalogo_crear:true,  clientes_ver:false, clientes_crear:false, usuarios:false, config_editar:false },
-  CLIENTE: { dashboard:false, pedidos_ver:false, pedidos_crear:false, pedidos_estado:false, pedidos_solo_confirmados:false, catalogo_ver:false, catalogo_editar:false, catalogo_crear:false, clientes_ver:false, clientes_crear:false, usuarios:false, config_editar:false },
+  ADMIN:   { dashboard:true,  pedidos_ver:true,  pedidos_crear:true,  pedidos_estado:true, pedidos_solo_confirmados:false, pagos_confirmar:true,  catalogo_ver:true,  catalogo_editar:true,  catalogo_crear:true,  clientes_ver:true,  clientes_crear:true,  usuarios:true,  config_editar:true  },
+  VENDEDOR:{ dashboard:false, pedidos_ver:true,  pedidos_crear:true,  pedidos_estado:true, pedidos_solo_confirmados:false, pagos_confirmar:true,  catalogo_ver:true,  catalogo_editar:false, catalogo_crear:false, clientes_ver:true,  clientes_crear:false, usuarios:false, config_editar:false },
+  ALMACEN: { dashboard:false, pedidos_ver:true,  pedidos_crear:false, pedidos_estado:true, pedidos_solo_confirmados:true,  pagos_confirmar:false, catalogo_ver:true,  catalogo_editar:true,  catalogo_crear:true,  clientes_ver:false, clientes_crear:false, usuarios:false, config_editar:false },
+  CLIENTE: { dashboard:false, pedidos_ver:false, pedidos_crear:false, pedidos_estado:false, pedidos_solo_confirmados:false, pagos_confirmar:false, catalogo_ver:false, catalogo_editar:false, catalogo_crear:false, clientes_ver:false, clientes_crear:false, usuarios:false, config_editar:false },
 } as const
 
 export type Permiso = keyof typeof PERMISOS['ADMIN']

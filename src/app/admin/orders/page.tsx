@@ -9,13 +9,17 @@ import { can, type UserRol } from '@/lib/auth-shared'
 // Vocabulario unificado con el seguimiento que ve el cliente
 // (client/orders/[id]/page.tsx) — antes este admin solo ofrecía estados
 // viejos (EN_PROCESO/COMPLETADO) que el cliente nunca mostraba.
-const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO','CANCELADO']
+const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','ENTREGADO','CANCELADO']
 const BADGE: Record<string,string> = {
   CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn', PENDIENTE_PAGO:'badge-warn',
-  EN_PREPARACION:'badge-blue', EN_REPARTO:'badge-blue', ENTREGADO:'badge-purple', CANCELADO:'badge-red',
+  EN_PREPARACION:'badge-blue', POR_VALIDAR_SURTIDO:'badge-warn', EN_REPARTO:'badge-blue', ENTREGADO:'badge-purple', CANCELADO:'badge-red',
   // legacy — pedidos históricos que aún tengan estos valores
   EN_PROCESO:'badge-blue', COMPLETADO:'badge-purple', PENDIENTE:'badge-warn',
 }
+// Las dos transiciones que requieren visto bueno de ventas/admin — almacén
+// no debe ver el selector genérico cuando el pedido está en estos estados,
+// porque el backend va a rechazar el PATCH si lo intenta.
+const ESTADOS_GATEADOS = ['PENDIENTE_PAGO','POR_VALIDAR_SURTIDO']
 
 export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
@@ -33,7 +37,7 @@ export default function OrdersPage() {
     }).catch(()=>{})
   },[])
   function necesitaAtencion(o: any): boolean {
-    if (!['CONFIRMADO','EN_PREPARACION'].includes(o.estado) || !o.confirmado_en) return false
+    if (!['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO'].includes(o.estado) || !o.confirmado_en) return false
     const limite = new Date(o.confirmado_en).getTime() + slaSurtido.tiempoHoras * 3_600_000 - slaSurtido.avisoHoras * 3_600_000
     return Date.now() >= limite
   }
@@ -48,8 +52,11 @@ export default function OrdersPage() {
   const [filters,  setFilters]  = useState({ estado:'', origen:'', telefono:'' })
   const [montoInput, setMontoInput] = useState('')
   const [savingMonto, setSavingMonto] = useState(false)
-  const [pendingChange, setPendingChange] = useState<{ id:string; estado:string } | null>(null)
+  const [ubicacionInput, setUbicacionInput] = useState('')
+  const [savingUbicacion, setSavingUbicacion] = useState(false)
+  const [pendingChange, setPendingChange] = useState<{ id:string; estado:string; desde:string } | null>(null)
   const [motivoCancel, setMotivoCancel] = useState('')
+  const [motivoRechazo, setMotivoRechazo] = useState('')
   const [confirmError, setConfirmError] = useState('')
   const [reactivating, setReactivating] = useState(false)
   const [reactivateError, setReactivateError] = useState<{ msg:string; faltantes?:any[] } | null>(null)
@@ -72,6 +79,7 @@ export default function OrdersPage() {
     const data = await r.json()
     setSelected(data)
     setMontoInput(data.monto_total != null ? String(data.monto_total) : '')
+    setUbicacionInput(data.ubicacion_fisica || '')
   }
   async function saveMonto(id: string) {
     setSavingMonto(true)
@@ -79,20 +87,31 @@ export default function OrdersPage() {
     await loadDetail(id)
     setSavingMonto(false)
   }
+  async function saveUbicacion(id: string) {
+    setSavingUbicacion(true)
+    await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ubicacion_fisica: ubicacionInput }) })
+    await loadDetail(id)
+    setSavingUbicacion(false)
+  }
 
-  function requestStatusChange(id: string, estado: string) {
-    setMotivoCancel(''); setConfirmError('')
-    setPendingChange({ id, estado })
+  function requestStatusChange(id: string, estado: string, desde: string) {
+    setMotivoCancel(''); setMotivoRechazo(''); setConfirmError('')
+    setPendingChange({ id, estado, desde })
   }
 
   async function confirmStatusChange() {
     if (!pendingChange) return
-    const { id, estado } = pendingChange
+    const { id, estado, desde } = pendingChange
+    const esRechazoSurtido = desde === 'POR_VALIDAR_SURTIDO' && estado === 'EN_PREPARACION'
     setUpdating(true); setConfirmError('')
     try {
       const r = await fetch(`/api/orders/${id}`, {
         method:'PATCH', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ estado, motivo_cancelacion: estado==='CANCELADO' ? motivoCancel : undefined }),
+        body: JSON.stringify({
+          estado,
+          motivo_cancelacion: estado==='CANCELADO' ? motivoCancel : undefined,
+          motivo_rechazo_surtido: esRechazoSurtido ? motivoRechazo : undefined,
+        }),
       })
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'Error al actualizar')
@@ -207,9 +226,11 @@ export default function OrdersPage() {
                       <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => loadDetail(o.id)}>Ver</button>
                       {o.estado === 'CANCELADO' ? (
                         <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => reactivate(o.id)} disabled={reactivating}>♻️ Reactivar</button>
+                      ) : ESTADOS_GATEADOS.includes(o.estado) && !can(userRol,'pagos_confirmar') ? (
+                        <span style={{ fontSize:11, color:'var(--txt3)' }}>⏳ Esperando validación</span>
                       ) : (
                         <select className="cinput" style={{ width:'auto', fontSize:11, padding:'4px 6px', borderRadius:6 }}
-                                value={o.estado} onChange={e => requestStatusChange(o.id, e.target.value)} disabled={updating}>
+                                value={o.estado} onChange={e => requestStatusChange(o.id, e.target.value, o.estado)} disabled={updating}>
                           {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g,' ')}</option>)}
                         </select>
                       )}
@@ -311,6 +332,33 @@ export default function OrdersPage() {
                 </button>
               </div>
 
+              {!['ENTREGADO','CANCELADO'].includes(selected.estado) && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
+                    📦 Ubicación física (caja/tarima)
+                  </div>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input
+                      type="text"
+                      className="cinput"
+                      placeholder="ej. Tarima 3, caja B"
+                      value={ubicacionInput}
+                      onChange={e => setUbicacionInput(e.target.value)}
+                      style={{ flex:1 }}
+                    />
+                    <button className="cbtn cbtn-secondary" disabled={savingUbicacion} onClick={() => saveUbicacion(selected.id)}>
+                      {savingUbicacion ? 'Guardando…' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selected.motivo_rechazo_surtido && selected.estado === 'EN_PREPARACION' && (
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
+                  ✕ Surtido rechazado: {selected.motivo_rechazo_surtido}
+                </div>
+              )}
+
               {['CONFIRMADO','EN_PREPARACION'].includes(selected.estado) && (
                 <div style={{ marginBottom:16 }}>
                   <a className="cbtn cbtn-secondary" href={`/api/orders/${selected.id}/picking`} target="_blank" rel="noreferrer"
@@ -345,17 +393,42 @@ export default function OrdersPage() {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                    {ESTADOS.map(e => (
-                      <button key={e} onClick={() => requestStatusChange(selected.id, e)} disabled={updating || selected.estado===e}
-                              style={{ fontSize:11,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'all 0.15s',
-                                background:selected.estado===e?'var(--blue)':'var(--bg4)',color:selected.estado===e?'white':'var(--txt2)',
-                                border:`1px solid ${selected.estado===e?'var(--blue)':'var(--border)'}`,opacity:updating?0.5:1 }}>
-                        {e.replace(/_/g,' ')}
+                  {selected.estado === 'EN_PREPARACION' && (
+                    <div style={{ marginBottom:12 }}>
+                      <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'POR_VALIDAR_SURTIDO', selected.estado)}>
+                        📦 Terminé de surtir
                       </button>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+                  {selected.estado === 'POR_VALIDAR_SURTIDO' && can(userRol,'pagos_confirmar') && (
+                    <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                      <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_REPARTO', selected.estado)}>
+                        ✅ Validar y despachar
+                      </button>
+                      <button className="cbtn cbtn-secondary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_PREPARACION', selected.estado)}>
+                        ✕ Rechazar surtido
+                      </button>
+                    </div>
+                  )}
+                  {selected.estado === 'POR_VALIDAR_SURTIDO' && !can(userRol,'pagos_confirmar') && (
+                    <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:12 }}>⏳ Esperando que ventas/admin valide el surtido.</p>
+                  )}
+
+                  {!(ESTADOS_GATEADOS.includes(selected.estado) && !can(userRol,'pagos_confirmar')) && (
+                    <>
+                      <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                        {ESTADOS.map(e => (
+                          <button key={e} onClick={() => requestStatusChange(selected.id, e, selected.estado)} disabled={updating || selected.estado===e}
+                                  style={{ fontSize:11,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'all 0.15s',
+                                    background:selected.estado===e?'var(--blue)':'var(--bg4)',color:selected.estado===e?'white':'var(--txt2)',
+                                    border:`1px solid ${selected.estado===e?'var(--blue)':'var(--border)'}`,opacity:updating?0.5:1 }}>
+                            {e.replace(/_/g,' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 
@@ -399,6 +472,14 @@ export default function OrdersPage() {
                     Motivo de cancelación *
                   </label>
                   <textarea className="cinput" style={{ minHeight:64 }} value={motivoCancel} onChange={e => setMotivoCancel(e.target.value)} placeholder="¿Por qué se cancela este pedido?" />
+                </div>
+              )}
+              {pendingChange.desde === 'POR_VALIDAR_SURTIDO' && pendingChange.estado === 'EN_PREPARACION' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                    Motivo de rechazo *
+                  </label>
+                  <textarea className="cinput" style={{ minHeight:64 }} value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="¿Qué está mal con el surtido?" />
                 </div>
               )}
               {confirmError && (

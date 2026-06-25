@@ -53,13 +53,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { estado, notas, monto_total, motivo_cancelacion } = await req.json()
+  const { estado, notas, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica } = await req.json()
 
-  // Solo permitir actualizar el monto a cobrar, sin cambiar de estado
-  if (estado === undefined && monto_total !== undefined) {
+  // Solo permitir actualizar el monto a cobrar y/o la ubicación física, sin cambiar de estado
+  if (estado === undefined && (monto_total !== undefined || ubicacion_fisica !== undefined)) {
     const updated = await queryOne<any>(
-      `UPDATE public.pedidos SET monto_total = $1, actualizado_en = NOW() WHERE id = $2 RETURNING id, monto_total`,
-      [monto_total === null || monto_total === '' ? null : Number(monto_total), params.id]
+      `UPDATE public.pedidos
+       SET monto_total = CASE WHEN $1::text IS NOT NULL THEN $2::numeric ELSE monto_total END,
+           ubicacion_fisica = CASE WHEN $3::text IS NOT NULL THEN $4 ELSE ubicacion_fisica END,
+           actualizado_en = NOW()
+       WHERE id = $5
+       RETURNING id, monto_total, ubicacion_fisica`,
+      [
+        monto_total !== undefined ? 'set' : null,
+        monto_total === null || monto_total === '' ? null : monto_total,
+        ubicacion_fisica !== undefined ? 'set' : null,
+        ubicacion_fisica || null,
+        params.id,
+      ]
     )
     if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
     return NextResponse.json({ ok: true, data: updated })
@@ -67,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const validStates = [
     'PENDIENTE_PAGO', 'PENDIENTE_CONFIRMACION', 'CONFIRMADO',
-    'EN_PREPARACION', 'EN_REPARTO', 'ENTREGADO', 'CANCELADO',
+    'EN_PREPARACION', 'POR_VALIDAR_SURTIDO', 'EN_REPARTO', 'ENTREGADO', 'CANCELADO',
   ]
   if (!validStates.includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
@@ -76,8 +87,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'El motivo de cancelación es obligatorio' }, { status: 400 })
   }
 
-  const before = await queryOne<{ estado: string }>(`SELECT estado FROM public.pedidos WHERE id = $1`, [params.id])
+  const before = await queryOne<{ estado: string; metodo_pago: string }>(`SELECT estado, metodo_pago FROM public.pedidos WHERE id = $1`, [params.id])
   if (!before) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Confirmar pago manual (PENDIENTE_PAGO→CONFIRMADO) y validar/rechazar surtido
+  // (POR_VALIDAR_SURTIDO→EN_REPARTO o →EN_PREPARACION) requieren el visto bueno
+  // de ventas/admin — almacén no puede autoconfirmarse estos dos pasos.
+  const esConfirmacionPago = before.estado === 'PENDIENTE_PAGO' && estado === 'CONFIRMADO'
+  const esValidacionSurtido = before.estado === 'POR_VALIDAR_SURTIDO' && (estado === 'EN_REPARTO' || estado === 'EN_PREPARACION')
+  if ((esConfirmacionPago || esValidacionSurtido) && !can(session.rol as any, 'pagos_confirmar')) {
+    return NextResponse.json({ error: 'Sin permiso para confirmar pago o validar surtido' }, { status: 403 })
+  }
+  if (estado === 'POR_VALIDAR_SURTIDO' && before.estado !== 'EN_PREPARACION') {
+    return NextResponse.json({ error: 'Solo se puede pasar a "por validar" desde "en preparación"' }, { status: 400 })
+  }
+  const esRechazoSurtido = before.estado === 'POR_VALIDAR_SURTIDO' && estado === 'EN_PREPARACION'
+  if (esRechazoSurtido && !motivo_rechazo_surtido?.trim()) {
+    return NextResponse.json({ error: 'El motivo de rechazo es obligatorio' }, { status: 400 })
+  }
 
   const updated = await queryOne<any>(
     `UPDATE public.pedidos
@@ -87,6 +114,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
          motivo_cancelacion = CASE WHEN $1 = 'CANCELADO' THEN $5 ELSE motivo_cancelacion END,
          cancelado_en = CASE WHEN $1 = 'CANCELADO' THEN NOW() ELSE cancelado_en END,
          confirmado_en = CASE WHEN $1 = 'CONFIRMADO' AND confirmado_en IS NULL THEN NOW() ELSE confirmado_en END,
+         motivo_rechazo_surtido = CASE WHEN $1 = 'EN_PREPARACION' THEN $6 ELSE NULL END,
          actualizado_en = NOW()
      WHERE id = $3
      RETURNING id, telefono, estado, resumen, numero_pedido`,
@@ -94,6 +122,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       estado, notas || null, params.id,
       monto_total === undefined || monto_total === '' ? null : monto_total,
       motivo_cancelacion || null,
+      motivo_rechazo_surtido || null,
     ]
   )
 
@@ -102,7 +131,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   await query(
     `INSERT INTO public.pedido_timeline (pedido_id, estado, nota, realizado_por)
      VALUES ($1, $2, $3, $4)`,
-    [params.id, estado, estado === 'CANCELADO' ? motivo_cancelacion : (notas || null), session.sub]
+    [params.id, estado, estado === 'CANCELADO' ? motivo_cancelacion : (esRechazoSurtido ? `Surtido rechazado: ${motivo_rechazo_surtido}` : (notas || null)), session.sub]
   )
 
   // Confirmado/pagado por primera vez → descuenta stock definitivo y libera la reserva.
@@ -113,18 +142,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await liberarPedido(params.id).catch(e => console.error('[liberarPedido]', e))
   }
 
-  // Notificar al cliente
-  try {
-    await notificarCambioEstatus({
-      id: updated.id,
-      telefono: updated.telefono,
-      estado: updated.estado,
-      resumen: updated.resumen,
-    })
-  } catch (e) {
-    console.warn('[WA notify failed]', e)
+  // Notificar al cliente — "por validar surtido" es un estado interno, no se
+  // le notifica (de cara al cliente nada cambió, sigue viendo "en preparación").
+  if (estado !== 'POR_VALIDAR_SURTIDO') {
+    try {
+      await notificarCambioEstatus({
+        id: updated.id,
+        telefono: updated.telefono,
+        estado: updated.estado,
+        resumen: updated.resumen,
+      })
+    } catch (e) {
+      console.warn('[WA notify failed]', e)
+    }
+    await notificarClienteEmail(updated.telefono, updated.numero_pedido || updated.id.slice(0, 8), updated.estado, notas || undefined)
   }
-  await notificarClienteEmail(updated.telefono, updated.numero_pedido || updated.id.slice(0, 8), updated.estado, notas || undefined)
 
   return NextResponse.json({ ok: true, data: updated })
 }

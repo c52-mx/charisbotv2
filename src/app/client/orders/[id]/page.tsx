@@ -124,8 +124,11 @@ export default function OrderDetailPage() {
   )
   if (!order) return <div style={{ textAlign:'center', padding:40, color:'var(--txt3)' }}>Pedido no encontrado</div>
 
-  const meta = ESTADO_META[order.estado] || {label:order.estado,color:'var(--txt2)',bg:'var(--bg)',icon:'•'}
-  const currentStep = TIMELINE_STEPS.indexOf(order.estado)
+  // "Por validar surtido" es un estado interno de almacén/ventas — de cara
+  // al cliente se ve igual que "En preparación", sin saltos en el timeline.
+  const estadoVisible = order.estado === 'POR_VALIDAR_SURTIDO' ? 'EN_PREPARACION' : order.estado
+  const meta = ESTADO_META[estadoVisible] || {label:estadoVisible,color:'var(--txt2)',bg:'var(--bg)',icon:'•'}
+  const currentStep = TIMELINE_STEPS.indexOf(estadoVisible)
   const canCancel = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION'].includes(order.estado)
   const items = order.pedido_json?.items || []
 
