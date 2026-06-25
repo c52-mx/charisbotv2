@@ -4,6 +4,14 @@ import { query, withTransaction } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { sendEmail, emailNuevoPedido } from '@/lib/email'
 import { resolveCaseId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
+import { calcularTotal } from '@/lib/pricing'
+
+const METODO_CONFIG_KEY: Record<string, string> = {
+  efectivo: 'pago_efectivo_habilitado',
+  transferencia: 'pago_transferencia_habilitado',
+  stripe: 'pago_stripe_habilitado',
+  mercadopago: 'pago_mercadopago_habilitado',
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +65,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `El mínimo de pedido es ${minimo} piezas` }, { status: 400 })
     }
 
+    // Verificar que el método de pago elegido esté habilitado
+    const metodoKey = METODO_CONFIG_KEY[metodo_pago || 'transferencia']
+    if (!metodoKey) {
+      return NextResponse.json({ error: 'Método de pago inválido' }, { status: 400 })
+    }
+    const [metodoCfg] = await query(`SELECT valor FROM public.config_portal WHERE clave = $1`, [metodoKey]).catch(() => [null])
+    if (metodoCfg?.valor !== 'true') {
+      return NextResponse.json({ error: 'Ese método de pago no está disponible' }, { status: 400 })
+    }
+
+    // Resolver precio vigente por artículo (catálogo, no lo que mande el cliente)
+    const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'
+    const preciosRows = await query<{ case_id: string; tipo_case: string; modelo: string; color: string; precio: number }>(
+      `SELECT case_id, tipo_case, modelo, color, precio FROM public.catalogo_cases
+       WHERE (tipo_case, modelo, color) IN (${items.map((_: any, i: number) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
+      items.flatMap((it: any) => [it.tipo_case, it.modelo, colorNorm(it.color)])
+    )
+    const precioMap = new Map(preciosRows.map(r => [`${r.tipo_case}__${r.modelo}__${r.color}`, Number(r.precio)]))
+    const itemsConPrecio = items.map((it: any) => ({
+      ...it,
+      precio: precioMap.get(`${it.tipo_case}__${it.modelo}__${colorNorm(it.color)}`) ?? 0,
+    }))
+
+    const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
+      `SELECT piezas_minimas, porcentaje FROM public.descuentos_volumen WHERE activo = true`, []
+    )
+    const { total: montoTotal } = calcularTotal(itemsConPrecio, tiers)
+
     // Obtener o crear conversacion
     const [conv] = await query(`
       INSERT INTO public.conversaciones (telefono, actualizada_en)
@@ -69,7 +105,7 @@ export async function POST(req: NextRequest) {
     const tipo  = tipos.length === 1 ? tipos[0] : 'MIXTO'
     const resumen = `${items.length} modelos, ${totalPiezas} piezas`
 
-    const pedidoJson = { items, direccion_entrega }
+    const pedidoJson = { items: itemsConPrecio, direccion_entrega }
 
     const itemsConCaseId = (await Promise.all(
       items.map(async (i: any) => {
@@ -90,23 +126,23 @@ export async function POST(req: NextRequest) {
             conversacion_id, telefono, tipo_case, estado,
             requiere_firma, resumen, pedido_json,
             metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-            creado_en
-          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, NOW())
+            monto_total, creado_en
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, NOW())
           RETURNING id, numero_pedido
         `, [
           conv.id, session.email, tipo, resumen,
           JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
           referencia_pago || null, JSON.stringify(direccion_entrega || {}),
-          notas_cliente || null,
+          notas_cliente || null, montoTotal,
         ])
 
-        if (items.length > 0) {
+        if (itemsConPrecio.length > 0) {
           await tx(`
-            INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad)
-            SELECT $1::uuid, x.modelo, x.tipo_case, COALESCE(NULLIF(x.color,''),'NEGRO'), x.cantidad
-            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, tipo_case text, color text, cantidad int)
+            INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad, precio_unitario)
+            SELECT $1::uuid, x.modelo, x.tipo_case, COALESCE(NULLIF(x.color,''),'NEGRO'), x.cantidad, x.precio
+            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, tipo_case text, color text, cantidad int, precio numeric)
             WHERE COALESCE(x.modelo,'') <> '' AND COALESCE(x.cantidad,0) > 0
-          `, [p.id, JSON.stringify(items)])
+          `, [p.id, JSON.stringify(itemsConPrecio)])
         }
 
         await tx(`

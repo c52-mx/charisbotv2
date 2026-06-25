@@ -3,21 +3,15 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
+import { descuentoPct, calcularTotal, type DescuentoTier } from '@/lib/pricing'
 
 interface CartItem {
   _id?: string
-  tipo_case: string; marca: string; modelo: string; color: string; cantidad: number
+  tipo_case: string; marca: string; modelo: string; color: string; cantidad: number; precio: number
 }
 
 const TIPO_EMOJI: Record<string, string> = {
   'BLINDAJE': '🔐', '3 EN 1': '🎯', 'ESCUDO': '🛡️', 'ANILLO': '💍',
-}
-
-function descuentoPct(piezas: number) {
-  if (piezas >= 200) return 15
-  if (piezas >= 100) return 10
-  if (piezas >= 50)  return 5
-  return 0
 }
 
 const CSS = `
@@ -90,7 +84,12 @@ export default function CartPage() {
   const [success, setSuccess] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [revalidateNotice, setRevalidateNotice] = useState('')
+  const [tiers, setTiers] = useState<DescuentoTier[]>([])
   const skipSync = useRef(false)
+
+  useEffect(() => {
+    fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const initial = loadCart()
@@ -118,20 +117,21 @@ export default function CartPage() {
         }).catch(() => null)
         if (!res) { next.push(item); continue }
         const data = await res.json().catch(() => ({}))
-        if (res.ok) { next.push(item); continue }
+        if (res.ok) { next.push({ ...item, precio: data.precio ?? item.precio }); continue }
         const disponible = Math.max(0, data.disponible ?? 0)
         if (disponible > 0) {
-          next.push({ ...item, cantidad: disponible })
+          next.push({ ...item, cantidad: disponible, precio: data.precio ?? item.precio })
           ajustados.push(`${item.modelo} (${item.color})`)
         } else {
           eliminados.push(`${item.modelo} (${item.color})`)
         }
       }
+      // Siempre se refresca el precio vigente, aunque no haya cambiado la cantidad.
+      skipSync.current = true
+      setCart(next)
+      saveCart(next)
+      setTimeout(() => { skipSync.current = false }, 60)
       if (ajustados.length || eliminados.length) {
-        skipSync.current = true
-        setCart(next)
-        saveCart(next)
-        setTimeout(() => { skipSync.current = false }, 60)
         const partes = []
         if (ajustados.length)  partes.push(`se ajustó la cantidad de: ${ajustados.join(', ')}`)
         if (eliminados.length) partes.push(`se quitó por falta de stock: ${eliminados.join(', ')}`)
@@ -183,10 +183,10 @@ export default function CartPage() {
     if (!res.ok) {
       // No hay suficiente stock — ajusta a lo máximo disponible
       const disponible = Math.max(1, data.disponible ?? item.cantidad)
-      updateCart(c => c.map(it => it._id === id ? { ...it, cantidad: disponible } : it))
+      updateCart(c => c.map(it => it._id === id ? { ...it, cantidad: disponible, precio: data.precio ?? it.precio } : it))
       return
     }
-    updateCart(c => c.map(it => it._id === id ? { ...it, cantidad } : it))
+    updateCart(c => c.map(it => it._id === id ? { ...it, cantidad, precio: data.precio ?? it.precio } : it))
   }
 
   const clearAll = () => {
@@ -220,10 +220,11 @@ export default function CartPage() {
     }
   }
 
+  const { subtotal, descuentoPct: desc, total } = calcularTotal(cart, tiers)
   const totalPiezas = cart.reduce((s, i) => s + i.cantidad, 0)
-  const desc        = descuentoPct(totalPiezas)
-  const nextTier    = totalPiezas < 50 ? 50 : totalPiezas < 100 ? 100 : totalPiezas < 200 ? 200 : null
-  const volPct      = Math.min(100, (totalPiezas / 200) * 100)
+  const proximaTier = tiers.filter(t => t.piezas_minimas > totalPiezas).sort((a, b) => a.piezas_minimas - b.piezas_minimas)[0]
+  const ultimaTier  = tiers.slice().sort((a, b) => b.piezas_minimas - a.piezas_minimas)[0]
+  const volPct      = ultimaTier ? Math.min(100, (totalPiezas / ultimaTier.piezas_minimas) * 100) : 0
 
   const groups = cart.reduce<Record<string, CartItem[]>>((acc, item) => {
     if (!acc[item.tipo_case]) acc[item.tipo_case] = []
@@ -308,6 +309,7 @@ export default function CartPage() {
                       </p>
                       <p style={{ fontSize:11, color:'var(--txt3)' }}>
                         {item.marca} · <span style={{ background:'var(--bg)', borderRadius:4, padding:'1px 6px', fontSize:10, fontWeight:600, color:'var(--txt2)' }}>{item.color}</span>
+                        <span style={{ marginLeft:6 }}>${Number(item.precio||0).toLocaleString('es-MX',{minimumFractionDigits:2})} c/u</span>
                       </p>
                     </div>
                     <div className="qty-ctrl">
@@ -316,8 +318,8 @@ export default function CartPage() {
                         onChange={e => updateQty(item._id!, parseInt(e.target.value) || 1)} />
                       <button className="qty-btn" style={{ borderRadius:'0 7px 7px 0' }} onClick={() => updateQty(item._id!, item.cantidad + 1)}>+</button>
                     </div>
-                    <span style={{ fontSize:13, fontWeight:700, color:'var(--blue)', minWidth:54, textAlign:'right', flexShrink:0 }}>
-                      {item.cantidad} pzas
+                    <span style={{ fontSize:13, fontWeight:700, color:'var(--blue)', minWidth:74, textAlign:'right', flexShrink:0 }}>
+                      ${(item.cantidad * Number(item.precio||0)).toLocaleString('es-MX',{minimumFractionDigits:2})}
                     </span>
                     <button className="del-btn" onClick={() => removeItem(item._id!)}>Eliminar</button>
                   </div>
@@ -328,7 +330,7 @@ export default function CartPage() {
             {/* Descuento banner */}
             {desc > 0 && (
               <div style={{ padding:'10px 18px', background:'#e8f5e9', borderTop:'1px solid #c8e6c9', display:'flex', alignItems:'center', gap:8, fontSize:12, color:'#1b5e20', fontWeight:600 }}>
-                % Descuento mayoreo {desc}% aplicado automáticamente — {totalPiezas} pzas
+                % Descuento mayoreo {desc}% aplicado automáticamente — ${(subtotal * desc / 100).toLocaleString('es-MX',{minimumFractionDigits:2})} de ahorro
               </div>
             )}
           </div>
@@ -343,9 +345,11 @@ export default function CartPage() {
                 <span style={{ fontWeight:700, color:'var(--txt)' }}>{totalPiezas} pzas</span>
                 {desc > 0
                   ? <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ {desc}% desc.</span>
-                  : nextTier
-                    ? <span style={{ color:'var(--txt3)' }}>Faltan {nextTier - totalPiezas} pzas para {descuentoPct(nextTier)}%</span>
-                    : <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ Descuento máximo</span>
+                  : proximaTier
+                    ? <span style={{ color:'var(--txt3)' }}>Faltan {proximaTier.piezas_minimas - totalPiezas} pzas para {proximaTier.porcentaje}%</span>
+                    : tiers.length
+                      ? <span style={{ color:'#1b5e20', fontWeight:700 }}>✓ Descuento máximo</span>
+                      : null
                 }
               </div>
               <div className="vol-bar"><div className="vol-fill" style={{ width:`${volPct}%` }} /></div>
@@ -358,16 +362,19 @@ export default function CartPage() {
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt2)' }}>
                 <span>Total piezas</span><span style={{ fontWeight:600, color:'var(--txt)' }}>{totalPiezas}</span>
               </div>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt2)' }}>
+                <span>Subtotal</span><span style={{ fontWeight:600, color:'var(--txt)' }}>${subtotal.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+              </div>
               {desc > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#1b5e20', fontWeight:600 }}>
-                  <span>% Descuento mayoreo</span><span>{desc}%</span>
+                  <span>Descuento mayoreo ({desc}%)</span><span>-${(subtotal * desc / 100).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
                 </div>
               )}
             </div>
 
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <span style={{ fontSize:14, fontWeight:700, color:'var(--txt)' }}>Total</span>
-              <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>{totalPiezas} pzas</span>
+              <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>${total.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
             </div>
 
             {checkoutError && (
@@ -379,7 +386,7 @@ export default function CartPage() {
             <button className="btn-primary btn-block" disabled={placing} onClick={handleCheckout}>
               {placing
                 ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando…</>
-                : `Confirmar pedido (${totalPiezas} pzas)`
+                : `Confirmar pedido — $${total.toLocaleString('es-MX',{minimumFractionDigits:2})}`
               }
             </button>
 

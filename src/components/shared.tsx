@@ -450,14 +450,77 @@ interface ImageUploaderProps {
   value?: string
   onChange?: (v: string) => void
   label?: string
-  // Extended props used in orders page
+  // Modo "pedido": sube de verdad a /api/upload en vez de solo convertir a base64
   pedidoId?: string
   initialUrls?: string[]
   onUploaded?: (urls: string[]) => void
+  tipo?: string
 }
 
-export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, initialUrls, onUploaded }: ImageUploaderProps): JSX.Element {
+export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, initialUrls, onUploaded, tipo = 'evidencias' }: ImageUploaderProps): JSX.Element {
   const inp = useRef<HTMLInputElement>(null)
+  const [urls, setUrls] = useState<string[]>(initialUrls || [])
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => { setUrls(initialUrls || []) }, [pedidoId])
+
+  // ── Modo pedido: sube archivos reales a /api/upload ──
+  if (pedidoId) {
+    async function handleFiles(files: FileList | null) {
+      if (!files?.length) return
+      setUploading(true); setError('')
+      try {
+        const fd = new FormData()
+        fd.append('pedido_id', pedidoId!)
+        fd.append('tipo', tipo)
+        Array.from(files).forEach(f => fd.append('files', f))
+        const res = await fetch('/api/upload', { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Error al subir')
+        const next = [...urls, ...data.urls]
+        setUrls(next)
+        onUploaded?.(next)
+      } catch (e: any) {
+        setError(e.message)
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    return (
+      <div>
+        <label className="field-label">{label}</label>
+        {urls.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            {urls.map((u, i) => (
+              <a key={i} href={u} target="_blank" rel="noreferrer">
+                <img src={u} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border2)' }} />
+              </a>
+            ))}
+          </div>
+        )}
+        <div
+          onClick={() => !uploading && inp.current?.click()}
+          style={{
+            border: '2px dashed var(--border2)', borderRadius: 10,
+            padding: '16px', textAlign: 'center', cursor: uploading ? 'wait' : 'pointer',
+            background: 'var(--bg3)', transition: 'border-color .15s',
+            minHeight: 60, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', flexDirection: 'column', gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 20 }}>📷</span>
+          <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{uploading ? 'Subiendo…' : 'Clic para subir imagen(es)'}</span>
+        </div>
+        {error && <p style={{ fontSize: 11, color: '#f87171', marginTop: 6 }}>⚠ {error}</p>}
+        <input ref={inp} type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={uploading}
+               onChange={e => handleFiles(e.target.files)} />
+      </div>
+    )
+  }
+
+  // ── Modo simple: convierte a base64 y deja el manejo al caller ──
   return (
     <div>
       <label className="field-label">{label}</label>

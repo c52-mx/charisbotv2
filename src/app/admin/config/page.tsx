@@ -14,6 +14,9 @@ interface ConfigForm {
   aviso_surtido_horas_antes: string
   pago_stripe_habilitado: string
   pago_mercadopago_habilitado: string
+  pago_efectivo_habilitado: string
+  pago_transferencia_habilitado: string
+  instrucciones_efectivo: string
   stock_bajo_umbral: string
   venta_importante_piezas: string
 }
@@ -30,6 +33,9 @@ const EMPTY: ConfigForm = {
   aviso_surtido_horas_antes: '24',
   pago_stripe_habilitado: 'false',
   pago_mercadopago_habilitado: 'false',
+  pago_efectivo_habilitado: 'false',
+  pago_transferencia_habilitado: 'true',
+  instrucciones_efectivo: '',
   stock_bajo_umbral: '10',
   venta_importante_piezas: '100',
 }
@@ -56,7 +62,7 @@ export default function ConfigPage() {
       setForm(f => ({ ...f, [k]: e.target.value }))
   }
 
-  function toggle(k: 'pago_stripe_habilitado' | 'pago_mercadopago_habilitado') {
+  function toggle(k: 'pago_stripe_habilitado' | 'pago_mercadopago_habilitado' | 'pago_efectivo_habilitado' | 'pago_transferencia_habilitado') {
     setForm(f => ({ ...f, [k]: f[k] === 'true' ? 'false' : 'true' }))
   }
 
@@ -123,13 +129,9 @@ export default function ConfigPage() {
             <input style={inp} placeholder="+52 55 1234 5678" value={form.whatsapp_soporte} onChange={set('whatsapp_soporte')} />
           </div>
         </div>
-        <div style={{ marginBottom:12 }}>
+        <div>
           <label style={lbl}>Política de cancelación</label>
           <textarea style={{ ...inp, resize:'vertical' }} rows={3} value={form.politica_cancelacion} onChange={set('politica_cancelacion')} />
-        </div>
-        <div>
-          <label style={lbl}>Datos de transferencia bancaria</label>
-          <textarea style={{ ...inp, resize:'vertical', fontFamily:'monospace' }} rows={4} value={form.datos_transferencia} onChange={set('datos_transferencia')} />
         </div>
       </div>
 
@@ -191,10 +193,35 @@ export default function ConfigPage() {
 
       {/* ── Pasarelas de pago ── */}
       <div className="card" style={{ marginBottom:20 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>💳 Pasarelas de pago</h2>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>💳 Métodos de pago</h2>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
-          Se activan automáticamente al cargar las credenciales en variables de entorno del servidor.
+          Cada método se puede activar o desactivar de forma independiente. El cliente solo ve, al pagar, los que estén activos aquí.
         </p>
+
+        <PagoToggle
+          label="Efectivo"
+          enabled={form.pago_efectivo_habilitado === 'true'}
+          configurado={true}
+          subtitle="Pago directo, sin pasarela externa — el cliente paga al recibir o entregar."
+          onToggle={() => toggle('pago_efectivo_habilitado')}
+        />
+        <div style={{ marginTop:8, marginBottom:14 }}>
+          <label style={lbl}>Instrucciones de pago en efectivo</label>
+          <textarea style={{ ...inp, resize:'vertical' }} rows={3} value={form.instrucciones_efectivo} onChange={set('instrucciones_efectivo')}
+            placeholder="Ej: Nuestro equipo de ventas se pondrá en contacto contigo para acordar el pago en efectivo." />
+        </div>
+
+        <PagoToggle
+          label="Transferencia bancaria"
+          enabled={form.pago_transferencia_habilitado === 'true'}
+          configurado={true}
+          subtitle="Pago directo, sin pasarela externa — el cliente sube su comprobante."
+          onToggle={() => toggle('pago_transferencia_habilitado')}
+        />
+        <div style={{ marginTop:8, marginBottom:14 }}>
+          <label style={lbl}>Datos de transferencia bancaria</label>
+          <textarea style={{ ...inp, resize:'vertical', fontFamily:'monospace' }} rows={4} value={form.datos_transferencia} onChange={set('datos_transferencia')} />
+        </div>
 
         <PagoToggle
           label="Stripe"
@@ -211,6 +238,8 @@ export default function ConfigPage() {
         />
       </div>
 
+      <DescuentosVolumen />
+
       <button className="cbtn cbtn-primary" onClick={save} disabled={saving}>
         {saving ? 'Guardando…' : '💾 Guardar configuración'}
       </button>
@@ -218,13 +247,13 @@ export default function ConfigPage() {
   )
 }
 
-function PagoToggle({ label, enabled, configurado, onToggle }: { label: string; enabled: boolean; configurado: boolean; onToggle: () => void }) {
+function PagoToggle({ label, enabled, configurado, subtitle, onToggle }: { label: string; enabled: boolean; configurado: boolean; subtitle?: string; onToggle: () => void }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:9, background:'var(--bg4)', border:'1px solid var(--border)' }}>
       <div>
         <div style={{ fontSize:13, fontWeight:600, color:'var(--txt)' }}>{label}</div>
-        <div style={{ fontSize:11, color: configurado ? '#34d399' : 'var(--txt3)', marginTop:2 }}>
-          {configurado ? '✓ Credenciales detectadas en el servidor' : '⚠ Faltan variables de entorno — agrega las credenciales para habilitar'}
+        <div style={{ fontSize:11, color: subtitle ? 'var(--txt3)' : configurado ? '#34d399' : 'var(--txt3)', marginTop:2 }}>
+          {subtitle ?? (configurado ? '✓ Credenciales detectadas en el servidor' : '⚠ Faltan variables de entorno — agrega las credenciales para habilitar')}
         </div>
       </div>
       <button
@@ -243,6 +272,76 @@ function PagoToggle({ label, enabled, configurado, onToggle }: { label: string; 
           width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left .15s',
         }} />
       </button>
+    </div>
+  )
+}
+
+function DescuentosVolumen() {
+  const [items, setItems] = useState<{ id:string; piezas_minimas:number; porcentaje:number; activo:boolean }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [nuevoPiezas, setNuevoPiezas] = useState('')
+  const [nuevoPct, setNuevoPct] = useState('')
+  const [error, setError] = useState('')
+
+  function load() {
+    fetch('/api/admin/descuentos').then(r => r.json()).then(d => { setItems(d.items || []); setLoading(false) })
+  }
+  useEffect(() => { load() }, [])
+
+  async function addTier() {
+    setError('')
+    const res = await fetch('/api/admin/descuentos', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ piezas_minimas: nuevoPiezas, porcentaje: nuevoPct }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setError(data.error || 'Error al agregar'); return }
+    setNuevoPiezas(''); setNuevoPct('')
+    load()
+  }
+
+  async function removeTier(id: string) {
+    await fetch(`/api/admin/descuentos/${id}`, { method:'DELETE' })
+    load()
+  }
+
+  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
+
+  return (
+    <div className="card" style={{ marginBottom:20 }}>
+      <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>📦 Descuento por volumen</h2>
+      <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+        A partir de cuántas piezas en el pedido se aplica cada porcentaje de descuento automático.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize:13, color:'var(--txt2)' }}>Cargando…</p>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
+          {items.map(it => (
+            <div key={it.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', borderRadius:9, background:'var(--bg4)', border:'1px solid var(--border)' }}>
+              <span style={{ fontSize:13, color:'var(--txt)' }}>{it.piezas_minimas}+ piezas → <strong>{it.porcentaje}%</strong></span>
+              <button type="button" onClick={() => removeTier(it.id)} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:13 }}>Eliminar</button>
+            </div>
+          ))}
+          {!items.length && <p style={{ fontSize:13, color:'var(--txt3)' }}>Sin franjas configuradas — no se aplicará ningún descuento.</p>}
+        </div>
+      )}
+
+      {error && <p style={{ color:'#f87171', fontSize:12, marginBottom:10 }}>⚠ {error}</p>}
+
+      <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+        <div style={{ flex:1 }}>
+          <label style={lbl}>Piezas mínimas</label>
+          <input type="number" min={1} style={inp} value={nuevoPiezas} onChange={e => setNuevoPiezas(e.target.value)} placeholder="50" />
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={lbl}>% Descuento</label>
+          <input type="number" min={0} max={100} style={inp} value={nuevoPct} onChange={e => setNuevoPct(e.target.value)} placeholder="5" />
+        </div>
+        <button className="cbtn cbtn-secondary" onClick={addTier} disabled={!nuevoPiezas || !nuevoPct}>+ Agregar</button>
+      </div>
     </div>
   )
 }

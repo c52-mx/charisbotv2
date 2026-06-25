@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { calcularTotal, type DescuentoTier } from '@/lib/pricing'
 
 interface CartItem {
   _id?: string; tipo_case: string; marca: string
-  modelo: string; color: string; cantidad: number
+  modelo: string; color: string; cantidad: number; precio: number
 }
 
 const CSS = `
@@ -42,6 +43,13 @@ const CSS = `
 
 const STEPS = ['Resumen', 'Entrega', 'Pago', 'Confirmar']
 
+const METODOS: { key: string; configKey: string; label: string; emoji: string; desc: string }[] = [
+  { key: 'transferencia', configKey: 'pago_transferencia_habilitado', label: 'Transferencia bancaria', emoji: '🏦', desc: 'Realiza la transferencia y sube tu comprobante' },
+  { key: 'efectivo',      configKey: 'pago_efectivo_habilitado',      label: 'Efectivo',               emoji: '💵', desc: 'Ventas se pondrá en contacto contigo para acordar el pago' },
+  { key: 'stripe',        configKey: 'pago_stripe_habilitado',        label: 'Tarjeta (Stripe)',        emoji: '💳', desc: 'Paga en línea con tarjeta de crédito o débito' },
+  { key: 'mercadopago',   configKey: 'pago_mercadopago_habilitado',   label: 'Mercado Pago',            emoji: '🅼',  desc: 'Paga en línea con Mercado Pago' },
+]
+
 export default function CheckoutPage() {
   const router = useRouter()
   const [cart,    setCart]    = useState<CartItem[]>([])
@@ -50,6 +58,7 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false)
   const [error,   setError]   = useState('')
   const [orderId, setOrderId] = useState('')
+  const [tiers,   setTiers]   = useState<DescuentoTier[]>([])
 
   const [entrega, setEntrega] = useState({
     nombre: '', telefono: '', calle: '', colonia: '',
@@ -58,7 +67,6 @@ export default function CheckoutPage() {
   const [pago, setPago] = useState({
     metodo: 'transferencia',
     referencia: '',
-    comprobante: '',
   })
 
   useEffect(() => {
@@ -69,8 +77,10 @@ export default function CheckoutPage() {
     } catch { router.push('/client/catalog') }
 
     fetch('/api/client/config').then(r => r.json()).then(d => setConfig(d))
+    fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
   }, [])
 
+  const { subtotal, descuentoPct: desc, total } = calcularTotal(cart, tiers)
   const totalPiezas = cart.reduce((s, i) => s + i.cantidad, 0)
   const minimoOk    = totalPiezas >= (parseInt(config.minimo_pedido_piezas) || 1)
 
@@ -174,8 +184,9 @@ export default function CheckoutPage() {
                     <div>
                       <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.modelo}</span>
                       <span style={{ color:'var(--txt3)', marginLeft:8 }}>{item.tipo_case} · {item.color}</span>
+                      <span style={{ color:'var(--txt3)', marginLeft:8 }}>${Number(item.precio||0).toLocaleString('es-MX',{minimumFractionDigits:2})} c/u</span>
                     </div>
-                    <span style={{ fontWeight:700, color:'var(--blue)' }}>{item.cantidad} pzas</span>
+                    <span style={{ fontWeight:700, color:'var(--blue)' }}>${(item.cantidad*Number(item.precio||0)).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
                   </div>
                 ))}
               </div>
@@ -239,16 +250,24 @@ export default function CheckoutPage() {
             <div className="section-card">
               <p className="section-title">💳 Método de pago</p>
 
-              <div className={`payment-option${pago.metodo==='transferencia'?' selected':''}`}
-                   onClick={() => setPago(p => ({...p, metodo:'transferencia'}))}>
-                <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${pago.metodo==='transferencia'?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
-                  {pago.metodo==='transferencia' && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
+              {METODOS.filter(m => config[m.configKey] === 'true').map(m => (
+                <div key={m.key} className={`payment-option${pago.metodo===m.key?' selected':''}`}
+                     onClick={() => setPago(p => ({...p, metodo:m.key}))}>
+                  <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${pago.metodo===m.key?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                    {pago.metodo===m.key && <div style={{ width:10, height:10, borderRadius:'50%', background:'var(--blue)' }}/>}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight:700, fontSize:14, color:'var(--txt)', marginBottom:3 }}>{m.emoji} {m.label}</p>
+                    <p style={{ fontSize:12, color:'var(--txt3)' }}>{m.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p style={{ fontWeight:700, fontSize:14, color:'var(--txt)', marginBottom:3 }}>🏦 Transferencia bancaria</p>
-                  <p style={{ fontSize:12, color:'var(--txt3)' }}>Realiza la transferencia y sube tu comprobante</p>
+              ))}
+
+              {!METODOS.some(m => config[m.configKey] === 'true') && (
+                <div style={{ padding:'10px 14px', borderRadius:10, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a', fontSize:13 }}>
+                  ⚠ No hay métodos de pago disponibles por ahora — contáctanos por WhatsApp.
                 </div>
-              </div>
+              )}
 
               {pago.metodo === 'transferencia' && config.datos_transferencia && (
                 <div style={{ background:'#f0f6ff', borderRadius:10, padding:'14px 16px', margin:'12px 0', border:'1px solid #d0e4f7' }}>
@@ -256,21 +275,31 @@ export default function CheckoutPage() {
                   <pre style={{ fontSize:13, color:'var(--txt)', fontFamily:'monospace', margin:0, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
                     {config.datos_transferencia}
                   </pre>
+                  <p style={{ fontSize:11, color:'var(--txt3)', marginTop:8 }}>
+                    Podrás subir tu comprobante desde el seguimiento de tu pedido.
+                  </p>
                 </div>
               )}
 
-              <div style={{ marginTop:14 }}>
-                <label className="field-label">REFERENCIA O NÚMERO DE OPERACIÓN</label>
-                <input className="input-field" placeholder="Ej: 123456789" value={pago.referencia} onChange={e => setPago(p => ({...p, referencia: e.target.value}))}/>
-              </div>
+              {pago.metodo === 'efectivo' && config.instrucciones_efectivo && (
+                <div style={{ background:'#f0f6ff', borderRadius:10, padding:'14px 16px', margin:'12px 0', border:'1px solid #d0e4f7' }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>PAGO EN EFECTIVO</p>
+                  <p style={{ fontSize:13, color:'var(--txt)', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{config.instrucciones_efectivo}</p>
+                </div>
+              )}
 
-              <div style={{ marginTop:12 }}>
-                <label className="field-label">URL DEL COMPROBANTE <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional — puedes enviarlo después)</span></label>
-                <input className="input-field" placeholder="https://... o deja vacío para enviar después" value={pago.comprobante} onChange={e => setPago(p => ({...p, comprobante: e.target.value}))}/>
-                <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
-                  También puedes enviar el comprobante por WhatsApp al {config.whatsapp_soporte || 'nuestro número de soporte'}.
-                </p>
-              </div>
+              {(pago.metodo === 'stripe' || pago.metodo === 'mercadopago') && (
+                <div style={{ background:'#f0f6ff', borderRadius:10, padding:'14px 16px', margin:'12px 0', border:'1px solid #d0e4f7', fontSize:13, color:'var(--txt2)' }}>
+                  Al confirmar tu pedido podrás pagar en línea desde el seguimiento de tu pedido.
+                </div>
+              )}
+
+              {(pago.metodo === 'transferencia') && (
+                <div style={{ marginTop:14 }}>
+                  <label className="field-label">REFERENCIA O NÚMERO DE OPERACIÓN <span style={{ color:'var(--txt3)', fontWeight:400, textTransform:'none' }}>(opcional)</span></label>
+                  <input className="input-field" placeholder="Ej: 123456789" value={pago.referencia} onChange={e => setPago(p => ({...p, referencia: e.target.value}))}/>
+                </div>
+              )}
             </div>
           )}
 
@@ -286,7 +315,7 @@ export default function CheckoutPage() {
                 </div>
                 <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
                   <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:4 }}>PAGO</p>
-                  <p style={{ fontSize:13, color:'var(--txt)' }}>Transferencia bancaria</p>
+                  <p style={{ fontSize:13, color:'var(--txt)' }}>{METODOS.find(m => m.key === pago.metodo)?.label || pago.metodo}</p>
                   {pago.referencia && <p style={{ fontSize:12, color:'var(--txt2)' }}>Ref: {pago.referencia}</p>}
                 </div>
                 <div style={{ padding:'12px 14px', background:'var(--field-bg)', borderRadius:9 }}>
@@ -333,10 +362,21 @@ export default function CheckoutPage() {
               </div>
             ))}
           </div>
-          <div style={{ borderTop:'1px solid var(--bg)', paddingTop:12 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt)', fontWeight:700 }}>
-              <span>Total piezas</span>
-              <span style={{ color:'var(--blue)', fontSize:16 }}>{totalPiezas}</span>
+          <div style={{ borderTop:'1px solid var(--bg)', paddingTop:12, display:'flex', flexDirection:'column', gap:6 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--txt2)' }}>
+              <span>Total piezas</span><span>{totalPiezas}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--txt2)' }}>
+              <span>Subtotal</span><span>${subtotal.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+            </div>
+            {desc > 0 && (
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#1b5e20', fontWeight:600 }}>
+                <span>Descuento ({desc}%)</span><span>-${(subtotal*desc/100).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+              </div>
+            )}
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'var(--txt)', fontWeight:700, marginTop:4 }}>
+              <span>Total</span>
+              <span style={{ color:'var(--blue)', fontSize:16 }}>${total.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
             </div>
           </div>
         </div>

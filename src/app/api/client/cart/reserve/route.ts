@@ -1,6 +1,7 @@
 // src/app/api/client/cart/reserve/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { query } from '@/lib/db'
 import { resolveCaseId, reservarCarrito, liberarCarritoItem, getConfigMinutos } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -18,13 +19,16 @@ export async function POST(req: NextRequest) {
   const caseId = await resolveCaseId(tipo_case, modelo, color)
   if (!caseId) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
+  const [caseRow] = await query<{ precio: number }>(`SELECT precio FROM public.catalogo_cases WHERE case_id = $1`, [caseId])
+  const precio = Number(caseRow?.precio ?? 0)
+
   const ttlMin = await getConfigMinutos('tiempo_reserva_carrito_min', 30)
   const result = await reservarCarrito(caseId, session.email, cantidad, ttlMin)
 
   if (!result.ok) {
-    return NextResponse.json({ error: 'Stock insuficiente', disponible: result.disponible }, { status: 409 })
+    return NextResponse.json({ error: 'Stock insuficiente', disponible: result.disponible, precio }, { status: 409 })
   }
-  return NextResponse.json({ ok: true, disponible: result.disponible })
+  return NextResponse.json({ ok: true, disponible: result.disponible, precio })
 }
 
 // ── DELETE: liberar un producto del carrito ─────────────────────────────

@@ -13,6 +13,7 @@ interface Product {
   identificador: string | null
   ubicacion:    string | null
   stock:        number
+  precio:       number
   creado_en:    string
 }
 
@@ -24,12 +25,13 @@ interface FormState {
   identificador: string
   ubicacion:    string
   stock:        string
+  precio:       string
 }
 
 // Tipos de case ahora se administran desde /admin/tipos-case — se cargan
 // dinámicamente (ver useEffect más abajo) en vez de venir hardcodeados.
 const EMPTY_FORM: FormState = {
-  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0'
+  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0', precio: '0'
 }
 
 // ── Page ──────────────────────────────────────────────────────────────
@@ -123,6 +125,7 @@ export default function CatalogPage() {
       identificador: p.identificador || '',
       ubicacion:    p.ubicacion || '',
       stock:        String(p.stock ?? 0),
+      precio:       String(p.precio ?? 0),
     })
     setEditId(p.case_id)
     setError('')
@@ -146,6 +149,7 @@ export default function CatalogPage() {
       identificador: form.identificador.trim() || null,
       ubicacion:    form.ubicacion.trim()     || null,
       stock:        Math.max(0, parseInt(form.stock) || 0),
+      precio:       Math.max(0, parseFloat(form.precio) || 0),
     }
 
     const isEdit = modal === 'edit' && editId
@@ -273,6 +277,7 @@ export default function CatalogPage() {
                 <th>Identificador</th>
                 <th>Ubicación</th>
                 <th>Stock</th>
+                <th>Precio</th>
                 <th>Estado</th>
                 {canEdit && <th>Acciones</th>}
               </tr>
@@ -301,6 +306,7 @@ export default function CatalogPage() {
                       {p.stock ?? 0}
                     </span>
                   </td>
+                  <td>${Number(p.precio ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                   <td>
                     <span className={`badge ${p.activo ? 'badge-ok' : 'badge-red'}`}>
                       {p.activo ? '● Activo' : '○ Inactivo'}
@@ -437,6 +443,21 @@ export default function CatalogPage() {
                   onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
                 />
               </div>
+            </div>
+
+            {/* ── Row 5: precio ── */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Precio por unidad (MXN)
+              </label>
+              <input
+                type="number" min={0} step="0.01"
+                className="inp"
+                style={inp()}
+                placeholder="0.00"
+                value={form.precio}
+                onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
+              />
             </div>
 
             {error && (

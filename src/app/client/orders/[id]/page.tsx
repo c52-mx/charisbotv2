@@ -16,6 +16,10 @@ const ESTADO_META: Record<string,{label:string;shortLabel:string;color:string;bg
 
 const TIMELINE_STEPS = ['PENDIENTE_PAGO','PAGO_RECIBIDO','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO']
 const MOTIVOS_CANCEL = ['Cambié de opinión', 'Encontré mejor precio', 'Error al pedir', 'Otro']
+const METODO_LABEL: Record<string,string> = {
+  transferencia: 'Transferencia bancaria', efectivo: 'Efectivo',
+  stripe: 'Tarjeta (Stripe)', mercadopago: 'Mercado Pago',
+}
 
 const CSS = `
   @keyframes spin { to{transform:rotate(360deg)} }
@@ -30,6 +34,10 @@ export default function OrderDetailPage() {
   const [canceling,setCanceling]= useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [gateways, setGateways] = useState({ stripe: false, mercadopago: false })
+  const [config, setConfig] = useState<any>({})
+  const [comprobantes, setComprobantes] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const [paying,   setPaying]   = useState<'STRIPE'|'MERCADOPAGO'|null>(null)
   const [payError, setPayError] = useState('')
   const [cancelError, setCancelError] = useState('')
@@ -44,12 +52,35 @@ export default function OrderDetailPage() {
       .catch(() => setLoading(false))
 
     fetch('/api/client/config').then(r => r.json()).then(d => {
+      setConfig(d)
       setGateways({
         stripe:      d.pago_stripe_habilitado === 'true',
         mercadopago: d.pago_mercadopago_habilitado === 'true',
       })
     }).catch(() => {})
   }, [id])
+
+  useEffect(() => {
+    if (order?.pedido_json?.comprobante_pago) setComprobantes(order.pedido_json.comprobante_pago)
+  }, [order])
+
+  async function handleUploadComprobante(file: File) {
+    setUploading(true); setUploadError('')
+    try {
+      const fd = new FormData()
+      fd.append('pedido_id', id)
+      fd.append('tipo', 'comprobante_pago')
+      fd.append('files', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'No se pudo subir el comprobante')
+      setComprobantes(c => [...c, ...data.urls])
+    } catch (e: any) {
+      setUploadError(e.message)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function handlePay(gateway: 'STRIPE'|'MERCADOPAGO') {
     setPaying(gateway); setPayError('')
@@ -213,10 +244,44 @@ export default function OrderDetailPage() {
           {/* Pago */}
           <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', padding:'16px' }}>
             <p style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:13, color:'var(--txt)', marginBottom:10 }}>💳 Pago</p>
-            <p style={{ fontSize:13, color:'var(--txt2)', marginBottom:4 }}>Transferencia bancaria</p>
+            <p style={{ fontSize:13, color:'var(--txt2)', marginBottom:4 }}>
+              {METODO_LABEL[order.metodo_pago] || order.metodo_pago || 'Transferencia bancaria'}
+            </p>
             {order.referencia_pago && <p style={{ fontSize:12, color:'var(--txt3)' }}>Ref: {order.referencia_pago}</p>}
-            {!order.referencia_pago && order.estado==='PENDIENTE_PAGO' && (
-              <p style={{ fontSize:11, color:'#f59e0b', marginTop:4 }}>⏳ Esperando comprobante de pago</p>
+
+            {order.metodo_pago === 'transferencia' && order.estado === 'PENDIENTE_PAGO' && (
+              <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                {config.datos_transferencia && (
+                  <pre style={{ fontSize:12, color:'var(--txt)', fontFamily:'monospace', whiteSpace:'pre-wrap', lineHeight:1.6, background:'var(--field-bg)', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
+                    {config.datos_transferencia}
+                  </pre>
+                )}
+                <p style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:6 }}>
+                  Subir comprobante {comprobantes.length ? `(${comprobantes.length})` : ''}
+                </p>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+                  {comprobantes.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer">
+                      <img src={url} alt="" style={{ width:48, height:48, objectFit:'cover', borderRadius:6, border:'1px solid var(--border)' }} />
+                    </a>
+                  ))}
+                </div>
+                <label className="btn-sm-ghost" style={{ display:'inline-block', cursor:'pointer' }}>
+                  {uploading ? 'Subiendo…' : '📎 Subir comprobante'}
+                  <input type="file" accept="image/*" style={{ display:'none' }} disabled={uploading}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadComprobante(f) }} />
+                </label>
+                {uploadError && <p style={{ fontSize:11, color:'var(--err)', marginTop:6 }}>⚠ {uploadError}</p>}
+                {!comprobantes.length && !uploadError && (
+                  <p style={{ fontSize:11, color:'#f59e0b', marginTop:6 }}>⏳ Esperando comprobante de pago</p>
+                )}
+              </div>
+            )}
+
+            {order.metodo_pago === 'efectivo' && config.instrucciones_efectivo && order.estado === 'PENDIENTE_PAGO' && (
+              <p style={{ fontSize:12, color:'var(--txt2)', marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)', whiteSpace:'pre-wrap', lineHeight:1.6 }}>
+                {config.instrucciones_efectivo}
+              </p>
             )}
 
             {order.estado==='PENDIENTE_PAGO' && (gateways.stripe || gateways.mercadopago) && (

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, can } from '@/lib/auth'
 import { notificarCambioEstatus } from '@/lib/whatsapp'
 import { notificarClienteEmail } from '@/lib/email'
 import { finalizarPedido, liberarPedido } from '@/lib/stock'
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // PATCH /api/orders/[id] - cambiar estado
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !can(session.rol as any, 'pedidos_estado')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

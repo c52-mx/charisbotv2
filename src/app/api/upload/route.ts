@@ -1,23 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { query, queryOne } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 export const dynamic = 'force-dynamic'
 
-// POST /api/upload - upload order evidence images
+// POST /api/upload - sube imágenes a un pedido (evidencias del admin,
+// comprobante de pago del cliente, etc. — distinguido por `tipo`)
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const formData = await req.formData()
   const pedidoId = formData.get('pedido_id') as string
+  const tipo     = (formData.get('tipo') as string) || 'evidencias'
   const files    = formData.getAll('files') as File[]
 
   if (!pedidoId) return NextResponse.json({ error: 'pedido_id requerido' }, { status: 400 })
   if (!files.length) return NextResponse.json({ error: 'Sin archivos' }, { status: 400 })
   if (files.length > 3) return NextResponse.json({ error: 'Máximo 3 imágenes' }, { status: 400 })
+
+  // Un cliente solo puede subir archivos a sus propios pedidos.
+  if (session.rol === 'CLIENTE') {
+    const pedido = await queryOne<{ telefono: string }>(`SELECT telefono FROM public.pedidos WHERE id = $1`, [pedidoId])
+    if (!pedido || pedido.telefono !== session.email) {
+      return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+    }
+  }
 
   // Ensure upload directory exists
   const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'orders', pedidoId)
@@ -36,30 +46,35 @@ export async function POST(req: NextRequest) {
     savedUrls.push(url)
   }
 
-  // Save URLs to pedidos table (append to existing)
+  // Save URLs to pedidos table (append to existing, bajo la llave `tipo`)
   await queryOne(
-    `UPDATE public.pedidos 
+    `UPDATE public.pedidos
      SET pedido_json = jsonb_set(
        COALESCE(pedido_json, '{}'::jsonb),
-       '{evidencias}',
-       COALESCE(pedido_json->'evidencias', '[]'::jsonb) || $1::jsonb
+       $3::text[],
+       COALESCE(pedido_json->$4, '[]'::jsonb) || $1::jsonb
      )
      WHERE id = $2`,
-    [JSON.stringify(savedUrls), pedidoId]
+    [JSON.stringify(savedUrls), pedidoId, [tipo], tipo]
   )
 
   return NextResponse.json({ ok: true, urls: savedUrls })
 }
 
-// GET /api/upload?pedido_id=xxx - get evidences for a pedido
+// GET /api/upload?pedido_id=xxx&tipo=evidencias - lista archivos subidos
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const pedidoId = new URL(req.url).searchParams.get('pedido_id')
+  const { searchParams } = new URL(req.url)
+  const pedidoId = searchParams.get('pedido_id')
+  const tipo     = searchParams.get('tipo') || 'evidencias'
   if (!pedidoId) return NextResponse.json({ error: 'pedido_id requerido' }, { status: 400 })
 
-  const row = await queryOne<any>('SELECT pedido_json FROM public.pedidos WHERE id = $1', [pedidoId])
-  const evidencias = row?.pedido_json?.evidencias || []
-  return NextResponse.json({ urls: evidencias })
+  const row = await queryOne<any>('SELECT pedido_json, telefono FROM public.pedidos WHERE id = $1', [pedidoId])
+  if (session.rol === 'CLIENTE' && row?.telefono !== session.email) {
+    return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  }
+  const urls = row?.pedido_json?.[tipo] || []
+  return NextResponse.json({ urls })
 }

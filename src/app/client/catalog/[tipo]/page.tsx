@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 
 interface Config  { tipo_case:string; descripcion:string|null; foto_url:string|null }
-interface Modelos { [marca:string]: { [modelo:string]: { colores:string[]; foto_url:string|null; stockPorColor:Record<string,number> } } }
-interface CartItem { tipo_case:string; marca:string; modelo:string; color:string; cantidad:number }
+interface Modelos { [marca:string]: { [modelo:string]: { colores:string[]; foto_url:string|null; stockPorColor:Record<string,number>; precioPorColor:Record<string,number> } } }
+interface CartItem { tipo_case:string; marca:string; modelo:string; color:string; cantidad:number; precio:number }
 
 const SERIE_META: Record<string,{emoji:string}> = {
   '3 EN 1':{'emoji':'🎯'}, 'ESCUDO':{'emoji':'🛡️'}, 'BLINDAJE':{'emoji':'🔐'}, 'ANILLO':{'emoji':'💍'},
@@ -139,6 +139,11 @@ export default function SeriesDetailPage() {
     return byMarca[marca]?.[modelo]?.stockPorColor?.[color] ?? 0
   }
 
+  function getPrecio(marca:string|null, modelo:string|null, color:string|null): number {
+    if (!marca || !modelo || !color) return 0
+    return byMarca[marca]?.[modelo]?.precioPorColor?.[color] ?? 0
+  }
+
   async function addToCart() {
     if (!selModel || !selMarca || !selColor) return
     const disponible = getDisponible(selMarca, selModel, selColor)
@@ -174,10 +179,12 @@ export default function SeriesDetailPage() {
       return
     }
 
+    const precio = data.precio ?? getPrecio(selMarca, selModel, selColor)
     if (existing >= 0) {
       current[existing].cantidad = cantidadFinal
+      current[existing].precio = precio
     } else {
-      current.push({ tipo_case: tipo, marca: selMarca!, modelo: selModel!, color: selColor!, cantidad: cantidadFinal })
+      current.push({ tipo_case: tipo, marca: selMarca!, modelo: selModel!, color: selColor!, cantidad: cantidadFinal, precio })
     }
     localStorage.setItem('charis-cart', JSON.stringify(current))
     // Notify layout cart drawer
@@ -302,6 +309,7 @@ export default function SeriesDetailPage() {
                               <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:12}}>
                                 {data.colores.map(c=>{
                                   const disp = data.stockPorColor?.[c] ?? 0
+                                  const precioColor = data.precioPorColor?.[c] ?? 0
                                   const agotado = disp <= 0
                                   return (
                                     <button key={c} disabled={agotado}
@@ -310,7 +318,9 @@ export default function SeriesDetailPage() {
                                       onClick={e=>{e.stopPropagation(); if(!agotado) setSelColor(c)}}>
                                       <span style={{width:10,height:10,borderRadius:'50%',background:c==='NEGRO'?'#111':c==='BLANCO'||c==='TRANSPARENTE'?'#f0f0f0':c==='ROJO'?'var(--err)':c==='AZUL'?'#3b82f6':c==='VERDE'?'var(--ok)':c==='ROSA'?'#ec4899':c==='MORADO'?'#a855f7':'#94a3b8',border:'1px solid rgba(0,0,0,0.1)',flexShrink:0}}/>
                                       {c}
-                                      <span style={{ fontSize:10, opacity:.7 }}>{agotado ? '· Agotado' : `· ${disp} disp.`}</span>
+                                      <span style={{ fontSize:10, opacity:.7 }}>
+                                        {agotado ? '· Agotado' : `· ${disp} disp. · $${precioColor.toLocaleString('es-MX',{minimumFractionDigits:2})}`}
+                                      </span>
                                     </button>
                                   )
                                 })}
@@ -320,6 +330,11 @@ export default function SeriesDetailPage() {
                                   🛒 Agregar al carrito
                                   {selColor&&<span style={{background:'rgba(255,255,255,0.2)',padding:'1px 7px',borderRadius:100,fontSize:11}}>{Math.min(qty, getDisponible(selMarca,selModel,selColor))} pzas</span>}
                                 </button>
+                                {selColor && (
+                                  <span style={{ fontSize:13, fontWeight:700, color:'var(--blue)' }}>
+                                    Subtotal: ${(getPrecio(selMarca,selModel,selColor) * Math.min(qty, getDisponible(selMarca,selModel,selColor))).toLocaleString('es-MX',{minimumFractionDigits:2})}
+                                  </span>
+                                )}
                                 {addMsg && <span style={{fontSize:12,color:'var(--ok)',fontWeight:600}}>{addMsg}</span>}
                               </div>
                             </div>

@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
   }
 
   const selectCols = hasNewCols
-    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, stock, creado_en'
-    : 'case_id, tipo_case, modelo, color, activo, stock, creado_en'
+    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, stock, precio, creado_en'
+    : 'case_id, tipo_case, modelo, color, activo, stock, precio, creado_en'
 
   const [rows, countRow] = await Promise.all([
     query(
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { tipo_case, modelo, color, activo = true, identificador, ubicacion, stock = 0 } = await req.json()
+  const { tipo_case, modelo, color, activo = true, identificador, ubicacion, stock = 0, precio = 0 } = await req.json()
 
   if (!tipo_case || !modelo || !color) {
     return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
@@ -109,12 +109,13 @@ export async function POST(req: NextRequest) {
 
   const newCols = await hasNewColumns()
   const stockVal = Math.max(0, parseInt(stock) || 0)
+  const precioVal = Math.max(0, parseFloat(precio) || 0)
 
   let rows: any[]
   if (newCols) {
     rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion, stock)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion, stock, precio)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        ON CONFLICT (tipo_case, modelo, color) DO NOTHING
        RETURNING *`,
       [
@@ -125,12 +126,13 @@ export async function POST(req: NextRequest) {
         identificador?.trim() || null,
         ubicacion?.trim()     || null,
         stockVal,
+        precioVal,
       ]
     )
   } else {
     rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, stock)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, stock, precio)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (tipo_case, modelo, color) DO NOTHING
        RETURNING *`,
       [
@@ -139,6 +141,7 @@ export async function POST(req: NextRequest) {
         color.toUpperCase().trim(),
         activo,
         stockVal,
+        precioVal,
       ]
     )
   }
