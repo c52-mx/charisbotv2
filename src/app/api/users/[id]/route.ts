@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, can } from '@/lib/auth'
+import { listarRolesInternos } from '@/lib/roles'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const s = await getSession(req)
-  if (!s || s.rol !== 'ADMIN') return NextResponse.json({ error:'Sin permiso' }, { status:403 })
+  if (!s || !can(s, 'usuarios')) return NextResponse.json({ error:'Sin permiso' }, { status:403 })
   const { nombre, rol, activo, password } = await req.json()
-  const validRols = ['ADMIN','VENDEDOR','ALMACEN']
-  if (rol && !validRols.includes(rol)) return NextResponse.json({ error:'Rol inválido' }, { status:400 })
+  if (rol) {
+    const validRols = (await listarRolesInternos()).map(r => r.clave)
+    if (!validRols.includes(rol)) return NextResponse.json({ error:'Rol inválido' }, { status:400 })
+  }
 
   if (rol && rol !== 'ADMIN') {
     const count = await queryOne<{count:string}>(

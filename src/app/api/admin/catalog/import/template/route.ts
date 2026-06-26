@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // cliente llene su inventario real sin adivinar el formato esperado.
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // GET: listar todas las series con su config
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_ver')) {
+  if (!session || !can(session, 'catalogo_ver')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
   const rows = await query(`
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 // PATCH: actualizar imagen o descripción de una serie
 export async function PATCH(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

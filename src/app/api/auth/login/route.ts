@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne } from '@/lib/db'
 import { signToken } from '@/lib/auth'
+import { resolverPermisos } from '@/lib/roles'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
@@ -31,11 +32,15 @@ export async function POST(req: NextRequest) {
     // Actualizar último acceso
     await queryOne('UPDATE public.usuarios SET ultimo_acceso = NOW() WHERE id = $1', [user.id])
 
+    const { tipo: rolTipo, permisos } = await resolverPermisos(user.rol)
+
     const token = await signToken({
       sub: user.id,
       email: user.email,
       nombre: user.nombre,
       rol: user.rol,
+      rolTipo,
+      permisos,
     })
 
     const response = NextResponse.json({

@@ -89,7 +89,7 @@ async function hasNewColumns(): Promise<boolean> {
 // ── POST /api/catalog ─────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_crear')) {
+  if (!session || !can(session, 'catalogo_crear')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

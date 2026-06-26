@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 // ajuste incremental.
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

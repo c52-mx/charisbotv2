@@ -31,14 +31,20 @@ export async function middleware(req: NextRequest) {
     return r
   }
 
+  // rolTipo viene embebido en el token desde el login (Fase C.5) — así este
+  // middleware (Edge runtime, sin acceso a Postgres) no depende de una
+  // lista fija de roles para decidir quién entra a /admin. Los tokens
+  // emitidos antes de la Fase C.5 no traen el claim; el fallback replica
+  // el comportamiento de siempre (solo CLIENTE es no-interno).
+  const rolTipo = session.rolTipo || (session.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+
   // Solo roles internos pueden entrar a /admin
-  const portalRoles = ['ADMIN','VENDEDOR','ALMACEN']
-  if (isAdmin && !portalRoles.includes(session.rol)) {
+  if (isAdmin && rolTipo !== 'INTERNO') {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
   // Solo CLIENTE puede entrar a /client
-  if (isClient && session.rol !== 'CLIENTE') {
+  if (isClient && rolTipo !== 'CLIENTE') {
     return NextResponse.redirect(new URL('/admin/orders', req.url))
   }
 

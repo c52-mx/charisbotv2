@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // GET /api/admin/tipos-case — todos (activos e inactivos), para el CRUD
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
   const rows = await query(`SELECT * FROM public.tipos_case ORDER BY orden, nombre`, [])
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/tipos-case — crear tipo nuevo
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

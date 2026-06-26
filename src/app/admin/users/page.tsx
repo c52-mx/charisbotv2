@@ -2,17 +2,22 @@
 import { useState, useEffect } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 
-const ROL_OPTS = ['ADMIN','VENDEDOR','ALMACEN']
 const ROL_STYLE: Record<string,{badgeClass:string}> = {
   ADMIN:   {badgeClass:'badge-blue'},
   VENDEDOR:{badgeClass:'badge-ok'},
   ALMACEN: {badgeClass:'badge-warn'},
 }
-const empty = {nombre:'',email:'',password:'',rol:'VENDEDOR'}
+const ROL_DESC: Record<string,string> = {
+  ADMIN:    '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
+  VENDEDOR: '🛒 Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.',
+  ALMACEN:  '📦 Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.',
+}
+const empty = {nombre:'',email:'',password:'',rol:''}
 
 export default function UsersPage() {
   const [dark]         = useState(() => typeof window!=='undefined' ? localStorage.getItem('charis-theme')!=='light' : true)
   const [users,setUsers]       = useState<any[]>([])
+  const [roles,setRoles]       = useState<{clave:string;nombre:string}[]>([])
   const [loading,setLoading]   = useState(true)
   const [modal,setModal]       = useState<'create'|'edit'|null>(null)
   const [form,setForm]         = useState<any>(empty)
@@ -27,8 +32,15 @@ export default function UsersPage() {
     setUsers(d.data||[]); setLoading(false)
   }
   useEffect(()=>{ load() },[])
+  useEffect(()=>{
+    fetch('/api/admin/roles').then(r=>r.json()).then(d=>{
+      const internos = (d.data||[]).filter((r:any)=>r.tipo==='INTERNO')
+      setRoles(internos)
+      setForm((f:any)=> f.rol ? f : {...f, rol: internos[0]?.clave || ''})
+    }).catch(()=>{})
+  },[])
 
-  function openCreate() { setForm(empty); setErr(''); setModal('create') }
+  function openCreate() { setForm({...empty, rol: roles[0]?.clave || ''}); setErr(''); setModal('create') }
   function openEdit(u:any) { setForm({...u, password:''}); setErr(''); setModal('edit') }
 
   async function save() {
@@ -162,7 +174,7 @@ export default function UsersPage() {
               <div>
                 <label style={lbl}>Rol *</label>
                 <select style={{...inp,cursor:'pointer'}} value={form.rol} onChange={e=>setForm((f:any)=>({...f,rol:e.target.value}))}>
-                  {ROL_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
+                  {roles.map(r => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
                 </select>
               </div>
               {modal==='edit' && (
@@ -176,11 +188,11 @@ export default function UsersPage() {
               )}
 
               {/* Rol description */}
-              <div style={{padding:'10px 12px',borderRadius:8,background:'var(--bg4)',border:'1px solid var(--border)',fontSize:12,color:'var(--txt2)'}}>
-                {form.rol==='ADMIN'    && '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.'}
-                {form.rol==='VENDEDOR' && '🛒 Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.'}
-                {form.rol==='ALMACEN'  && '📦 Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.'}
-              </div>
+              {ROL_DESC[form.rol] && (
+                <div style={{padding:'10px 12px',borderRadius:8,background:'var(--bg4)',border:'1px solid var(--border)',fontSize:12,color:'var(--txt2)'}}>
+                  {ROL_DESC[form.rol]}
+                </div>
+              )}
 
               <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:4}}>
                 <button className="cbtn cbtn-secondary" onClick={()=>setModal(null)}>Cancelar</button>

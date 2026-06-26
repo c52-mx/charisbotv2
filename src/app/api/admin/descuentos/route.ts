@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // GET /api/admin/descuentos — todas las franjas (activas e inactivas), para el CRUD
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
   const rows = await query(`SELECT * FROM public.descuentos_volumen ORDER BY piezas_minimas`, [])
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/descuentos — crear franja nueva
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

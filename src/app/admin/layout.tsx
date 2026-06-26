@@ -4,24 +4,30 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { CharisAppIcon, CharisLogotipo } from '@/components/CharisLogo'
-import type { UserRol } from '@/lib/auth-shared'
+import { can, type UserRol, type Permiso } from '@/lib/auth-shared'
 
-const NAV_ITEMS = [
-  { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  roles:['ADMIN'] },
-  { href:'/admin/orders',  label:'Pedidos',   icon:'📦', exact:false, roles:['ADMIN','VENDEDOR','ALMACEN'] },
-  { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, roles:['ADMIN','VENDEDOR','ALMACEN'] },
-  { href:'/admin/tipos-case', label:'Tipos de case', icon:'🏷️', exact:false, roles:['ADMIN','ALMACEN'] },
-  { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, roles:['ADMIN','VENDEDOR'] },
-  { href:'/admin/reportes', label:'Reportes', icon:'📈', exact:false, roles:['ADMIN'] },
-  { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, roles:['ADMIN'] },
-  { href:'/admin/config',  label:'Configuración', icon:'⚙️', exact:false, roles:['ADMIN'] },
-  { href:'/admin/landing', label:'Landing',   icon:'🎠', exact:false, roles:['ADMIN'] },
+const NAV_ITEMS: { href:string; label:string; icon:string; exact:boolean; perm:Permiso }[] = [
+  { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  perm:'dashboard' },
+  { href:'/admin/orders',  label:'Pedidos',   icon:'📦', exact:false, perm:'pedidos_ver' },
+  { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, perm:'catalogo_ver' },
+  { href:'/admin/tipos-case', label:'Tipos de case', icon:'🏷️', exact:false, perm:'catalogo_editar' },
+  { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, perm:'clientes_ver' },
+  { href:'/admin/reportes', label:'Reportes', icon:'📈', exact:false, perm:'reportes_ver' },
+  { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, perm:'usuarios' },
+  { href:'/admin/roles',   label:'Roles',     icon:'🔐', exact:false, perm:'roles_editar' },
+  { href:'/admin/config',  label:'Configuración', icon:'⚙️', exact:false, perm:'config_editar' },
+  { href:'/admin/landing', label:'Landing',   icon:'🎠', exact:false, perm:'landing_editar' },
 ]
 
 const ROL_STYLE: Record<string,{label:string;badgeClass:string}> = {
   ADMIN:    { label:'Admin',    badgeClass:'badge-blue' },
   VENDEDOR: { label:'Vendedor', badgeClass:'badge-ok'   },
   ALMACEN:  { label:'Almacén',  badgeClass:'badge-warn' },
+}
+// Roles personalizados (creados desde /admin/roles) no tienen un estilo
+// dedicado — se muestran con un badge neutro y su clave tal cual.
+function rolStyle(rol: string) {
+  return ROL_STYLE[rol] || { label: rol, badgeClass: 'badge-blue' }
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -42,8 +48,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetch('/api/auth/me').then(r => {
       if (!r.ok) { router.push('/'); return }
       r.json().then(d => {
-        const rol: string = d.user?.rol
-        if (!['ADMIN','VENDEDOR','ALMACEN'].includes(rol)) { router.push('/'); return }
+        // rolTipo viaja en el JWT desde el login (Fase C.5); tokens viejos
+        // no lo traen, así que se replica el fallback de siempre.
+        const rolTipo = d.user?.rolTipo || (d.user?.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+        if (rolTipo !== 'INTERNO') { router.push('/'); return }
         setUser(d.user); setReady(true)
       })
     })
@@ -60,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const tv       = getThemeVars(dark)
   const rol      = (user?.rol || 'VENDEDOR') as UserRol
-  const navItems = NAV_ITEMS.filter(n => n.roles.includes(rol))
+  const navItems = NAV_ITEMS.filter(n => can(user, n.perm))
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href)
 
@@ -165,9 +173,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="topbar">
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <CharisLogotipo height={28} variant={dark ? 'white' : 'color'} />
-          {user && ROL_STYLE[rol] && (
-            <span className={`badge ${ROL_STYLE[rol].badgeClass}`} style={{ padding:'2px 7px', borderRadius:10 }}>
-              {ROL_STYLE[rol].label}
+          {user && (
+            <span className={`badge ${rolStyle(rol).badgeClass}`} style={{ padding:'2px 7px', borderRadius:10 }}>
+              {rolStyle(rol).label}
             </span>
           )}
         </div>
@@ -196,7 +204,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             navItems={navItems} isActive={isActive}
             dark={dark} toggleTheme={toggleTheme}
             user={user} rol={rol}
-            logout={logout} ROL_STYLE={ROL_STYLE}
+            logout={logout} rolStyle={rolStyle}
             showCollapse
           />
         </aside>
@@ -209,7 +217,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             navItems={navItems} isActive={isActive}
             dark={dark} toggleTheme={toggleTheme}
             user={user} rol={rol}
-            logout={logout} ROL_STYLE={ROL_STYLE}
+            logout={logout} rolStyle={rolStyle}
             showCollapse={false}
           />
         </div>
@@ -226,7 +234,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 // ── Sidebar inner ──────────────────────────────────────────────────────
 function SidebarContent({
   collapsed, setCollapsed, navItems, isActive,
-  dark, toggleTheme, user, rol, logout, ROL_STYLE, showCollapse
+  dark, toggleTheme, user, rol, logout, rolStyle, showCollapse
 }: any) {
   return (
     <>
@@ -273,7 +281,7 @@ function SidebarContent({
         </button>
 
         {/* User card */}
-        {!collapsed && user && ROL_STYLE[rol] && (
+        {!collapsed && user && (
           <div style={{
             padding:'10px 12px', borderRadius:10,
             background:'var(--bg4)', border:'1px solid var(--border)',
@@ -285,8 +293,8 @@ function SidebarContent({
                 overflow:'hidden', textOverflow:'ellipsis',
                 whiteSpace:'nowrap', maxWidth:120,
               }}>{user.nombre}</span>
-              <span className={`badge ${ROL_STYLE[rol].badgeClass}`} style={{ padding:'2px 7px', borderRadius:10, flexShrink:0, marginLeft:4 }}>
-                {ROL_STYLE[rol].label}
+              <span className={`badge ${rolStyle(rol).badgeClass}`} style={{ padding:'2px 7px', borderRadius:10, flexShrink:0, marginLeft:4 }}>
+                {rolStyle(rol).label}
               </span>
             </div>
             <div style={{

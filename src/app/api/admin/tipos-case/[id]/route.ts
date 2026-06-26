@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // PATCH /api/admin/tipos-case/[id]
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 // DELETE /api/admin/tipos-case/[id]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'catalogo_editar')) {
+  if (!session || !can(session, 'catalogo_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

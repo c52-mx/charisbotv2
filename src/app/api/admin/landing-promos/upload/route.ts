@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // POST /api/admin/landing-promos/upload - sube una imagen de promo del landing
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

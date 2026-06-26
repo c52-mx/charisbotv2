@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // PATCH /api/orders/[id] - cambiar estado
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'pedidos_estado')) {
+  if (!session || !can(session, 'pedidos_estado')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // de ventas/admin — almacén no puede autoconfirmarse estos dos pasos.
   const esConfirmacionPago = before.estado === 'PENDIENTE_PAGO' && estado === 'CONFIRMADO'
   const esValidacionSurtido = before.estado === 'POR_VALIDAR_SURTIDO' && (estado === 'EN_REPARTO' || estado === 'EN_PREPARACION')
-  if ((esConfirmacionPago || esValidacionSurtido) && !can(session.rol as any, 'pagos_confirmar')) {
+  if ((esConfirmacionPago || esValidacionSurtido) && !can(session, 'pagos_confirmar')) {
     return NextResponse.json({ error: 'Sin permiso para confirmar pago o validar surtido' }, { status: 403 })
   }
   if (estado === 'POR_VALIDAR_SURTIDO' && before.estado !== 'EN_PREPARACION') {

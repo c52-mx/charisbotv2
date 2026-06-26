@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'pedidos_ver')) {
+  if (!session || !can(session, 'pedidos_ver')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

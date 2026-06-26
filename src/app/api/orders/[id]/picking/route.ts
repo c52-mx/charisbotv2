@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 // CONFIRMADO, lo pasa a EN_PREPARACION automáticamente.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'pedidos_estado')) {
+  if (!session || !can(session, 'pedidos_estado')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

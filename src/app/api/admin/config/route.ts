@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 // ── GET /api/admin/config ───────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 // ── PATCH /api/admin/config ─────────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

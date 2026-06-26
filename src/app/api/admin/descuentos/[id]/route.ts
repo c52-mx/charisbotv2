@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 // PATCH /api/admin/descuentos/[id]
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 // DELETE /api/admin/descuentos/[id]
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
-  if (!session || !can(session.rol as any, 'config_editar')) {
+  if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
   await query(`DELETE FROM public.descuentos_volumen WHERE id = $1`, [params.id])

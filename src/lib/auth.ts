@@ -7,8 +7,8 @@ import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 
 // Re-export everything from auth-shared so server files only need one import
-export type { UserRol, Permiso } from './auth-shared'
-export { PERMISOS, can, signTrackLink, verifyTrackLink, buildTrackUrl } from './auth-shared'
+export type { UserRol, Permiso, SessionLike } from './auth-shared'
+export { PERMISOS_DEFAULT, can, signTrackLink, verifyTrackLink, buildTrackUrl } from './auth-shared'
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback_secret_change_in_prod'
@@ -17,6 +17,12 @@ const SECRET = new TextEncoder().encode(
 export interface JWTPayload {
   sub: string; email: string; nombre: string
   rol: import('./auth-shared').UserRol
+  // Resueltos una sola vez al iniciar sesión (ver lib/roles.ts) y
+  // embebidos en el token — así can() y el middleware no dependen de
+  // la base de datos en cada request. Ausentes en tokens emitidos
+  // antes de la Fase C.5 (can() cae al fallback por rol en ese caso).
+  permisos?: Partial<Record<import('./auth-shared').Permiso, boolean>>
+  rolTipo?: 'INTERNO' | 'CLIENTE'
   iat?: number; exp?: number
 }
 

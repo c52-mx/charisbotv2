@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
-import { can, type UserRol } from '@/lib/auth-shared'
+import { can, type SessionLike } from '@/lib/auth-shared'
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface Product {
@@ -37,7 +37,7 @@ const EMPTY_FORM: FormState = {
 // ── Page ──────────────────────────────────────────────────────────────
 export default function CatalogPage() {
   const [dark,      setDark]      = useState(true)
-  const [userRol,   setUserRol]   = useState<UserRol>('VENDEDOR')
+  const [userRol,   setUserRol]   = useState<SessionLike>({ rol:'VENDEDOR' })
   const [items,     setItems]     = useState<Product[]>([])
   const [total,     setTotal]     = useState(0)
   const [loading,   setLoading]   = useState(true)
@@ -65,7 +65,7 @@ export default function CatalogPage() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user?.rol || 'VENDEDOR'))
+    fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user || { rol:'VENDEDOR' }))
   }, [])
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Combo, NumInput, ImageUploader, SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
-import { can, type UserRol } from '@/lib/auth-shared'
+import { can, type SessionLike } from '@/lib/auth-shared'
 
 // Vocabulario unificado con el seguimiento que ve el cliente
 // (client/orders/[id]/page.tsx) — antes este admin solo ofrecía estados
@@ -23,8 +23,8 @@ const ESTADOS_GATEADOS = ['PENDIENTE_PAGO','POR_VALIDAR_SURTIDO']
 
 export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
-  const [userRol, setUserRol] = useState<UserRol>('VENDEDOR')
-  useEffect(()=>{ fetch('/api/auth/me').then(r=>r.json()).then(d=>setUserRol(d.user?.rol||'VENDEDOR')) },[])
+  const [userRol, setUserRol] = useState<SessionLike>({ rol:'VENDEDOR' })
+  useEffect(()=>{ fetch('/api/auth/me').then(r=>r.json()).then(d=>setUserRol(d.user || { rol:'VENDEDOR' })) },[])
   const [slaSurtido, setSlaSurtido] = useState({ tiempoHoras: 72, avisoHoras: 24 })
   useEffect(()=>{
     fetch('/api/client/config').then(r=>r.json()).then(d=>{
