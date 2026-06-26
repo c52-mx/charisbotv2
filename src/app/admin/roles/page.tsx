@@ -124,7 +124,7 @@ export default function RolesPage() {
                   <td>{r.usuarios}</td>
                   <td style={{ display:'flex', gap:6 }}>
                     <button className="cbtn cbtn-ghost" onClick={() => openRol(r)}>
-                      {r.clave === 'ADMIN' ? 'Ver' : 'Editar permisos'}
+                      {r.clave === 'ADMIN' || r.tipo === 'REPARTIDOR' ? 'Ver' : 'Editar permisos'}
                     </button>
                     {!r.sistema && (
                       <button className="cbtn cbtn-ghost" disabled={r.usuarios > 0} title={r.usuarios > 0 ? 'Tiene usuarios asignados' : undefined} onClick={() => eliminarRol(r)}>
@@ -155,30 +155,40 @@ export default function RolesPage() {
                 Los permisos de ADMIN no son editables — evita quedar sin acceso al panel.
               </div>
             )}
+            {selected.tipo === 'REPARTIDOR' && (
+              <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(245,158,11,0.1)', color:'#f59e0b', fontSize:12, marginBottom:14 }}>
+                REPARTIDOR no usa esta matriz de permisos — sus acciones están controladas por su propio portal en /repartidor.
+              </div>
+            )}
             {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{err}</div>}
 
-            <div style={{ display:'flex', flexDirection:'column', gap:14, maxHeight:420, overflowY:'auto' }}>
-              {GRUPOS.map(g => (
-                <div key={g.titulo}>
-                  <div style={{ ...lbl, marginBottom:8 }}>{g.titulo}</div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                    {g.claves.map(clave => (
-                      <label key={clave} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'var(--txt)', cursor: selected.clave==='ADMIN' ? 'default' : 'pointer' }}>
-                        <input type="checkbox" disabled={selected.clave === 'ADMIN'}
-                               checked={!!editPermisos[clave]}
-                               onChange={e => setEditPermisos(p => ({ ...p, [clave]: e.target.checked }))}
-                               style={{ width:16, height:16, accentColor:'var(--blue)', cursor: selected.clave==='ADMIN' ? 'default' : 'pointer' }} />
-                        {PERMISO_LABEL[clave] || clave}
-                      </label>
-                    ))}
-                  </div>
+            {(() => {
+              const locked = selected.clave === 'ADMIN' || selected.tipo === 'REPARTIDOR'
+              return (
+                <div style={{ display:'flex', flexDirection:'column', gap:14, maxHeight:420, overflowY:'auto' }}>
+                  {GRUPOS.map(g => (
+                    <div key={g.titulo}>
+                      <div style={{ ...lbl, marginBottom:8 }}>{g.titulo}</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                        {g.claves.map(clave => (
+                          <label key={clave} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'var(--txt)', cursor: locked ? 'default' : 'pointer' }}>
+                            <input type="checkbox" disabled={locked}
+                                   checked={!!editPermisos[clave]}
+                                   onChange={e => setEditPermisos(p => ({ ...p, [clave]: e.target.checked }))}
+                                   style={{ width:16, height:16, accentColor:'var(--blue)', cursor: locked ? 'default' : 'pointer' }} />
+                            {PERMISO_LABEL[clave] || clave}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )
+            })()}
 
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
               <button className="cbtn cbtn-secondary" onClick={() => setSelected(null)}>Cerrar</button>
-              {selected.clave !== 'ADMIN' && (
+              {selected.clave !== 'ADMIN' && selected.tipo !== 'REPARTIDOR' && (
                 <button className="cbtn cbtn-primary" onClick={guardarPermisos} disabled={saving}>
                   {saving ? 'Guardando...' : 'Guardar cambios'}
                 </button>

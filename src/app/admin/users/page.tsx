@@ -3,14 +3,16 @@ import { useState, useEffect } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 
 const ROL_STYLE: Record<string,{badgeClass:string}> = {
-  ADMIN:   {badgeClass:'badge-blue'},
-  VENDEDOR:{badgeClass:'badge-ok'},
-  ALMACEN: {badgeClass:'badge-warn'},
+  ADMIN:     {badgeClass:'badge-blue'},
+  VENDEDOR:  {badgeClass:'badge-ok'},
+  ALMACEN:   {badgeClass:'badge-warn'},
+  REPARTIDOR:{badgeClass:'badge-purple'},
 }
 const ROL_DESC: Record<string,string> = {
-  ADMIN:    '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
-  VENDEDOR: '🛒 Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.',
-  ALMACEN:  '📦 Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.',
+  ADMIN:      '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
+  VENDEDOR:   '🛒 Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.',
+  ALMACEN:    '📦 Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.',
+  REPARTIDOR: '🛵 Entra a su propio portal en /repartidor — solo ve y entrega los pedidos que se le asignen.',
 }
 const empty = {nombre:'',email:'',password:'',rol:''}
 
@@ -34,9 +36,9 @@ export default function UsersPage() {
   useEffect(()=>{ load() },[])
   useEffect(()=>{
     fetch('/api/admin/roles').then(r=>r.json()).then(d=>{
-      const internos = (d.data||[]).filter((r:any)=>r.tipo==='INTERNO')
-      setRoles(internos)
-      setForm((f:any)=> f.rol ? f : {...f, rol: internos[0]?.clave || ''})
+      const asignables = (d.data||[]).filter((r:any)=>r.tipo==='INTERNO'||r.tipo==='REPARTIDOR')
+      setRoles(asignables)
+      setForm((f:any)=> f.rol ? f : {...f, rol: asignables[0]?.clave || ''})
     }).catch(()=>{})
   },[])
 

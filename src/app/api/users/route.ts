@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
-import { listarRolesInternos } from '@/lib/roles'
+import { listarRolesAsignables } from '@/lib/roles'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!s || !can(s, 'usuarios')) return NextResponse.json({ error:'Sin permiso' }, { status:403 })
   const { nombre, email, password, rol } = await req.json()
   if (!email?.trim() || !password?.trim() || !rol) return NextResponse.json({ error:'nombre, email, password y rol son requeridos' }, { status:400 })
-  const valid = (await listarRolesInternos()).map(r => r.clave)
+  const valid = (await listarRolesAsignables()).map(r => r.clave)
   if (!valid.includes(rol)) return NextResponse.json({ error:'Rol inválido' }, { status:400 })
   try {
     const hash = await bcrypt.hash(password, 10)

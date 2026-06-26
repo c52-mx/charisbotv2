@@ -22,7 +22,7 @@ export interface JWTPayload {
   // la base de datos en cada request. Ausentes en tokens emitidos
   // antes de la Fase C.5 (can() cae al fallback por rol en ese caso).
   permisos?: Partial<Record<import('./auth-shared').Permiso, boolean>>
-  rolTipo?: 'INTERNO' | 'CLIENTE'
+  rolTipo?: 'INTERNO' | 'CLIENTE' | 'REPARTIDOR'
   iat?: number; exp?: number
 }
 

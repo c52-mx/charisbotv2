@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   // ALMACEN solo ve pedidos CONFIRMADO o superior
   if (session.rol === 'ALMACEN') {
-    conditions.push(`p.estado = ANY(ARRAY['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','ENTREGADO','EN_PROCESO','COMPLETADO','CANCELADO'])`)
+    conditions.push(`p.estado = ANY(ARRAY['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA','ENTREGADO','EN_PROCESO','COMPLETADO','CANCELADO'])`)
   }
 
   // Clientes solo ven sus pedidos

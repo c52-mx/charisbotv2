@@ -504,9 +504,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
     fetch('/api/auth/me').then(r => r.json()).then(d => {
       if (!d.user) { router.push('/login'); return }
-      if (['ADMIN','VENDEDOR','ALMACEN'].includes(d.user.rol)) {
-        router.push('/admin/orders'); return
-      }
+      const rolTipo = d.user.rolTipo || (d.user.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+      if (rolTipo === 'REPARTIDOR') { router.push('/repartidor'); return }
+      if (rolTipo !== 'CLIENTE') { router.push('/admin/orders'); return }
       setUser(d.user)
       setReady(true)
     })

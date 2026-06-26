@@ -5,8 +5,9 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const token = req.cookies.get('charis_token')?.value
 
-  const isAdmin  = pathname.startsWith('/admin')
-  const isClient = pathname.startsWith('/client')
+  const isAdmin      = pathname.startsWith('/admin')
+  const isClient     = pathname.startsWith('/client')
+  const isRepartidor = pathname.startsWith('/repartidor')
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
                     && pathname !== '/api/landing-promos' && pathname !== '/api/internal/cron'
   const isTrack  = pathname.startsWith('/track')
@@ -16,7 +17,7 @@ export async function middleware(req: NextRequest) {
   // /api/internal/cron tiene su propia auth por secreto compartido (lo
   // llama src/instrumentation.ts desde el mismo proceso, sin cookie).
   if (isTrack || pathname === '/api/landing-promos' || pathname === '/api/internal/cron') return NextResponse.next()
-  if (!isAdmin && !isClient && !isApi) return NextResponse.next()
+  if (!isAdmin && !isClient && !isRepartidor && !isApi) return NextResponse.next()
 
   if (!token) {
     if (isApi) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -33,22 +34,24 @@ export async function middleware(req: NextRequest) {
 
   // rolTipo viene embebido en el token desde el login (Fase C.5) — así este
   // middleware (Edge runtime, sin acceso a Postgres) no depende de una
-  // lista fija de roles para decidir quién entra a /admin. Los tokens
-  // emitidos antes de la Fase C.5 no traen el claim; el fallback replica
-  // el comportamiento de siempre (solo CLIENTE es no-interno).
+  // lista fija de roles para decidir a qué portal entra cada sesión. Los
+  // tokens emitidos antes de la Fase C.5 no traen el claim; el fallback
+  // replica el comportamiento de siempre (solo CLIENTE es no-interno).
   const rolTipo = session.rolTipo || (session.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
 
-  // Solo roles internos pueden entrar a /admin
+  // Cada portal es exclusivo de su rolTipo — si no corresponde, se manda
+  // al home, que ya sabe redirigir a cada uno a su portal correcto.
   if (isAdmin && rolTipo !== 'INTERNO') {
     return NextResponse.redirect(new URL('/', req.url))
   }
-
-  // Solo CLIENTE puede entrar a /client
   if (isClient && rolTipo !== 'CLIENTE') {
-    return NextResponse.redirect(new URL('/admin/orders', req.url))
+    return NextResponse.redirect(new URL('/', req.url))
+  }
+  if (isRepartidor && rolTipo !== 'REPARTIDOR') {
+    return NextResponse.redirect(new URL('/', req.url))
   }
 
   return NextResponse.next()
 }
 
-export const config = { matcher: ['/admin/:path*', '/client/:path*', '/api/:path*', '/track'] }
+export const config = { matcher: ['/admin/:path*', '/client/:path*', '/repartidor/:path*', '/api/:path*', '/track'] }

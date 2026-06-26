@@ -5,7 +5,7 @@ import Link from 'next/link'
 interface Pedido {
   id: string; numero_pedido: string; estado: string; tipo_case: string
   resumen: string; creado_en: string; total_piezas: number
-  metodo_pago: string; referencia_pago: string; pedido_json?: any
+  metodo_pago: string; referencia_pago: string; metodo_entrega?: string; pedido_json?: any
 }
 
 const ESTADO_META: Record<string,{label:string; color:string; bg:string; icon:string; step:number}> = {
@@ -15,6 +15,8 @@ const ESTADO_META: Record<string,{label:string; color:string; bg:string; icon:st
   'CONFIRMADO':            { label:'Confirmado',          color:'var(--blue)', bg:'#eff6ff', icon:'✓',  step:1 },
   'EN_PREPARACION':        { label:'En preparación',      color:'#6b21a8', bg:'#fdf4ff', icon:'📦', step:2 },
   'EN_REPARTO':            { label:'En camino',           color:'#0369a1', bg:'#e0f2fe', icon:'🚚', step:3 },
+  'LISTO_PARA_RECOGER':    { label:'Listo para recoger',  color:'#0369a1', bg:'#e0f2fe', icon:'🏬', step:3 },
+  'ENTREGA_FALLIDA':       { label:'No pudimos entregarlo', color:'#991b1b', bg:'var(--err-bg)', icon:'⚠️', step:-1 },
   'ENTREGADO':             { label:'Entregado',           color:'#15803d', bg:'var(--ok-bg)', icon:'🎉', step:4 },
   'CANCELADO':             { label:'Cancelado',           color:'#991b1b', bg:'var(--err-bg)', icon:'✕',  step:-1 },
 }
@@ -245,13 +247,13 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Progress bar */}
-                {!['CANCELADO','ENTREGADO'].includes(order.estado) && (
+                {!['CANCELADO','ENTREGADO','ENTREGA_FALLIDA'].includes(order.estado) && (
                   <div style={{ height:3, background:'var(--bg)' }}>
                     <div style={{ height:'100%', background:'var(--blue)', transition:'width .5s', width:
                       order.estado==='PENDIENTE_PAGO'||order.estado==='PENDIENTE_CONFIRMACION' ? '8%' :
                       order.estado==='PAGO_RECIBIDO'||order.estado==='CONFIRMADO' ? '35%' :
                       order.estado==='EN_PREPARACION' ? '62%' :
-                      order.estado==='EN_REPARTO' ? '85%' : '100%'
+                      order.estado==='EN_REPARTO'||order.estado==='LISTO_PARA_RECOGER' ? '85%' : '100%'
                     }}/>
                   </div>
                 )}
@@ -261,10 +263,12 @@ export default function OrdersPage() {
                   <div style={{ borderTop:'1px solid var(--border)', padding:'16px 18px', background:'#f9fbfe' }}>
 
                     {/* Timeline */}
-                    {order.estado !== 'CANCELADO' && (
+                    {!['CANCELADO','ENTREGA_FALLIDA'].includes(order.estado) && (
                       <div style={{ marginBottom:16 }}>
                         <div style={{ display:'flex', alignItems:'center' }}>
-                          {TL_STEPS.map((s, i) => {
+                          {TL_STEPS.map((s0, i) => {
+                            const s = i === 2 && order.metodo_entrega === 'pickup'
+                              ? { icon:'🏬', label:'Recoger' } : s0
                             const step = meta.step
                             const done = i < step
                             const curr = i === step

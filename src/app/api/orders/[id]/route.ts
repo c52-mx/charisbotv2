@@ -53,23 +53,28 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { estado, notas, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica } = await req.json()
+  const { estado, notas, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a } = await req.json()
 
-  // Solo permitir actualizar el monto a cobrar y/o la ubicación física, sin cambiar de estado
-  if (estado === undefined && (monto_total !== undefined || ubicacion_fisica !== undefined)) {
+  // Solo permitir actualizar el monto a cobrar, la ubicación física y/o el
+  // repartidor asignado, sin cambiar de estado (reasignación libre).
+  if (estado === undefined && (monto_total !== undefined || ubicacion_fisica !== undefined || asignado_a !== undefined)) {
     const updated = await queryOne<any>(
       `UPDATE public.pedidos
        SET monto_total = CASE WHEN $1::text IS NOT NULL THEN $2::numeric ELSE monto_total END,
            ubicacion_fisica = CASE WHEN $3::text IS NOT NULL THEN $4 ELSE ubicacion_fisica END,
+           asignado_a = CASE WHEN $6::text IS NOT NULL THEN $7::uuid ELSE asignado_a END,
+           asignado_en = CASE WHEN $6::text IS NOT NULL THEN NOW() ELSE asignado_en END,
            actualizado_en = NOW()
        WHERE id = $5
-       RETURNING id, monto_total, ubicacion_fisica`,
+       RETURNING id, monto_total, ubicacion_fisica, asignado_a`,
       [
         monto_total !== undefined ? 'set' : null,
         monto_total === null || monto_total === '' ? null : monto_total,
         ubicacion_fisica !== undefined ? 'set' : null,
         ubicacion_fisica || null,
         params.id,
+        asignado_a !== undefined ? 'set' : null,
+        asignado_a || null,
       ]
     )
     if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
@@ -78,7 +83,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const validStates = [
     'PENDIENTE_PAGO', 'PENDIENTE_CONFIRMACION', 'CONFIRMADO',
-    'EN_PREPARACION', 'POR_VALIDAR_SURTIDO', 'EN_REPARTO', 'ENTREGADO', 'CANCELADO',
+    'EN_PREPARACION', 'POR_VALIDAR_SURTIDO', 'EN_REPARTO', 'LISTO_PARA_RECOGER', 'ENTREGADO', 'CANCELADO',
   ]
   if (!validStates.includes(estado)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
@@ -87,23 +92,51 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'El motivo de cancelación es obligatorio' }, { status: 400 })
   }
 
-  const before = await queryOne<{ estado: string; metodo_pago: string }>(`SELECT estado, metodo_pago FROM public.pedidos WHERE id = $1`, [params.id])
+  const before = await queryOne<{ estado: string; metodo_pago: string; metodo_entrega: string }>(
+    `SELECT estado, metodo_pago, metodo_entrega FROM public.pedidos WHERE id = $1`, [params.id]
+  )
   if (!before) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   // Confirmar pago manual (PENDIENTE_PAGO→CONFIRMADO) y validar/rechazar surtido
-  // (POR_VALIDAR_SURTIDO→EN_REPARTO o →EN_PREPARACION) requieren el visto bueno
-  // de ventas/admin — almacén no puede autoconfirmarse estos dos pasos.
+  // (POR_VALIDAR_SURTIDO→EN_REPARTO/LISTO_PARA_RECOGER o →EN_PREPARACION)
+  // requieren el visto bueno de ventas/admin — almacén no puede
+  // autoconfirmarse estos pasos.
   const esConfirmacionPago = before.estado === 'PENDIENTE_PAGO' && estado === 'CONFIRMADO'
-  const esValidacionSurtido = before.estado === 'POR_VALIDAR_SURTIDO' && (estado === 'EN_REPARTO' || estado === 'EN_PREPARACION')
+  const esValidacionSurtido = before.estado === 'POR_VALIDAR_SURTIDO'
+    && (estado === 'EN_REPARTO' || estado === 'LISTO_PARA_RECOGER' || estado === 'EN_PREPARACION')
   if ((esConfirmacionPago || esValidacionSurtido) && !can(session, 'pagos_confirmar')) {
     return NextResponse.json({ error: 'Sin permiso para confirmar pago o validar surtido' }, { status: 403 })
   }
   if (estado === 'POR_VALIDAR_SURTIDO' && before.estado !== 'EN_PREPARACION') {
     return NextResponse.json({ error: 'Solo se puede pasar a "por validar" desde "en preparación"' }, { status: 400 })
   }
+  // Pickup nunca pasa por reparto, y envío nunca pasa por "listo para
+  // recoger" — cada metodo_entrega tiene un único destino válido al salir
+  // de la validación de surtido.
+  if (esValidacionSurtido && estado !== 'EN_PREPARACION') {
+    const destinoEsperado = before.metodo_entrega === 'pickup' ? 'LISTO_PARA_RECOGER' : 'EN_REPARTO'
+    if (estado !== destinoEsperado) {
+      return NextResponse.json({ error: `Este pedido (${before.metodo_entrega}) debe pasar a "${destinoEsperado}"` }, { status: 400 })
+    }
+  }
   const esRechazoSurtido = before.estado === 'POR_VALIDAR_SURTIDO' && estado === 'EN_PREPARACION'
   if (esRechazoSurtido && !motivo_rechazo_surtido?.trim()) {
     return NextResponse.json({ error: 'El motivo de rechazo es obligatorio' }, { status: 400 })
+  }
+
+  // Toda entrada a EN_REPARTO (validación inicial o reintento tras una
+  // entrega fallida) necesita un repartidor asignado.
+  if (estado === 'EN_REPARTO') {
+    if (!asignado_a) {
+      return NextResponse.json({ error: 'Selecciona un repartidor' }, { status: 400 })
+    }
+    const repartidor = await queryOne<{ tipo: string }>(
+      `SELECT r.tipo FROM public.usuarios u JOIN public.roles r ON r.clave = u.rol WHERE u.id = $1`,
+      [asignado_a]
+    )
+    if (repartidor?.tipo !== 'REPARTIDOR') {
+      return NextResponse.json({ error: 'El usuario seleccionado no es un repartidor' }, { status: 400 })
+    }
   }
 
   const updated = await queryOne<any>(
@@ -115,6 +148,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
          cancelado_en = CASE WHEN $1 = 'CANCELADO' THEN NOW() ELSE cancelado_en END,
          confirmado_en = CASE WHEN $1 = 'CONFIRMADO' AND confirmado_en IS NULL THEN NOW() ELSE confirmado_en END,
          motivo_rechazo_surtido = CASE WHEN $1 = 'EN_PREPARACION' THEN $6 ELSE NULL END,
+         asignado_a = CASE WHEN $1 = 'EN_REPARTO' THEN $7::uuid ELSE asignado_a END,
+         asignado_en = CASE WHEN $1 = 'EN_REPARTO' THEN NOW() ELSE asignado_en END,
          actualizado_en = NOW()
      WHERE id = $3
      RETURNING id, telefono, estado, resumen, numero_pedido`,
@@ -123,6 +158,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       monto_total === undefined || monto_total === '' ? null : monto_total,
       motivo_cancelacion || null,
       motivo_rechazo_surtido || null,
+      asignado_a || null,
     ]
   )
 

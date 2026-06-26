@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       ok: true,
       rol: user.rol,
+      rolTipo,
       nombre: user.nombre,
     })
 

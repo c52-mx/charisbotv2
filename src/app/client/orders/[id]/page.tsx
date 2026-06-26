@@ -9,12 +9,15 @@ const ESTADO_META: Record<string,{label:string;shortLabel:string;color:string;bg
   'CONFIRMADO':           {label:'Confirmado',        shortLabel:'Confirmado', color:'var(--blue)',bg:'#eff6ff',icon:'✓'},
   'EN_PREPARACION':       {label:'En preparación',    shortLabel:'Preparando', color:'#6b21a8',bg:'#fdf4ff',icon:'📦'},
   'EN_REPARTO':           {label:'En camino',         shortLabel:'En camino',  color:'#0369a1',bg:'#e0f2fe',icon:'🚚'},
+  'LISTO_PARA_RECOGER':   {label:'Listo para recoger', shortLabel:'Recoger',   color:'#0369a1',bg:'#e0f2fe',icon:'🏬'},
+  'ENTREGA_FALLIDA':      {label:'No pudimos entregarlo', shortLabel:'Reintentando', color:'#991b1b',bg:'var(--err-bg)',icon:'⚠️'},
   'ENTREGADO':            {label:'Entregado',         shortLabel:'Entregado',  color:'#15803d',bg:'var(--ok-bg)',icon:'🎉'},
   'CANCELADO':            {label:'Cancelado',         shortLabel:'Cancelado',  color:'#991b1b',bg:'var(--err-bg)',icon:'✕'},
   'PENDIENTE_CONFIRMACION':{label:'Por confirmar',    shortLabel:'Por confirmar', color:'#854d0e',bg:'#fefce8',icon:'⏱'},
 }
 
-const TIMELINE_STEPS = ['PENDIENTE_PAGO','PAGO_RECIBIDO','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO']
+const TIMELINE_STEPS_ENVIO  = ['PENDIENTE_PAGO','PAGO_RECIBIDO','CONFIRMADO','EN_PREPARACION','EN_REPARTO','ENTREGADO']
+const TIMELINE_STEPS_PICKUP = ['PENDIENTE_PAGO','PAGO_RECIBIDO','CONFIRMADO','EN_PREPARACION','LISTO_PARA_RECOGER','ENTREGADO']
 const MOTIVOS_CANCEL = ['Cambié de opinión', 'Encontré mejor precio', 'Error al pedir', 'Otro']
 const METODO_LABEL: Record<string,string> = {
   transferencia: 'Transferencia bancaria', efectivo: 'Efectivo',
@@ -128,8 +131,10 @@ export default function OrderDetailPage() {
   // al cliente se ve igual que "En preparación", sin saltos en el timeline.
   const estadoVisible = order.estado === 'POR_VALIDAR_SURTIDO' ? 'EN_PREPARACION' : order.estado
   const meta = ESTADO_META[estadoVisible] || {label:estadoVisible,color:'var(--txt2)',bg:'var(--bg)',icon:'•'}
+  const TIMELINE_STEPS = order.metodo_entrega === 'pickup' ? TIMELINE_STEPS_PICKUP : TIMELINE_STEPS_ENVIO
   const currentStep = TIMELINE_STEPS.indexOf(estadoVisible)
   const canCancel = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION'].includes(order.estado)
+  const esExcepcion = ['CANCELADO','ENTREGA_FALLIDA'].includes(order.estado)
   const items = order.pedido_json?.items || []
 
   return (
@@ -160,6 +165,12 @@ export default function OrderDetailPage() {
                 {order.estado === 'CANCELADO' && order.motivo_cancelacion && (
                   <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>Motivo: {order.motivo_cancelacion}</p>
                 )}
+                {order.estado === 'ENTREGA_FALLIDA' && (
+                  <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>
+                    {order.motivo_entrega_fallida ? `Motivo: ${order.motivo_entrega_fallida}. ` : ''}
+                    Nuestro equipo reprogramará la entrega.
+                  </p>
+                )}
               </div>
               {canCancel && (
                 <button onClick={() => { setCancelError(''); setShowConfirm(true) }}
@@ -170,7 +181,7 @@ export default function OrderDetailPage() {
             </div>
 
             {/* Progress timeline */}
-            {order.estado !== 'CANCELADO' && (
+            {!esExcepcion && (
               <div style={{ display:'flex', alignItems:'center', gap:0, overflowX:'auto' }}>
                 {TIMELINE_STEPS.map((s, i) => {
                   const done = i <= currentStep

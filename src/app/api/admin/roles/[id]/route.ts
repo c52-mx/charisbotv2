@@ -12,8 +12,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const rol = await queryOne<{ id: string; clave: string }>(
-    `SELECT id, clave FROM public.roles WHERE id = $1`, [params.id]
+  const rol = await queryOne<{ id: string; clave: string; tipo: string }>(
+    `SELECT id, clave, tipo FROM public.roles WHERE id = $1`, [params.id]
   )
   if (!rol) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
@@ -22,6 +22,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (permisos && rol.clave === 'ADMIN') {
     return NextResponse.json(
       { error: 'No se pueden editar los permisos de ADMIN — quedaría sin acceso al panel' },
+      { status: 400 }
+    )
+  }
+  if (permisos && rol.tipo === 'REPARTIDOR') {
+    return NextResponse.json(
+      { error: 'REPARTIDOR no usa la matriz de permisos — sus acciones están controladas por su propio portal' },
       { status: 400 }
     )
   }

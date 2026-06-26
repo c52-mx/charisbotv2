@@ -283,9 +283,11 @@ export default function LandingPage() {
   // Redirigir si ya hay sesión
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => {
-      const rol = d.user?.rol
-      if (['ADMIN','VENDEDOR','ALMACEN'].includes(rol)) router.push('/admin/orders')
-      else if (rol === 'CLIENTE') router.push('/client')
+      if (!d.user) return
+      const rolTipo = d.user.rolTipo || (d.user.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+      if (rolTipo === 'REPARTIDOR') router.push('/repartidor')
+      else if (rolTipo === 'CLIENTE') router.push('/client')
+      else router.push('/admin/orders')
     }).catch(() => {})
 
     // Scroll nav

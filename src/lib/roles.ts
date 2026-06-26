@@ -6,8 +6,8 @@ import { PERMISOS_DEFAULT, type Permiso } from '@/lib/auth-shared'
 // middleware no necesitan tocar la base de datos en cada request.
 export async function resolverPermisos(
   rolClave: string
-): Promise<{ tipo: 'INTERNO' | 'CLIENTE'; permisos: Partial<Record<Permiso, boolean>> }> {
-  const [rol] = await query<{ tipo: 'INTERNO' | 'CLIENTE' }>(
+): Promise<{ tipo: 'INTERNO' | 'CLIENTE' | 'REPARTIDOR'; permisos: Partial<Record<Permiso, boolean>> }> {
+  const [rol] = await query<{ tipo: 'INTERNO' | 'CLIENTE' | 'REPARTIDOR' }>(
     `SELECT tipo FROM public.roles WHERE clave = $1`, [rolClave]
   )
   if (!rol) {
@@ -24,9 +24,22 @@ export async function resolverPermisos(
   return { tipo: rol.tipo, permisos }
 }
 
-// Roles asignables a usuarios internos desde /admin/users.
-export async function listarRolesInternos(): Promise<{ clave: string; nombre: string }[]> {
+// Roles asignables a usuarios desde /admin/users — incluye REPARTIDOR
+// para poder crear esas cuentas con la misma pantalla, sin construir
+// una nueva.
+export async function listarRolesAsignables(): Promise<{ clave: string; nombre: string }[]> {
   return query<{ clave: string; nombre: string }>(
-    `SELECT clave, nombre FROM public.roles WHERE tipo = 'INTERNO' ORDER BY nombre`
+    `SELECT clave, nombre FROM public.roles WHERE tipo IN ('INTERNO', 'REPARTIDOR') ORDER BY nombre`
+  )
+}
+
+// Usuarios con un rol de tipo REPARTIDOR, para los selectores de
+// asignación/reasignación en /admin/orders.
+export async function listarRepartidores(): Promise<{ id: string; nombre: string }[]> {
+  return query<{ id: string; nombre: string }>(
+    `SELECT u.id, u.nombre FROM public.usuarios u
+     JOIN public.roles r ON r.clave = u.rol
+     WHERE r.tipo = 'REPARTIDOR' AND u.activo = true
+     ORDER BY u.nombre`
   )
 }

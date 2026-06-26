@@ -140,8 +140,10 @@ export default function LoginPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Credenciales incorrectas')
-      if (['ADMIN','VENDEDOR','ALMACEN'].includes(data.rol)) router.push('/admin/orders')
-      else router.push('/client')
+      const rolTipo = data.rolTipo || (data.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+      if (rolTipo === 'REPARTIDOR') router.push('/repartidor')
+      else if (rolTipo === 'CLIENTE') router.push('/client')
+      else router.push('/admin/orders')
     } catch (err: any) {
       setError(err.message)
     } finally {

@@ -9,10 +9,12 @@ import { can, type SessionLike } from '@/lib/auth-shared'
 // Vocabulario unificado con el seguimiento que ve el cliente
 // (client/orders/[id]/page.tsx) — antes este admin solo ofrecía estados
 // viejos (EN_PROCESO/COMPLETADO) que el cliente nunca mostraba.
-const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','ENTREGADO','CANCELADO']
+const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA','ENTREGADO','CANCELADO']
 const BADGE: Record<string,string> = {
   CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn', PENDIENTE_PAGO:'badge-warn',
-  EN_PREPARACION:'badge-blue', POR_VALIDAR_SURTIDO:'badge-warn', EN_REPARTO:'badge-blue', ENTREGADO:'badge-purple', CANCELADO:'badge-red',
+  EN_PREPARACION:'badge-blue', POR_VALIDAR_SURTIDO:'badge-warn', EN_REPARTO:'badge-blue',
+  LISTO_PARA_RECOGER:'badge-blue', ENTREGA_FALLIDA:'badge-red',
+  ENTREGADO:'badge-purple', CANCELADO:'badge-red',
   // legacy — pedidos históricos que aún tengan estos valores
   EN_PROCESO:'badge-blue', COMPLETADO:'badge-purple', PENDIENTE:'badge-warn',
 }
@@ -25,6 +27,9 @@ export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
   const [userRol, setUserRol] = useState<SessionLike>({ rol:'VENDEDOR' })
   useEffect(()=>{ fetch('/api/auth/me').then(r=>r.json()).then(d=>setUserRol(d.user || { rol:'VENDEDOR' })) },[])
+  const [repartidores, setRepartidores] = useState<{id:string;nombre:string}[]>([])
+  useEffect(()=>{ fetch('/api/admin/repartidores').then(r=>r.json()).then(d=>setRepartidores(d.data||[])).catch(()=>{}) },[])
+  const [repartidorSel, setRepartidorSel] = useState('')
   const [slaSurtido, setSlaSurtido] = useState({ tiempoHoras: 72, avisoHoras: 24 })
   useEffect(()=>{
     fetch('/api/client/config').then(r=>r.json()).then(d=>{
@@ -95,7 +100,7 @@ export default function OrdersPage() {
   }
 
   function requestStatusChange(id: string, estado: string, desde: string) {
-    setMotivoCancel(''); setMotivoRechazo(''); setConfirmError('')
+    setMotivoCancel(''); setMotivoRechazo(''); setConfirmError(''); setRepartidorSel('')
     setPendingChange({ id, estado, desde })
   }
 
@@ -103,6 +108,7 @@ export default function OrdersPage() {
     if (!pendingChange) return
     const { id, estado, desde } = pendingChange
     const esRechazoSurtido = desde === 'POR_VALIDAR_SURTIDO' && estado === 'EN_PREPARACION'
+    if (estado === 'EN_REPARTO' && !repartidorSel) { setConfirmError('Selecciona un repartidor'); return }
     setUpdating(true); setConfirmError('')
     try {
       const r = await fetch(`/api/orders/${id}`, {
@@ -111,6 +117,7 @@ export default function OrdersPage() {
           estado,
           motivo_cancelacion: estado==='CANCELADO' ? motivoCancel : undefined,
           motivo_rechazo_surtido: esRechazoSurtido ? motivoRechazo : undefined,
+          asignado_a: estado==='EN_REPARTO' ? repartidorSel : undefined,
         }),
       })
       const data = await r.json()
@@ -402,8 +409,9 @@ export default function OrdersPage() {
                   )}
                   {selected.estado === 'POR_VALIDAR_SURTIDO' && can(userRol,'pagos_confirmar') && (
                     <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-                      <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_REPARTO', selected.estado)}>
-                        ✅ Validar y despachar
+                      <button className="cbtn cbtn-primary" disabled={updating}
+                              onClick={() => requestStatusChange(selected.id, selected.metodo_entrega === 'pickup' ? 'LISTO_PARA_RECOGER' : 'EN_REPARTO', selected.estado)}>
+                        {selected.metodo_entrega === 'pickup' ? '✅ Listo para recoger' : '✅ Validar y despachar'}
                       </button>
                       <button className="cbtn cbtn-secondary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_PREPARACION', selected.estado)}>
                         ✕ Rechazar surtido
@@ -412,6 +420,44 @@ export default function OrdersPage() {
                   )}
                   {selected.estado === 'POR_VALIDAR_SURTIDO' && !can(userRol,'pagos_confirmar') && (
                     <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:12 }}>⏳ Esperando que ventas/admin valide el surtido.</p>
+                  )}
+
+                  {['EN_REPARTO','ENTREGA_FALLIDA'].includes(selected.estado) && (
+                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
+                      🛵 Repartidor: <strong>{repartidores.find(r=>r.id===selected.asignado_a)?.nombre || (selected.asignado_a ? 'Sin nombre' : 'Sin asignar')}</strong>
+                      {can(userRol,'pagos_confirmar') && (
+                        <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                          <select className="cinput" style={{ flex:1 }} value={repartidorSel} onChange={e=>setRepartidorSel(e.target.value)}>
+                            <option value="">Reasignar a...</option>
+                            {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                          </select>
+                          <button className="cbtn cbtn-secondary" disabled={!repartidorSel}
+                                  onClick={async () => {
+                                    await fetch(`/api/orders/${selected.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ asignado_a: repartidorSel }) })
+                                    setRepartidorSel(''); await loadDetail(selected.id); await load()
+                                  }}>
+                            Asignar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selected.estado === 'ENTREGA_FALLIDA' && (
+                    <>
+                      {selected.motivo_entrega_fallida && (
+                        <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
+                          ✕ Entrega fallida: {selected.motivo_entrega_fallida}
+                        </div>
+                      )}
+                      {can(userRol,'pagos_confirmar') && (
+                        <div style={{ marginBottom:12 }}>
+                          <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_REPARTO', selected.estado)}>
+                            🔁 Reintentar reparto
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {!(ESTADOS_GATEADOS.includes(selected.estado) && !can(userRol,'pagos_confirmar')) && (
@@ -480,6 +526,18 @@ export default function OrdersPage() {
                     Motivo de rechazo *
                   </label>
                   <textarea className="cinput" style={{ minHeight:64 }} value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="¿Qué está mal con el surtido?" />
+                </div>
+              )}
+              {pendingChange.estado === 'EN_REPARTO' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                    Repartidor *
+                  </label>
+                  <select className="cinput" value={repartidorSel} onChange={e => setRepartidorSel(e.target.value)}>
+                    <option value="">Selecciona...</option>
+                    {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                  </select>
+                  {!repartidores.length && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>No hay repartidores activos — crea uno en Usuarios.</p>}
                 </div>
               )}
               {confirmError && (
