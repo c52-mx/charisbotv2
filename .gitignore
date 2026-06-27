@@ -24,6 +24,9 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
+# ── Claude Code (personal, no compartir) ────────────────────────────
+.claude/settings.local.json
+
 # ── TypeScript ───────────────────────────────────────────────────────
 *.tsbuildinfo
 next-env.d.ts
