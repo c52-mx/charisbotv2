@@ -159,7 +159,7 @@ export default function LandingPage() {
               {['#f87171','#fbbf24','#34d399'].map(c => <div key={c} style={{ width:10, height:10, borderRadius:'50%', background:c }}/>)}
             </div>
             <div style={{ flex:1, background:'#e2eaf4', borderRadius:6, height:22, maxWidth:260, margin:'0 auto', display:'flex', alignItems:'center', paddingLeft:10, fontSize:11, color:'#8aaac4' }}>
-              portal.codigo52-crm.cloud
+              charis.com.mx
             </div>
           </div>
           <div style={{ padding:20, background:'#f5f8fc' }}>

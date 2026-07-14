@@ -4,7 +4,7 @@ import { query } from './db'
 
 const RESEND_API_KEY  = process.env.RESEND_API_KEY  || ''
 const FROM_EMAIL      = process.env.RESEND_FROM_EMAIL || 'noreply@charis.com.mx'
-const APP_URL         = process.env.NEXT_PUBLIC_APP_URL || 'https://portal.codigo52-crm.cloud'
+const APP_URL         = process.env.NEXT_PUBLIC_APP_URL || 'https://charis.com.mx'
 
 interface SendEmailParams {
   to:      string
