@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
+import { logAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     vals
   )
   if (!rows.length) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  await logAdmin({ accion: 'DESCUENTO_EDITAR', entidad: params.id, detalle: { piezas_minimas, porcentaje, activo }, realizado_por: session.sub })
   return NextResponse.json(rows[0])
 }
 
@@ -37,6 +39,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!session || !can(session, 'config_editar')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
+  await logAdmin({ accion: 'DESCUENTO_ELIMINAR', entidad: params.id, realizado_por: session.sub })
   await query(`DELETE FROM public.descuentos_volumen WHERE id = $1`, [params.id])
   return NextResponse.json({ ok: true })
 }

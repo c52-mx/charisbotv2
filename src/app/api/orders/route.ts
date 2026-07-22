@@ -3,6 +3,7 @@ import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarConfirmacion } from '@/lib/whatsapp'
 import { resolveCaseId, liberarPedidosVencidos, checkStockBajoYNotificar, registrarMovimiento } from '@/lib/stock'
+import { calcularTotal } from '@/lib/pricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,6 +92,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'telefono e items son requeridos' }, { status: 400 })
   }
 
+  const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'
+
+  const totalPiezas = items.reduce((s: number, it: any) => s + (it.cantidad || 0), 0)
+  const tipos = Array.from(new Set(items.map((it: any) => it.tipo_case).filter(Boolean)))
+  const tipoPred = tipos.length === 1 ? tipos[0] : 'MIXTO'
+  const resumen = `${items.length} modelos, ${totalPiezas} piezas${notas ? ` · ${notas}` : ''}`
+
+  // Resolver precio desde catálogo (servidor — ignora lo que venga en el body)
+  const itemsConModelo = items.filter((it: any) => (it.modelo || '').trim())
+  let precioMap = new Map<string, number>()
+  if (itemsConModelo.length > 0) {
+    const preciosRows = await query<{ tipo_case: string; modelo: string; color: string; precio: number }>(
+      `SELECT tipo_case, modelo, color, precio FROM public.catalogo_cases
+       WHERE (tipo_case, modelo, color) IN (${itemsConModelo.map((_: any, i: number) => `($${i * 3 + 1},$${i * 3 + 2},$${i * 3 + 3})`).join(',')})`,
+      itemsConModelo.flatMap((it: any) => [
+        (it.tipo_case || tipoPred).toUpperCase(),
+        it.modelo.toUpperCase().trim(),
+        colorNorm(it.color),
+      ])
+    )
+    precioMap = new Map(preciosRows.map(r => [`${r.tipo_case}__${r.modelo}__${r.color}`, Number(r.precio)]))
+  }
+
+  // Calcular total con descuentos por volumen vigentes
+  const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
+    `SELECT piezas_minimas, porcentaje FROM public.descuentos_volumen WHERE activo = true`, []
+  )
+  const itemsParaTotal = items.map((it: any) => ({
+    precio: precioMap.get(`${(it.tipo_case || tipoPred).toUpperCase()}__${(it.modelo || '').toUpperCase().trim()}__${colorNorm(it.color)}`) ?? 0,
+    cantidad: it.cantidad || 0,
+  }))
+  const { total: montoTotal } = calcularTotal(itemsParaTotal, tiers)
+
   // Obtener o crear conversación
   const conv = await queryOne<any>(
     `INSERT INTO public.conversaciones (telefono) VALUES ($1)
@@ -99,15 +133,10 @@ export async function POST(req: NextRequest) {
     [telefono]
   )
 
-  const totalPiezas = items.reduce((s: number, it: any) => s + (it.cantidad || 0), 0)
-  const tipos = Array.from(new Set(items.map((it: any) => it.tipo_case).filter(Boolean)))
-  const tipoPred = tipos.length === 1 ? tipos[0] : 'MIXTO'
-  const resumen = `${items.length} modelos, ${totalPiezas} piezas${notas ? ` · ${notas}` : ''}`
-
   const pedido = await queryOne<any>(
     `INSERT INTO public.pedidos
-       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen, confirmado_en)
-     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL', NOW())
+       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen, confirmado_en, monto_total, creado_por)
+     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL', NOW(), $7, $8)
      RETURNING id`,
     [
       conv?.id,
@@ -116,24 +145,27 @@ export async function POST(req: NextRequest) {
       requiere_firma ?? false,
       resumen,
       JSON.stringify({ items }),
+      montoTotal,
+      session.sub,
     ]
   )
 
-  // Insertar items
+  // Insertar items con precio congelado + descontar stock
   const stockNotifyCaseIds: string[] = []
   for (const item of items) {
     const tipoCaseItem = (item.tipo_case || tipoPred).toUpperCase()
     const modeloItem   = (item.modelo || '').toUpperCase().trim()
-    const colorItem    = (item.color || 'NEGRO').toUpperCase()
+    const colorItem    = colorNorm(item.color)
     const cantidadItem = item.cantidad || 0
+    const precioItem   = precioMap.get(`${tipoCaseItem}__${modeloItem}__${colorItem}`) ?? 0
 
     await queryOne(
-      `INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [pedido!.id, modeloItem, tipoCaseItem, colorItem, cantidadItem]
+      `INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad, precio_unitario)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [pedido!.id, modeloItem, tipoCaseItem, colorItem, cantidadItem, precioItem]
     )
 
-    // Pedido manual: ya nace CONFIRMADO, así que el stock se descuenta directo (sin reserva).
+    // Pedido manual: nace CONFIRMADO, el stock se descuenta directo (sin reserva).
     const caseId = await resolveCaseId(tipoCaseItem, modeloItem, colorItem)
     if (caseId && cantidadItem > 0) {
       const [updatedCase] = await query<{ stock: number }>(

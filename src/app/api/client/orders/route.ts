@@ -141,14 +141,14 @@ export async function POST(req: NextRequest) {
             conversacion_id, telefono, tipo_case, estado,
             requiere_firma, resumen, pedido_json,
             metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-            monto_total, metodo_entrega, creado_en
-          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, NOW())
+            monto_total, metodo_entrega, creado_en, creado_por
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, NOW(), $12)
           RETURNING id, numero_pedido
         `, [
           conv.id, session.email, tipo, resumen,
           JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
           referencia_pago || null, JSON.stringify(direccion_entrega || {}),
-          notas_cliente || null, montoTotal, entrega,
+          notas_cliente || null, montoTotal, entrega, session.sub,
         ])
 
         if (itemsConPrecio.length > 0) {
@@ -161,9 +161,9 @@ export async function POST(req: NextRequest) {
         }
 
         await tx(`
-          INSERT INTO public.pedido_timeline (pedido_id, estado, nota)
-          VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente')
-        `, [p.id])
+          INSERT INTO public.pedido_timeline (pedido_id, estado, nota, realizado_por)
+          VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente', $2)
+        `, [p.id, session.sub])
 
         await convertirCarritoAPedidoTx(tx, session.email, p.id, itemsConCaseId, ttlPago)
 

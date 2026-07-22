@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { queryOne } from '@/lib/db'
 import { signToken } from '@/lib/auth'
 import { resolverPermisos } from '@/lib/roles'
+import { logSesion } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
@@ -29,8 +30,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
     }
 
-    // Actualizar último acceso
+    // Actualizar último acceso y registrar sesión
     await queryOne('UPDATE public.usuarios SET ultimo_acceso = NOW() WHERE id = $1', [user.id])
+    await logSesion({
+      usuario_id: user.id,
+      email: user.email,
+      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+      user_agent: req.headers.get('user-agent'),
+    })
 
     const { tipo: rolTipo, permisos } = await resolverPermisos(user.rol)
 

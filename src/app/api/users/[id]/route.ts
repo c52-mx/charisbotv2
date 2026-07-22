@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { listarRolesAsignables } from '@/lib/roles'
+import { logAdmin } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
@@ -30,5 +31,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   vals.push(params.id)
   const row = await queryOne<any>(
     `UPDATE public.usuarios SET ${fields.join(',')} WHERE id=$${i} RETURNING id,nombre,email,rol,activo`, vals)
+  const cambios: Record<string, any> = {}
+  if (nombre   !== undefined) cambios.nombre = nombre
+  if (rol      !== undefined) cambios.rol = rol
+  if (activo   !== undefined) cambios.activo = activo
+  if (password !== undefined) cambios.password = '[cambiado]'
+  await logAdmin({ accion: 'USUARIO_EDITAR', entidad: params.id, detalle: cambios, realizado_por: s.sub })
   return NextResponse.json({ ok:true, data:row })
 }

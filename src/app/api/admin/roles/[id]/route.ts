@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { PERMISO_KEYS, type Permiso } from '@/lib/auth-shared'
+import { logAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (nombre !== undefined) {
     await query(`UPDATE public.roles SET nombre = $1 WHERE id = $2`, [nombre.trim(), params.id])
+    await logAdmin({ accion: 'ROL_RENOMBRAR', entidad: rol.clave, detalle: { nombre: nombre.trim() }, realizado_por: session.sub })
   }
 
   if (permisos) {
@@ -45,6 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         [params.id, permiso as Permiso, !!permisos[permiso]]
       )
     }
+    await logAdmin({ accion: 'ROL_PERMISOS_EDITAR', entidad: rol.clave, detalle: permisos, realizado_por: session.sub })
   }
 
   return NextResponse.json({ ok: true })
@@ -71,6 +74,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: `Hay ${count} usuario(s) con este rol — reasígnalos antes de eliminarlo` }, { status: 409 })
   }
 
+  await logAdmin({ accion: 'ROL_ELIMINAR', entidad: rol.clave, realizado_por: session.sub })
   await query(`DELETE FROM public.roles WHERE id = $1`, [params.id])
   return NextResponse.json({ ok: true })
 }

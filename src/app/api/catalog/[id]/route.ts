@@ -1,8 +1,9 @@
 // src/app/api/catalog/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { query } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { registrarMovimiento } from '@/lib/stock'
+import { logCatalogo } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,9 +44,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
   }
 
-  const stockAnterior = stock !== undefined
-    ? await query<{ stock: number }>(`SELECT stock FROM public.catalogo_cases WHERE case_id = $1`, [params.id])
-    : null
+  // Leer valores actuales antes del update para detectar cambios
+  const current = await queryOne<any>(
+    `SELECT tipo_case, modelo, color, activo, identificador, ubicacion, stock, precio
+     FROM public.catalogo_cases WHERE case_id = $1`,
+    [params.id]
+  )
 
   vals.push(params.id)
   const rows = await query(
@@ -55,12 +59,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   if (!rows.length) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  if (stockAnterior?.[0] && stockAnterior[0].stock !== rows[0].stock) {
-    const delta = rows[0].stock - stockAnterior[0].stock
+  // Movimiento de stock si cambió
+  if (current && stock !== undefined && current.stock !== rows[0].stock) {
+    const delta = rows[0].stock - current.stock
     await registrarMovimiento({
       case_id: params.id, tipo: 'AJUSTE', cantidad: delta, stock_resultante: rows[0].stock,
       motivo: 'Ajuste manual desde catálogo', realizado_por: session.sub,
     })
+  }
+
+  // Bitácora de catálogo: un registro por cada campo que cambió
+  if (current) {
+    const camposAudit = ['tipo_case', 'modelo', 'color', 'activo', 'identificador', 'ubicacion', 'stock', 'precio'] as const
+    for (const campo of camposAudit) {
+      if (body[campo] === undefined) continue
+      const prev = current[campo]
+      const next = rows[0][campo]
+      if (String(prev ?? '') !== String(next ?? '')) {
+        await logCatalogo({ case_id: params.id, accion: 'EDITAR', campo, valor_anterior: prev, valor_nuevo: next, realizado_por: session.sub })
+      }
+    }
   }
 
   return NextResponse.json(rows[0])
@@ -73,6 +91,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
+  await logCatalogo({ case_id: params.id, accion: 'ELIMINAR', realizado_por: session.sub })
   await query(`DELETE FROM public.catalogo_cases WHERE case_id = $1`, [params.id])
   return NextResponse.json({ ok: true })
 }

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
+import { logAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,7 @@ export async function PATCH(req: NextRequest) {
        ON CONFLICT (clave) DO UPDATE SET valor = $2, actualizado_en = NOW()`,
       [clave, String(valor ?? '')]
     )
+    await logAdmin({ accion: 'CONFIG_CAMBIAR', entidad: clave, detalle: { valor: String(valor ?? '') }, realizado_por: session.sub })
   }
 
   return NextResponse.json({ ok: true })

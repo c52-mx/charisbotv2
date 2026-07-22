@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { registrarMovimiento } from '@/lib/stock'
+import { logCatalogo } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -156,6 +157,13 @@ export async function POST(req: NextRequest) {
       motivo: 'Alta de producto', realizado_por: session.sub,
     })
   }
+
+  await logCatalogo({
+    case_id: rows[0].case_id,
+    accion: 'CREAR',
+    valor_nuevo: JSON.stringify({ precio: precioVal, stock: stockVal }),
+    realizado_por: session.sub,
+  })
 
   return NextResponse.json({
     ...rows[0],

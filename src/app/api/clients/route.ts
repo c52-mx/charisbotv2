@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { logCliente } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,17 +58,35 @@ export async function POST(req: NextRequest) {
   const { nombre, telefono, email, notas } = await req.json()
   if (!telefono) return NextResponse.json({ error: 'Teléfono requerido' }, { status: 400 })
 
-  const row = await queryOne(
-    `INSERT INTO public.clientes (nombre, telefono, email, notas)
-     VALUES ($1, $2, $3, $4)
+  // Leer estado previo para poder detectar si es alta o edición
+  const existente = await queryOne<any>(
+    `SELECT id, nombre, email, notas FROM public.clientes WHERE telefono = $1`,
+    [telefono]
+  )
+
+  const row = await queryOne<any>(
+    `INSERT INTO public.clientes (nombre, telefono, email, notas, creado_por)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (telefono) DO UPDATE
        SET nombre = EXCLUDED.nombre,
            email  = EXCLUDED.email,
            notas  = EXCLUDED.notas,
            actualizado_en = NOW()
      RETURNING *`,
-    [nombre || null, telefono, email || null, notas || null]
+    [nombre || null, telefono, email || null, notas || null, session.sub]
   )
+
+  const accion = existente ? 'EDITAR' : 'CREAR'
+  await logCliente({
+    cliente_id: row.id,
+    telefono,
+    accion,
+    campos_antes: existente
+      ? { nombre: existente.nombre, email: existente.email, notas: existente.notas }
+      : null,
+    campos_despues: { nombre: row.nombre, email: row.email, notas: row.notas },
+    realizado_por: session.sub,
+  })
 
   return NextResponse.json({ ok: true, data: row }, { status: 201 })
 }

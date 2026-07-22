@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
+import { logAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,5 +39,6 @@ export async function POST(req: NextRequest) {
   if (!rows.length) {
     return NextResponse.json({ error: 'Ya existe una franja con ese mínimo de piezas' }, { status: 409 })
   }
+  await logAdmin({ accion: 'DESCUENTO_CREAR', entidad: String(piezas), detalle: { piezas_minimas: piezas, porcentaje: pct }, realizado_por: session.sub })
   return NextResponse.json(rows[0], { status: 201 })
 }
