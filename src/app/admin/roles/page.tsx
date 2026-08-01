@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 const GRUPOS: { titulo: string; claves: string[] }[] = [
   { titulo: 'General',   claves: ['dashboard'] },
@@ -26,7 +27,7 @@ interface Rol {
 }
 
 export default function RolesPage() {
-  const [dark] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const { dark } = useContext(ThemeContext)
   const tv = getThemeVars(dark)
   const [roles, setRoles] = useState<Rol[]>([])
   const [loading, setLoading] = useState(true)

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { CharisAppIcon, CharisLogotipo } from '@/components/CharisLogo'
 import { can, type UserRol, type Permiso } from '@/lib/auth-shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 const NAV_ITEMS: { href:string; label:string; icon:string; exact:boolean; perm:Permiso }[] = [
   { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  perm:'dashboard' },
@@ -224,7 +225,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main content */}
         <main className="main-scroll">
-          <div className="main-pad page-anim">{children}</div>
+          <div className="main-pad page-anim">
+            <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
+              {children}
+            </ThemeContext.Provider>
+          </div>
         </main>
       </div>
     </div>

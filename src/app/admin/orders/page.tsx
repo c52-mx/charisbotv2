@@ -54,7 +54,7 @@ export default function OrdersPage() {
   const [selected, setSelected] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [updating, setUpdating] = useState(false)
-  const [filters,  setFilters]  = useState({ estado:'', origen:'', telefono:'' })
+  const [filters,  setFilters]  = useState({ estado:'', origen:'', q:'' })
   const [montoInput, setMontoInput] = useState('')
   const [savingMonto, setSavingMonto] = useState(false)
   const [ubicacionInput, setUbicacionInput] = useState('')
@@ -69,9 +69,9 @@ export default function OrdersPage() {
   const load = useCallback(async () => {
     setLoading(true)
     const q = new URLSearchParams({ page: String(page), limit:'20' })
-    if (filters.estado)   q.set('estado',   filters.estado)
-    if (filters.origen)   q.set('origen',   filters.origen)
-    if (filters.telefono) q.set('telefono', filters.telefono)
+    if (filters.estado) q.set('estado', filters.estado)
+    if (filters.origen) q.set('origen', filters.origen)
+    if (filters.q)      q.set('q',      filters.q)
     const r = await fetch(`/api/orders?${q}`)
     const d = await r.json()
     setOrders(d.data || []); setTotal(d.total || 0); setLoading(false)
@@ -170,8 +170,8 @@ export default function OrdersPage() {
 
       {/* Filters */}
       <div className="ccard" style={{ padding:'14px 16px', marginBottom:14, display:'flex', flexWrap:'wrap', gap:10 }}>
-        <input className="cinput" style={{ flex:1, minWidth:180 }} placeholder="Buscar teléfono..."
-               value={filters.telefono} onChange={e => setFilters(f => ({ ...f, telefono: e.target.value }))} />
+        <input className="cinput" style={{ flex:1, minWidth:180 }} placeholder="Buscar por nombre, teléfono o # pedido..."
+               value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
         <div style={{ width:200 }}>
           <Combo
             value={filters.estado}

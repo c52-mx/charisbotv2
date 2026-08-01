@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
@@ -19,15 +19,37 @@ const BADGE_CLASS: Record<string,string> = {
   COMPLETADO:'badge-purple', CANCELADO:'badge-red',
 }
 
-export default function DashboardPage() {
-  const { dark }         = useContext(ThemeContext)
-  const tv               = getThemeVars(dark)
-  const [data,setData]   = useState<any>(null)
-  const [loading,setLoading] = useState(true)
+type Periodo = 7 | 30
 
-  useEffect(() => {
-    fetch('/api/dashboard').then(r=>r.json()).then(d=>{setData(d);setLoading(false)})
-  },[])
+export default function DashboardPage() {
+  const { dark }             = useContext(ThemeContext)
+  const tv                   = getThemeVars(dark)
+  const [data,setData]       = useState<any>(null)
+  const [loading,setLoading] = useState(true)
+  const [periodo, setPeriodo] = useState<Periodo>(7)
+  const [diaDetalle, setDiaDetalle] = useState<string|null>(null)
+  const [diaOrders, setDiaOrders]   = useState<any[]>([])
+  const [loadingDia, setLoadingDia] = useState(false)
+
+  const loadData = useCallback(async (p: Periodo) => {
+    setLoading(true)
+    fetch(`/api/dashboard?dias=${p}`).then(r=>r.json()).then(d=>{setData(d);setLoading(false)})
+  }, [])
+
+  useEffect(() => { loadData(periodo) }, [periodo])
+
+  async function handleBarClick(entry: any) {
+    if (!entry?.activePayload?.[0]?.payload?.rawFecha) return
+    const fecha = entry.activePayload[0].payload.rawFecha
+    setDiaDetalle(fecha)
+    setLoadingDia(true)
+    const desde = fecha
+    const hasta = format(addDays(new Date(fecha), 1), 'yyyy-MM-dd')
+    const r = await fetch(`/api/orders?fecha_desde=${desde}&fecha_hasta=${hasta}&limit=20`)
+    const d = await r.json()
+    setDiaOrders(d.data || [])
+    setLoadingDia(false)
+  }
 
   if (loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:64}}>
@@ -37,6 +59,7 @@ export default function DashboardPage() {
 
   const st     = data?.stats || {}
   const porDia = (data?.porDia||[]).map((d:any)=>({
+    rawFecha: d.fecha,
     fecha: format(new Date(d.fecha),'dd MMM',{locale:es}),
     pedidos: parseInt(d.pedidos),
   }))
@@ -80,6 +103,14 @@ export default function DashboardPage() {
           .dash-stat { padding:12px 14px; }
           .dash-stat-val { font-size:24px; }
         }
+
+        /* ── Periodo tabs ── */
+        .periodo-tab { padding:5px 14px; border-radius:8px; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--txt2); transition:all .15s; }
+        .periodo-tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+        .periodo-tab:hover:not(.active) { background:var(--bg4); color:var(--txt); }
+
+        /* ── Bar hover ── */
+        .recharts-bar-rectangle { cursor: pointer; }
       `}</style>
 
       {/* Header */}
@@ -111,15 +142,60 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="dash-charts">
         <div className="ccard" style={{padding:20,minWidth:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:16}}>Pedidos — últimos 7 días</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:8,flexWrap:'wrap'}}>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
+              Pedidos por día
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              {([7,30] as Periodo[]).map(p=>(
+                <button key={p} className={`periodo-tab${periodo===p?' active':''}`} onClick={()=>{setPeriodo(p);setDiaDetalle(null)}}>
+                  {p} días
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={porDia} barSize={24}>
+            <BarChart data={porDia} barSize={periodo===7?24:12} onClick={handleBarClick}>
               <XAxis dataKey="fecha" tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false} width={24}/>
               <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:12}} cursor={{fill:'rgba(26,143,227,0.06)'}}/>
               <Bar dataKey="pedidos" fill="var(--blue3)" radius={[5,5,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
+          <p style={{fontSize:10,color:'var(--txt3)',marginTop:8}}>Haz clic en una barra para ver los pedidos de ese día.</p>
+
+          {/* Día detalle */}
+          {diaDetalle && (
+            <div style={{marginTop:14,borderTop:'1px solid var(--border)',paddingTop:14}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em'}}>
+                  {format(new Date(diaDetalle),"dd 'de' MMMM",{locale:es})} — {diaOrders.length} pedido{diaOrders.length!==1?'s':''}
+                </span>
+                <button onClick={()=>setDiaDetalle(null)} style={{background:'none',border:'none',color:'var(--txt3)',cursor:'pointer',fontSize:14}}>✕</button>
+              </div>
+              {loadingDia ? (
+                <div style={{display:'flex',justifyContent:'center',padding:16}}>
+                  <div style={{width:18,height:18,borderRadius:'50%',border:'2px solid rgba(26,143,227,0.2)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite'}}/>
+                </div>
+              ) : diaOrders.length === 0 ? (
+                <div style={{fontSize:12,color:'var(--txt3)',textAlign:'center',padding:8}}>Sin pedidos ese día</div>
+              ) : (
+                <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:220,overflowY:'auto'}}>
+                  {diaOrders.map((p:any,i:number)=>(
+                    <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderTop:i>0?'1px solid var(--border)':'none',gap:8}}>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontSize:12,fontWeight:500,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.cliente_nombre||p.telefono}</div>
+                        <div style={{fontSize:10,color:'var(--txt3)',fontFamily:'monospace'}}>#{p.id.slice(0,8).toUpperCase()}</div>
+                      </div>
+                      <span className={`badge ${BADGE_CLASS[p.estado]||'badge-warn'}`} style={{fontSize:10,flexShrink:0}}>
+                        {p.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="ccard" style={{padding:20,minWidth:0}}>

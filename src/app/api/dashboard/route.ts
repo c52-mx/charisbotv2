@@ -52,13 +52,17 @@ export async function GET(req: NextRequest) {
     `),
   ])
 
-  // Pedidos por día (últimos 7 días)
+  // Pedidos por día — período configurable (días, o mes específico)
+  const { searchParams } = new URL(req.url)
+  const diasParam = parseInt(searchParams.get('dias') || '7')
+  const dias = [7, 30].includes(diasParam) ? diasParam : 7
+
   const porDia = await query(`
     SELECT
       DATE(creado_en) as fecha,
       COUNT(*) as pedidos
     FROM public.pedidos
-    WHERE creado_en >= NOW() - INTERVAL '7 days'
+    WHERE creado_en >= NOW() - INTERVAL '${dias} days'
     GROUP BY DATE(creado_en)
     ORDER BY fecha
   `)
@@ -75,6 +79,7 @@ export async function GET(req: NextRequest) {
     topModelos,
     ultimosPedidos,
     porDia,
+    dias,
     stockBajo: parseInt(stockBajo?.count || '0'),
     ventasMes: ventasMes.totalVentas,
   })

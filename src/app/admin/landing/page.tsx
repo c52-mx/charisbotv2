@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 interface Promo {
   id: string
@@ -16,7 +17,7 @@ interface Promo {
 const EMPTY = { imagen_url: '', titulo: '', subtitulo: '', cta_label: '', cta_href: '', orden: '0' }
 
 export default function LandingPage() {
-  const [dark]    = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const { dark }  = useContext(ThemeContext)
   const tv        = getThemeVars(dark)
   const [items,   setItems]   = useState<Promo[]>([])
   const [loading, setLoading] = useState(true)

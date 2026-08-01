@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { registrarMovimiento } from '@/lib/stock'
-import { logCatalogo } from '@/lib/audit'
+import { logCatalogo, logAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -170,4 +170,31 @@ export async function POST(req: NextRequest) {
     identificador: rows[0].identificador ?? null,
     ubicacion:     rows[0].ubicacion     ?? null,
   }, { status: 201 })
+}
+
+// ── DELETE /api/catalog — borra TODOS los items del catálogo ──────────
+// Requiere el header X-Confirm: BORRAR_TODO para evitar accidentes.
+export async function DELETE(req: NextRequest) {
+  const session = await getSession(req)
+  if (!session || !can(session, 'catalogo_editar')) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
+  const confirm = req.headers.get('x-confirm')
+  if (confirm !== 'BORRAR_TODO') {
+    return NextResponse.json({ error: 'Confirmación requerida' }, { status: 400 })
+  }
+
+  const rows = await query(`SELECT COUNT(*) as total FROM public.catalogo_cases`, [])
+  const total = parseInt(rows[0]?.total || '0')
+
+  await query(`DELETE FROM public.catalogo_cases`, [])
+
+  await logAdmin({
+    accion: 'CATALOGO_BORRAR_TODO',
+    detalle: { total_eliminados: total },
+    realizado_por: session.sub,
+  })
+
+  return NextResponse.json({ ok: true, eliminados: total })
 }

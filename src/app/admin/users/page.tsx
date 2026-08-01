@@ -1,12 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 const ROL_STYLE: Record<string,{badgeClass:string}> = {
   ADMIN:     {badgeClass:'badge-blue'},
   VENDEDOR:  {badgeClass:'badge-ok'},
   ALMACEN:   {badgeClass:'badge-warn'},
   REPARTIDOR:{badgeClass:'badge-purple'},
+  CLIENTE:   {badgeClass:'badge-gray'},
 }
 const ROL_DESC: Record<string,string> = {
   ADMIN:      '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
@@ -17,7 +19,7 @@ const ROL_DESC: Record<string,string> = {
 const empty = {nombre:'',email:'',password:'',rol:''}
 
 export default function UsersPage() {
-  const [dark]         = useState(() => typeof window!=='undefined' ? localStorage.getItem('charis-theme')!=='light' : true)
+  const { dark }       = useContext(ThemeContext)
   const [users,setUsers]       = useState<any[]>([])
   const [roles,setRoles]       = useState<{clave:string;nombre:string}[]>([])
   const [loading,setLoading]   = useState(true)

@@ -1,13 +1,14 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useContext } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 type Tab = 'pedidos' | 'inventario' | 'ventas'
 
 const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA','ENTREGADO','CANCELADO']
 
 export default function ReportesPage() {
-  const [dark]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const { dark } = useContext(ThemeContext)
   const tv       = getThemeVars(dark)
   const [tab, setTab] = useState<Tab>('pedidos')
   const [desde, setDesde] = useState('')

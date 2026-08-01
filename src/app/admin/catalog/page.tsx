@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 import { can, type SessionLike } from '@/lib/auth-shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface Product {
@@ -36,7 +37,7 @@ const EMPTY_FORM: FormState = {
 
 // ── Page ──────────────────────────────────────────────────────────────
 export default function CatalogPage() {
-  const [dark,      setDark]      = useState(true)
+  const { dark }               = useContext(ThemeContext)
   const [userRol,   setUserRol]   = useState<SessionLike>({ rol:'VENDEDOR' })
   const [items,     setItems]     = useState<Product[]>([])
   const [total,     setTotal]     = useState(0)
@@ -49,7 +50,9 @@ export default function CatalogPage() {
 
   // Modal state
   const [modal,     setModal]     = useState<'create' | 'edit' | null>(null)
-  const [showImport, setShowImport] = useState(false)
+  const [showImport, setShowImport]   = useState(false)
+  const [showDeleteAll, setShowDeleteAll] = useState(false)
+  const [deletingAll, setDeletingAll] = useState(false)
   const [form,      setForm]      = useState<FormState>(EMPTY_FORM)
   const [editId,    setEditId]    = useState<string | null>(null)
   const [saving,    setSaving]    = useState(false)
@@ -59,10 +62,7 @@ export default function CatalogPage() {
   const tiposOpts = tiposList.map(t => ({ value: t, label: t }))
 
   // ── Init ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const saved = localStorage.getItem('charis-theme')
-    if (saved) setDark(saved === 'dark')
-  }, [])
+  // theme via ThemeContext (provided by admin layout)
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user || { rol:'VENDEDOR' }))
@@ -165,6 +165,21 @@ export default function CatalogPage() {
     fetchItems()
   }
 
+  // ── Delete all ───────────────────────────────────────────────────
+  async function deleteAll() {
+    setDeletingAll(true)
+    try {
+      const res = await fetch('/api/catalog', { method: 'DELETE', headers: { 'x-confirm': 'BORRAR_TODO' } })
+      if (!res.ok) throw new Error((await res.json()).error)
+      setShowDeleteAll(false)
+      fetchItems()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setDeletingAll(false)
+    }
+  }
+
   // ── Toggle active ─────────────────────────────────────────────────
   async function toggleActivo(p: Product) {
     await fetch(`/api/catalog/${p.case_id}`, {
@@ -224,7 +239,10 @@ export default function CatalogPage() {
             {total.toLocaleString()} productos registrados
           </p>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {canEdit && (
+            <button className="cbtn cbtn-danger" onClick={() => setShowDeleteAll(true)}>🗑 Limpiar inventario</button>
+          )}
           {canCreate && (
             <button className="cbtn cbtn-secondary" onClick={() => setShowImport(true)}>📥 Importar inventario</button>
           )}
@@ -478,6 +496,33 @@ export default function CatalogPage() {
       )}
 
       {showImport && <ImportModal onClose={() => setShowImport(false)} onDone={() => fetchItems(page)} />}
+
+      {/* Modal confirmación borrar todo */}
+      {showDeleteAll && (
+        <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setShowDeleteAll(false) }}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>
+                ⚠️ Limpiar inventario completo
+              </div>
+            </div>
+            <div style={{ padding: '18px 22px 22px' }}>
+              {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{error}</div>}
+              <p style={{ fontSize:13, color:'var(--txt2)', marginBottom:16 }}>
+                Esto eliminará <strong style={{ color:'var(--txt)' }}>todos</strong> los productos del catálogo.
+                Esta acción <strong style={{ color:'#f87171' }}>no se puede deshacer</strong>.
+                Usa esta opción para hacer una carga limpia desde cero.
+              </p>
+              <div style={{ display:'flex', gap:10 }}>
+                <button className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={() => setShowDeleteAll(false)}>Cancelar</button>
+                <button className="cbtn cbtn-danger" style={{ flex:1 }} onClick={deleteAll} disabled={deletingAll}>
+                  {deletingAll ? 'Borrando…' : '🗑 Sí, borrar todo'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

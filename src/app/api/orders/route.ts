@@ -15,9 +15,11 @@ export async function GET(req: NextRequest) {
   await liberarPedidosVencidos().catch(() => {})
 
   const { searchParams } = new URL(req.url)
-  const estado = searchParams.get('estado')
-  const origen = searchParams.get('origen')
-  const telefono = searchParams.get('telefono')
+  const estado      = searchParams.get('estado')
+  const origen      = searchParams.get('origen')
+  const q           = searchParams.get('q') || searchParams.get('telefono') // soporta ambos para compatibilidad
+  const fechaDesde  = searchParams.get('fecha_desde')
+  const fechaHasta  = searchParams.get('fecha_hasta')
   const page = parseInt(searchParams.get('page') || '1')
   const limit = parseInt(searchParams.get('limit') || '20')
   const offset = (page - 1) * limit
@@ -42,17 +44,23 @@ export async function GET(req: NextRequest) {
       params.push(cliente.telefono)
     }
   } else {
-    if (telefono) { conditions.push(`p.telefono ILIKE $${idx++}`); params.push(`%${telefono}%`) }
+    if (q) {
+      conditions.push(`(p.telefono ILIKE $${idx} OR c.nombre ILIKE $${idx} OR p.numero_pedido ILIKE $${idx})`)
+      params.push(`%${q}%`)
+      idx++
+    }
   }
 
-  if (estado) { conditions.push(`p.estado = $${idx++}`); params.push(estado) }
-  if (origen) { conditions.push(`p.origen = $${idx++}`); params.push(origen) }
+  if (estado)     { conditions.push(`p.estado = $${idx++}`); params.push(estado) }
+  if (origen)     { conditions.push(`p.origen = $${idx++}`); params.push(origen) }
+  if (fechaDesde) { conditions.push(`p.creado_en >= $${idx++}`); params.push(fechaDesde) }
+  if (fechaHasta) { conditions.push(`p.creado_en < $${idx++}`);  params.push(fechaHasta) }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
   const [rows, countRow] = await Promise.all([
     query(
-      `SELECT p.id, p.telefono, c.nombre as cliente_nombre, p.tipo_case,
+      `SELECT p.id, p.numero_pedido, p.telefono, c.nombre as cliente_nombre, p.tipo_case,
               p.estado, p.origen, p.requiere_firma, p.resumen,
               p.creado_en, p.actualizado_en, p.confirmado_en,
               COUNT(pi.id) as total_modelos,
@@ -67,7 +75,7 @@ export async function GET(req: NextRequest) {
       [...params, limit, offset]
     ),
     queryOne<{ count: string }>(
-      `SELECT COUNT(*) as count FROM public.pedidos p ${where}`,
+      `SELECT COUNT(DISTINCT p.id) as count FROM public.pedidos p LEFT JOIN public.clientes c ON c.telefono = p.telefono ${where}`,
       params
     ),
   ])

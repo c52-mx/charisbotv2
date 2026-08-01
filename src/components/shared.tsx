@@ -178,8 +178,28 @@ export const SHARED_CSS = `
   .badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
   .badge-gray   { background: rgba(148,163,184,0.12); color: #94a3b8; }
 
+  /* ── Inputs ── */
+  .cinput {
+    width: 100%; padding: 9px 12px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--txt); font-size: 13px;
+    font-family: inherit; outline: none; transition: border-color .15s;
+    box-sizing: border-box;
+  }
+  .cinput:focus { border-color: var(--border2); background: var(--bg4); }
+
+  /* ── Card variants ── */
+  .ccard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  /* ── Table wrapper ── */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  .ctable { width: 100%; border-collapse: collapse; }
+
   /* ── Modal ── */
-  .modal-mask {
+  .modal-mask, .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
     z-index: 200; display: flex; align-items: center;
@@ -279,7 +299,7 @@ export const SHARED_CSS = `
 
   /* Modal mobile */
   @media(max-width:639px) {
-    .modal-mask { align-items: flex-end !important; padding: 0 !important; }
+    .modal-mask, .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
     .modal-box  {
       border-radius: 20px 20px 0 0 !important;
       max-height: 92dvh !important;

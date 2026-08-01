@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 interface TipoCase {
   id: string
@@ -12,8 +13,10 @@ interface TipoCase {
 
 const EMPTY = { nombre: '', emoji: '📦', orden: '0' }
 
+const EMOJI_SUGERIDOS = ['📦','🛡️','💎','⚡','🔒','🌟','🎯','🔰','💪','🌈','🦋','🔥','❄️','🌺','🎨']
+
 export default function TiposCasePage() {
-  const [dark]    = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const { dark }  = useContext(ThemeContext)
   const tv        = getThemeVars(dark)
   const [items,   setItems]   = useState<TipoCase[]>([])
   const [loading, setLoading] = useState(true)
@@ -119,15 +122,30 @@ export default function TiposCasePage() {
                   <label style={lbl}>Nombre *</label>
                   <input className="cinput" style={inp} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej. FUNDA TRANSPARENTE" required />
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:18 }}>
-                  <div>
-                    <label style={lbl}>Emoji</label>
-                    <input className="cinput" style={inp} value={form.emoji} onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))} maxLength={4} />
+                <div style={{ marginBottom:12 }}>
+                  <label style={lbl}>Emoji</label>
+                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                    <div style={{ fontSize:28, width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'var(--bg4)', border:'1px solid var(--border)', flexShrink:0 }}>
+                      {form.emoji || '📦'}
+                    </div>
+                    <input className="cinput" style={{ ...inp, flex:1 }} value={form.emoji}
+                           onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
+                           maxLength={4} placeholder="Escribe o pega un emoji" />
                   </div>
-                  <div>
-                    <label style={lbl}>Orden</label>
-                    <input type="number" className="cinput" style={inp} value={form.orden} onChange={e => setForm(f => ({ ...f, orden: e.target.value }))} />
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+                    {EMOJI_SUGERIDOS.map(e => (
+                      <button key={e} type="button"
+                              onClick={() => setForm(f => ({ ...f, emoji: e }))}
+                              style={{ fontSize:18, width:34, height:34, borderRadius:8, border:`1px solid ${form.emoji===e?'var(--blue)':'var(--border)'}`, background:form.emoji===e?'rgba(26,143,227,0.15)':'var(--bg4)', cursor:'pointer' }}>
+                        {e}
+                      </button>
+                    ))}
                   </div>
+                  <p style={{ fontSize:10, color:'var(--txt3)', marginTop:5 }}>Selecciona uno o escribe/pega cualquier emoji en el campo de texto.</p>
+                </div>
+                <div style={{ marginBottom:18 }}>
+                  <label style={lbl}>Orden</label>
+                  <input type="number" className="cinput" style={inp} value={form.orden} onChange={e => setForm(f => ({ ...f, orden: e.target.value }))} />
                 </div>
                 <div style={{ display:'flex', gap:10 }}>
                   <button type="button" className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={() => setModal(false)}>Cancelar</button>

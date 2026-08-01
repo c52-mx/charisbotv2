@@ -25,6 +25,7 @@ export default function ClientsPage() {
   const [q,        setQ]        = useState('')
   const [loading,  setLoading]  = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editClient, setEditClient] = useState<any>(null)
   const [selected, setSelected] = useState<any>(null)
   const [clientOrders, setClientOrders] = useState<any[]>([])
 
@@ -76,7 +77,7 @@ export default function ClientsPage() {
         ) : clients.length===0 ? (
           <div style={{ padding:48,textAlign:'center',color:'var(--txt2)',fontSize:13 }}>Sin clientes registrados</div>
         ) : (
-          <table className="ctable">
+          <table className="ctable rtable">
             <thead><tr><th>Cliente</th><th>Teléfono</th><th>Email</th><th>Pedidos</th><th>Último contacto</th><th>Acciones</th></tr></thead>
             <tbody>
               {clients.map(c => {
@@ -95,13 +96,16 @@ export default function ClientsPage() {
                     <td style={{ fontFamily:'monospace',fontSize:12 }}>{c.telefono}</td>
                     <td style={{ fontSize:12,color:'var(--txt2)' }}>{c.email||'—'}</td>
                     <td>
-                      <span className="badge badge-blue">{c.total_pedidos||0}</span>
+                      <span className="badge badge-blue">{c.pedidos_count||0}</span>
                     </td>
                     <td style={{ fontSize:12,color:'var(--txt2)' }}>
-                      {c.actualizada_en ? format(new Date(c.actualizada_en),'dd MMM yyyy',{locale:es}) : '—'}
+                      {c.actualizado_en ? format(new Date(c.actualizado_en),'dd MMM yyyy',{locale:es}) : '—'}
                     </td>
                     <td>
-                      <button className="cbtn cbtn-secondary cbtn-sm" onClick={()=>loadDetail(c)}>Historial</button>
+                      <div style={{ display:'flex',gap:6 }}>
+                        <button className="cbtn cbtn-secondary cbtn-sm" onClick={()=>loadDetail(c)}>Historial</button>
+                        <button className="cbtn cbtn-ghost cbtn-sm" onClick={()=>setEditClient(c)}>Editar</button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -123,7 +127,7 @@ export default function ClientsPage() {
 
       {/* Detail modal */}
       {selected && (
-        <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setSelected(null)}}>
+        <div className="modal-mask" onClick={e=>{if(e.target===e.currentTarget)setSelected(null)}}>
           <div className="modal-box" style={{ maxWidth:540 }}>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex',alignItems:'center',gap:12 }}>
@@ -173,11 +177,12 @@ export default function ClientsPage() {
       )}
 
       {showForm && <ClientForm dark={dark} onClose={()=>setShowForm(false)} onSaved={load} />}
+      {editClient && <EditClientForm dark={dark} client={editClient} onClose={()=>setEditClient(null)} onSaved={()=>{ load(); setEditClient(null) }} />}
     </div>
   )
 }
 
-// ── CLIENT FORM ───────────────────────────────────────────────────────────────
+// ── CLIENT FORM (crear) ───────────────────────────────────────────────────────
 function ClientForm({ dark, onClose, onSaved }: { dark:boolean; onClose:()=>void; onSaved:()=>void }) {
   const tv = getThemeVars(dark)
   const [form, setForm] = useState({ nombre:'', telefono:'', email:'', notas:'' })
@@ -195,7 +200,7 @@ function ClientForm({ dark, onClose, onSaved }: { dark:boolean; onClose:()=>void
   }
 
   return (
-    <div className="modal-overlay" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+    <div className="modal-mask" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
       <style>{SHARED_CSS}</style>
       <div className="modal-box" style={{ maxWidth:400 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
@@ -225,6 +230,66 @@ function ClientForm({ dark, onClose, onSaved }: { dark:boolean; onClose:()=>void
             <div style={{ display:'flex',gap:10,marginTop:20 }}>
               <button type="button" className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
               <button type="submit" className="cbtn cbtn-primary" style={{ flex:1 }} disabled={loading}>{loading?'Guardando...':'Crear cliente'}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── EDIT CLIENT FORM ──────────────────────────────────────────────────────────
+function EditClientForm({ dark, client, onClose, onSaved }: { dark:boolean; client:any; onClose:()=>void; onSaved:()=>void }) {
+  const tv = getThemeVars(dark)
+  const [form, setForm] = useState({ nombre: client.nombre||'', email: client.email||'', notas: client.notas||'' })
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  async function handleSubmit(e:React.FormEvent) {
+    e.preventDefault(); setLoading(true); setError('')
+    try {
+      const r = await fetch(`/api/clients/${client.id}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form)
+      })
+      if (!r.ok) throw new Error((await r.json()).error)
+      onSaved()
+    } catch(err:any) { setError(err.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="modal-mask" style={{ ...Object.fromEntries(Object.entries(tv)) as any }} onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
+      <style>{SHARED_CSS}</style>
+      <div className="modal-box" style={{ maxWidth:400 }}>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
+          <div>
+            <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>Editar cliente</div>
+            <div style={{ fontSize:11,color:'var(--txt2)',marginTop:2,fontFamily:'monospace' }}>{client.telefono}</div>
+          </div>
+          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+        </div>
+        <div style={{ padding:'18px 22px 22px' }}>
+          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
+          <form onSubmit={handleSubmit}>
+            <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+              <div>
+                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Nombre</label>
+                <input className="cinput" type="text" placeholder="Nombre del cliente"
+                       value={form.nombre} onChange={e=>setForm(f=>({...f,nombre:e.target.value}))} />
+              </div>
+              <div>
+                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Email</label>
+                <input className="cinput" type="email" placeholder="cliente@email.com"
+                       value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} />
+              </div>
+              <div>
+                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Notas</label>
+                <textarea className="cinput" placeholder="Notas adicionales..." value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} style={{ minHeight:60 }}/>
+              </div>
+            </div>
+            <div style={{ display:'flex',gap:10,marginTop:20 }}>
+              <button type="button" className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
+              <button type="submit" className="cbtn cbtn-primary" style={{ flex:1 }} disabled={loading}>{loading?'Guardando...':'Guardar cambios'}</button>
             </div>
           </form>
         </div>

@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
+import { ThemeContext } from '@/lib/theme-context'
 
 interface ConfigForm {
   minimo_pedido_piezas: string
@@ -45,7 +46,7 @@ const EMPTY: ConfigForm = {
 }
 
 export default function ConfigPage() {
-  const [dark]     = useState(() => typeof window !== 'undefined' ? localStorage.getItem('charis-theme') !== 'light' : true)
+  const { dark }   = useContext(ThemeContext)
   const tv         = getThemeVars(dark)
   const [form,    setForm]    = useState<ConfigForm>(EMPTY)
   const [loading, setLoading] = useState(true)
