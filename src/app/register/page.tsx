@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
@@ -243,7 +244,8 @@ export default function RegisterPage() {
   })
   const [showPw,    setShowPw]    = useState(false)
   const [showConf,  setShowConf]  = useState(false)
-  const [mathOk,    setMathOk]    = useState(false)
+  const [hcaptchaToken, setHcaptchaToken] = useState('')
+  const captchaRef = useRef<HCaptcha>(null)
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
 
@@ -260,13 +262,14 @@ export default function RegisterPage() {
     if (form.email && !EMAIL_RE.test(form.email)) { setError('El correo electrónico no es válido'); return }
     if (form.password !== form.confirm) { setError('Las contraseñas no coinciden'); return }
     if (form.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres'); return }
-    if (!mathOk) { setError('Por favor completa la verificación de seguridad'); return }
+    if (!hcaptchaToken) { setError('Por favor completa la verificación de seguridad'); return }
 
     setLoading(true); setError('')
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          hcaptchaToken,
           nombre:   form.contacto,
           empresa:  form.empresa,
           telefono: form.telefono,
@@ -414,9 +417,15 @@ export default function RegisterPage() {
             {/* SECCIÓN 3: Verificación */}
             <div>
               <p className="sec-title">🛡️ Verificación de seguridad</p>
-              <MathCaptcha onVerify={ok => setMathOk(ok)} />
-              {!mathOk && (
-                <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>Completa la operación para continuar</p>
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY || ''}
+                onVerify={token => setHcaptchaToken(token)}
+                onExpire={() => setHcaptchaToken('')}
+                theme="light"
+              />
+              {!hcaptchaToken && (
+                <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>Completa la verificación para continuar</p>
               )}
             </div>
 
@@ -425,7 +434,7 @@ export default function RegisterPage() {
               Al crear una cuenta aceptas que Charis podrá contactarte para confirmar tu registro como distribuidor.
             </p>
 
-            <button type="submit" className="btn-primary btn-block" disabled={loading || !mathOk}>
+            <button type="submit" className="btn-primary btn-block" disabled={loading || !hcaptchaToken}>
               {loading
                 ? <><div style={{ width:15, height:15, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Creando cuenta...</>
                 : 'Crear cuenta →'}
