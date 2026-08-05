@@ -7,26 +7,12 @@ import crypto from 'crypto'
 import { sendEmail, emailVerificacion } from '@/lib/email'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-secret-2025')
-const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || ''
 
 export const dynamic = 'force-dynamic'
 
-async function verifyHCaptcha(token: string): Promise<boolean> {
-  if (!HCAPTCHA_SECRET || !token) return false
-  try {
-    const res = await fetch('https://hcaptcha.com/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${HCAPTCHA_SECRET}&response=${token}`,
-    })
-    const data = await res.json()
-    return data.success === true
-  } catch { return false }
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { nombre, empresa, telefono, email, password, hcaptchaToken } = await req.json()
+    const { nombre, empresa, telefono, email, password } = await req.json()
 
     // Validaciones base
     if (!nombre?.trim() || !password)
@@ -39,11 +25,6 @@ export async function POST(req: NextRequest) {
     const tieneTelefono = !!telefono?.trim()
     if (!tieneEmail && !tieneTelefono)
       return NextResponse.json({ error: 'Ingresa tu correo o número de teléfono (al menos uno)' }, { status: 400 })
-
-    // Verificar hCaptcha
-    const captchaOk = await verifyHCaptcha(hcaptchaToken)
-    if (!captchaOk)
-      return NextResponse.json({ error: 'Verificación de seguridad fallida. Intenta de nuevo.' }, { status: 400 })
 
     const emailLower = tieneEmail ? email.toLowerCase().trim() : null
 
