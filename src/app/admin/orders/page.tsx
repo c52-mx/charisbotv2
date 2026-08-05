@@ -27,9 +27,10 @@ export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
   const [userRol, setUserRol] = useState<SessionLike>({ rol:'VENDEDOR' })
   useEffect(()=>{ fetch('/api/auth/me').then(r=>r.json()).then(d=>setUserRol(d.user || { rol:'VENDEDOR' })) },[])
-  const [repartidores, setRepartidores] = useState<{id:string;nombre:string}[]>([])
-  useEffect(()=>{ fetch('/api/admin/repartidores').then(r=>r.json()).then(d=>setRepartidores(d.data||[])).catch(()=>{}) },[])
-  const [repartidorSel, setRepartidorSel] = useState('')
+  // Módulo repartidor desactivado — se reactiva en el futuro si se habilita repartidor propio
+  // const [repartidores, setRepartidores] = useState<{id:string;nombre:string}[]>([])
+  // useEffect(()=>{ fetch('/api/admin/repartidores').then(r=>r.json()).then(d=>setRepartidores(d.data||[])).catch(()=>{}) },[])
+  // const [repartidorSel, setRepartidorSel] = useState('')
   const [slaSurtido, setSlaSurtido] = useState({ tiempoHoras: 72, avisoHoras: 24 })
   useEffect(()=>{
     fetch('/api/client/config').then(r=>r.json()).then(d=>{
@@ -99,8 +100,9 @@ export default function OrdersPage() {
     setSavingUbicacion(false)
   }
 
+  const [notasCliente, setNotasCliente] = useState('')
   function requestStatusChange(id: string, estado: string, desde: string) {
-    setMotivoCancel(''); setMotivoRechazo(''); setConfirmError(''); setRepartidorSel('')
+    setMotivoCancel(''); setMotivoRechazo(''); setConfirmError(''); setNotasCliente('')
     setPendingChange({ id, estado, desde })
   }
 
@@ -108,7 +110,6 @@ export default function OrdersPage() {
     if (!pendingChange) return
     const { id, estado, desde } = pendingChange
     const esRechazoSurtido = desde === 'POR_VALIDAR_SURTIDO' && estado === 'EN_PREPARACION'
-    if (estado === 'EN_REPARTO' && !repartidorSel) { setConfirmError('Selecciona un repartidor'); return }
     setUpdating(true); setConfirmError('')
     try {
       const r = await fetch(`/api/orders/${id}`, {
@@ -117,7 +118,7 @@ export default function OrdersPage() {
           estado,
           motivo_cancelacion: estado==='CANCELADO' ? motivoCancel : undefined,
           motivo_rechazo_surtido: esRechazoSurtido ? motivoRechazo : undefined,
-          asignado_a: estado==='EN_REPARTO' ? repartidorSel : undefined,
+          notas_cliente: notasCliente || undefined,
         }),
       })
       const data = await r.json()
@@ -422,24 +423,16 @@ export default function OrdersPage() {
                     <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:12 }}>⏳ Esperando que ventas/admin valide el surtido.</p>
                   )}
 
-                  {['EN_REPARTO','ENTREGA_FALLIDA'].includes(selected.estado) && (
-                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
-                      🛵 Repartidor: <strong>{repartidores.find(r=>r.id===selected.asignado_a)?.nombre || (selected.asignado_a ? 'Sin nombre' : 'Sin asignar')}</strong>
-                      {can(userRol,'pagos_confirmar') && (
-                        <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                          <select className="cinput" style={{ flex:1 }} value={repartidorSel} onChange={e=>setRepartidorSel(e.target.value)}>
-                            <option value="">Reasignar a...</option>
-                            {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                          </select>
-                          <button className="cbtn cbtn-secondary" disabled={!repartidorSel}
-                                  onClick={async () => {
-                                    await fetch(`/api/orders/${selected.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ asignado_a: repartidorSel }) })
-                                    setRepartidorSel(''); await loadDetail(selected.id); await load()
-                                  }}>
-                            Asignar
-                          </button>
-                        </div>
-                      )}
+                  {selected.estado === 'EN_REPARTO' && (
+                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'rgba(26,143,227,0.06)', border:'1px solid rgba(26,143,227,0.15)', fontSize:12, color:'var(--blue)' }}>
+                      📦 Pedido en camino — en manos de la paquetería
+                    </div>
+                  )}
+                  {/* Nota visible al cliente */}
+                  {selected.notas_cliente && (
+                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12 }}>
+                      <span style={{ fontWeight:700, color:'#1d4ed8' }}>📝 Nota al cliente:</span>{' '}
+                      <span style={{ color:'#1e40af' }}>{selected.notas_cliente}</span>
                     </div>
                   )}
 
@@ -529,17 +522,18 @@ export default function OrdersPage() {
                 </div>
               )}
               {pendingChange.estado === 'EN_REPARTO' && (
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
-                    Repartidor *
-                  </label>
-                  <select className="cinput" value={repartidorSel} onChange={e => setRepartidorSel(e.target.value)}>
-                    <option value="">Selecciona...</option>
-                    {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                  </select>
-                  {!repartidores.length && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>No hay repartidores activos — crea uno en Usuarios.</p>}
+                <div style={{ marginBottom:14, padding:'10px 12px', borderRadius:8, background:'rgba(26,143,227,0.06)', border:'1px solid rgba(26,143,227,0.15)' }}>
+                  <p style={{ fontSize:11, color:'var(--blue)', fontWeight:600, marginBottom:4 }}>📦 Pedido en camino vía paquetería</p>
+                  <p style={{ fontSize:11, color:'var(--txt3)' }}>Agrega abajo el número de guía o instrucciones para el cliente.</p>
                 </div>
               )}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                  📝 Nota para el cliente <span style={{ fontWeight:400, textTransform:'none', fontSize:9 }}>(visible en su portal)</span>
+                </label>
+                <textarea className="cinput" style={{ minHeight:70 }} value={notasCliente} onChange={e => setNotasCliente(e.target.value)}
+                  placeholder={pendingChange.estado==='EN_REPARTO' ? 'Ej: Tu pedido va con Estafeta, guía: 1234567890. Entrega estimada: 2-3 días.' : 'Instrucción, aclaración o nota para el cliente...'} />
+              </div>
               {confirmError && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
                   ⚠ {confirmError}

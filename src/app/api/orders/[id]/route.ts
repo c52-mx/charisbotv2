@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
-import { notificarCambioEstatus } from '@/lib/whatsapp'
-import { notificarClienteEmail } from '@/lib/email'
+import { notificarCliente } from '@/lib/notify'
 import { finalizarPedido, liberarPedido } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -53,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { estado, notas, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a } = await req.json()
+  const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a } = await req.json()
 
   // Solo permitir actualizar el monto a cobrar, la ubicación física y/o el
   // repartidor asignado, sin cambiar de estado (reasignación libre).
@@ -124,41 +123,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'El motivo de rechazo es obligatorio' }, { status: 400 })
   }
 
-  // Toda entrada a EN_REPARTO (validación inicial o reintento tras una
-  // entrega fallida) necesita un repartidor asignado.
-  if (estado === 'EN_REPARTO') {
-    if (!asignado_a) {
-      return NextResponse.json({ error: 'Selecciona un repartidor' }, { status: 400 })
-    }
-    const repartidor = await queryOne<{ tipo: string }>(
-      `SELECT r.tipo FROM public.usuarios u JOIN public.roles r ON r.clave = u.rol WHERE u.id = $1`,
-      [asignado_a]
-    )
-    if (repartidor?.tipo !== 'REPARTIDOR') {
-      return NextResponse.json({ error: 'El usuario seleccionado no es un repartidor' }, { status: 400 })
-    }
-  }
+  // EN_REPARTO = pedido entregado a paquetería. El campo asignado_a es
+  // opcional (se usa si en el futuro se reactiva el módulo de repartidor).
+  // Por ahora no se valida — la nota de cliente puede incluir la guía.
 
   const updated = await queryOne<any>(
     `UPDATE public.pedidos
      SET estado = $1,
          resumen = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE resumen END,
+         notas_cliente = CASE WHEN $8::text IS NOT NULL THEN $8 ELSE notas_cliente END,
          monto_total = CASE WHEN $4::numeric IS NOT NULL THEN $4 ELSE monto_total END,
          motivo_cancelacion = CASE WHEN $1 = 'CANCELADO' THEN $5 ELSE motivo_cancelacion END,
          cancelado_en = CASE WHEN $1 = 'CANCELADO' THEN NOW() ELSE cancelado_en END,
          confirmado_en = CASE WHEN $1 = 'CONFIRMADO' AND confirmado_en IS NULL THEN NOW() ELSE confirmado_en END,
          motivo_rechazo_surtido = CASE WHEN $1 = 'EN_PREPARACION' THEN $6 ELSE NULL END,
-         asignado_a = CASE WHEN $1 = 'EN_REPARTO' THEN $7::uuid ELSE asignado_a END,
-         asignado_en = CASE WHEN $1 = 'EN_REPARTO' THEN NOW() ELSE asignado_en END,
+         asignado_a = CASE WHEN $7::uuid IS NOT NULL THEN $7::uuid ELSE asignado_a END,
          actualizado_en = NOW()
      WHERE id = $3
-     RETURNING id, telefono, estado, resumen, numero_pedido`,
+     RETURNING id, telefono, estado, resumen, numero_pedido, notas_cliente`,
     [
       estado, notas || null, params.id,
       monto_total === undefined || monto_total === '' ? null : monto_total,
       motivo_cancelacion || null,
       motivo_rechazo_surtido || null,
       asignado_a || null,
+      notas_cliente || null,
     ]
   )
 
@@ -180,18 +169,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Notificar al cliente — "por validar surtido" es un estado interno, no se
   // le notifica (de cara al cliente nada cambió, sigue viendo "en preparación").
+  // notificarCliente envía WhatsApp siempre + email si el cliente tiene correo.
   if (estado !== 'POR_VALIDAR_SURTIDO') {
-    try {
-      await notificarCambioEstatus({
-        id: updated.id,
-        telefono: updated.telefono,
-        estado: updated.estado,
-        resumen: updated.resumen,
-      })
-    } catch (e) {
-      console.warn('[WA notify failed]', e)
-    }
-    await notificarClienteEmail(updated.telefono, updated.numero_pedido || updated.id.slice(0, 8), updated.estado, notas || undefined)
+    await notificarCliente({
+      id: updated.id,
+      telefono: updated.telefono,
+      estado: updated.estado,
+      resumen: updated.resumen,
+      numero_pedido: updated.numero_pedido,
+      nota: notas_cliente || notas || undefined,
+    })
   }
 
   return NextResponse.json({ ok: true, data: updated })

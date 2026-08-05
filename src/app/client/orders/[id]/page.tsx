@@ -206,6 +206,16 @@ export default function OrderDetailPage() {
             )}
           </div>
 
+          {/* Nota del equipo Charis para el cliente */}
+          {order.notas_cliente && (
+            <div style={{ background:'#eff6ff', borderRadius:14, border:'1px solid #bfdbfe', padding:'14px 18px', marginBottom:16 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#1d4ed8', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:5 }}>
+                📝 Mensaje de Charis
+              </p>
+              <p style={{ fontSize:13, color:'#1e40af', lineHeight:1.55 }}>{order.notas_cliente}</p>
+            </div>
+          )}
+
           {/* Items */}
           <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', overflow:'hidden', marginBottom:16 }}>
             <div style={{ padding:'12px 18px', background:'var(--field-bg)', borderBottom:'1px solid var(--border)' }}>

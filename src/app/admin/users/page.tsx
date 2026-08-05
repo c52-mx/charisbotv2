@@ -38,7 +38,8 @@ export default function UsersPage() {
   useEffect(()=>{ load() },[])
   useEffect(()=>{
     fetch('/api/admin/roles').then(r=>r.json()).then(d=>{
-      const asignables = (d.data||[]).filter((r:any)=>r.tipo==='INTERNO'||r.tipo==='REPARTIDOR')
+      // REPARTIDOR se oculta del selector — módulo no activo en esta operación
+      const asignables = (d.data||[]).filter((r:any)=>r.tipo==='INTERNO')
       setRoles(asignables)
       setForm((f:any)=> f.rol ? f : {...f, rol: asignables[0]?.clave || ''})
     }).catch(()=>{})

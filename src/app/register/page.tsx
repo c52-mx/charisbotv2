@@ -258,8 +258,8 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.telefono) { setError('Ingresa un número de teléfono válido con código de país'); return }
-    if (!EMAIL_RE.test(form.email)) { setError('El correo electrónico no es válido'); return }
+    if (!form.telefono && !form.email) { setError('Ingresa tu correo electrónico o número de WhatsApp (al menos uno)'); return }
+    if (form.email && !EMAIL_RE.test(form.email)) { setError('El correo electrónico no es válido'); return }
     if (form.password !== form.confirm) { setError('Las contraseñas no coinciden'); return }
     if (form.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres'); return }
     if (!hcaptchaToken) { setError('Por favor completa la verificación de seguridad'); return }
@@ -368,7 +368,7 @@ export default function RegisterPage() {
                   <input className="input" placeholder="Nombre completo" value={form.contacto} onChange={set('contacto')} required/>
                 </div>
                 <div>
-                  <label className="field-label" style={{ display:'flex', alignItems:'center', gap:6 }}><WhatsAppIcon size={13} color="#25D366"/> TELÉFONO WHATSAPP *</label>
+                  <label className="field-label" style={{ display:'flex', alignItems:'center', gap:6 }}><WhatsAppIcon size={13} color="#25D366"/> TELÉFONO WHATSAPP <span style={{ color:'var(--txt3)', fontWeight:400 }}>(opcional si tienes correo)</span></label>
                   <PhoneInput value={form.telefono} onChange={v => setForm(f => ({ ...f, telefono: v }))} />
                 </div>
               </div>
@@ -379,8 +379,10 @@ export default function RegisterPage() {
               <p className="sec-title">🔐 Datos de acceso</p>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 <div>
-                  <label className="field-label">CORREO ELECTRÓNICO *</label>
+                  <label className="field-label">CORREO ELECTRÓNICO <span style={{ color:'var(--txt3)', fontWeight:400 }}>(opcional si tienes WhatsApp)</span></label>
                   <EmailInput value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
+                  {form.email && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3 }}>Recibirás notificaciones de tus pedidos en este correo</p>}
+                  {!form.email && form.telefono && <p style={{ fontSize:11, color:'var(--ok)', marginTop:3 }}>✓ Las notificaciones llegarán a tu WhatsApp</p>}
                 </div>
                 <div>
                   <label className="field-label">CONTRASEÑA * <span style={{ color:'var(--txt3)', fontSize:11 }}>(mín. 8 caracteres)</span></label>

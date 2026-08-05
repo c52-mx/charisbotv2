@@ -237,8 +237,9 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div>
-              <label style={{ display:'block', fontSize:12.5, fontWeight:700, color:'var(--txt2)', marginBottom:6, letterSpacing:'.05em' }}>CORREO ELECTRÓNICO</label>
-              <input className="input" type="email" placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email"/>
+              <label style={{ display:'block', fontSize:12.5, fontWeight:700, color:'var(--txt2)', marginBottom:6, letterSpacing:'.05em' }}>CORREO ELECTRÓNICO O TELÉFONO</label>
+              <input className="input" type="text" placeholder="tu@correo.com o +521234567890" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email username"/>
+              <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>Puedes usar el correo o el número de teléfono con el que te registraste</p>
             </div>
 
             <div>
