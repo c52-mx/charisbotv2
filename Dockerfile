@@ -16,6 +16,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# Variables NEXT_PUBLIC_* deben declararse como ARG para que
+# Dokploy/Docker las inyecte en el bundle de Next.js en tiempo de build
+ARG NEXT_PUBLIC_HCAPTCHA_SITEKEY
+ENV NEXT_PUBLIC_HCAPTCHA_SITEKEY=$NEXT_PUBLIC_HCAPTCHA_SITEKEY
+ARG NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+
 RUN npm run build
 
 # Stage 3: runner
