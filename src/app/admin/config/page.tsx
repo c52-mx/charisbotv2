@@ -22,8 +22,6 @@ interface ConfigForm {
   venta_importante_piezas: string
   negocio_nombre: string
   negocio_direccion: string
-  negocio_nombre_2: string
-  negocio_direccion_2: string
 }
 
 const EMPTY: ConfigForm = {
@@ -45,8 +43,6 @@ const EMPTY: ConfigForm = {
   venta_importante_piezas: '100',
   negocio_nombre: '',
   negocio_direccion: '',
-  negocio_nombre_2: '',
-  negocio_direccion_2: '',
 }
 
 export default function ConfigPage() {
@@ -57,11 +53,16 @@ export default function ConfigPage() {
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState('')
   const [pagosEnv, setPagosEnv] = useState({ stripe_configurado: false, mercadopago_configurado: false })
+  const [puntos,   setPuntos]   = useState<{nombre:string; dir:string}[]>([])
 
   useEffect(() => {
     fetch('/api/admin/config').then(r => r.json()).then(d => {
       setForm(f => ({ ...f, ...(d.config || {}) }))
       setPagosEnv(d.pagos_env || { stripe_configurado: false, mercadopago_configurado: false })
+      try {
+        const ps = JSON.parse(d.config?.puntos_recoleccion || '[]')
+        if (Array.isArray(ps) && ps.length > 0) setPuntos(ps)
+      } catch {}
       setLoading(false)
     })
   }, [])
@@ -81,7 +82,7 @@ export default function ConfigPage() {
       const res = await fetch('/api/admin/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, puntos_recoleccion: JSON.stringify(puntos) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
@@ -125,38 +126,45 @@ export default function ConfigPage() {
         </div>
       )}
 
-      {/* ── Datos del negocio / Puntos de recolección ── */}
+      {/* ── Puntos de recolección (ilimitados) ── */}
       <div className="card" style={{ marginBottom:16 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🏢 Puntos de recolección</h2>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:0 }}>🏢 Puntos de recolección</h2>
+          <button type="button"
+            onClick={() => setPuntos(p => [...p, { nombre:'', dir:'' }])}
+            style={{ padding:'5px 12px', borderRadius:8, border:'1.5px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            + Agregar punto
+          </button>
+        </div>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
-          Se muestran al cliente como opciones al elegir "Recoger" en el carrito. Activa uno o ambos puntos llenando el nombre.
+          Se muestran al cliente en el carrito al elegir "Recoger". Sin límite de puntos.
         </p>
 
-        {/* Punto 1 */}
-        <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>PUNTO 1</p>
-        <div className="g2" style={{ marginBottom:14 }}>
-          <div>
-            <label style={lbl}>Nombre</label>
-            <input style={inp} placeholder="Ej: Plaza Teresa" value={form.negocio_nombre} onChange={set('negocio_nombre')} />
-          </div>
-          <div>
-            <label style={lbl}>Dirección</label>
-            <input style={inp} placeholder="Calle, colonia, ciudad, CP" value={form.negocio_direccion} onChange={set('negocio_direccion')} />
-          </div>
-        </div>
+        {puntos.length === 0 && (
+          <p style={{ fontSize:13, color:'var(--txt3)', fontStyle:'italic' }}>Sin puntos configurados — haz clic en "+ Agregar punto"</p>
+        )}
 
-        {/* Punto 2 */}
-        <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>PUNTO 2 (opcional)</p>
-        <div className="g2">
-          <div>
-            <label style={lbl}>Nombre</label>
-            <input style={inp} placeholder="Ej: CEDIS Guadalajara" value={form.negocio_nombre_2} onChange={set('negocio_nombre_2')} />
+        {puntos.map((p, i) => (
+          <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8, marginBottom:8, alignItems:'flex-end' }}>
+            <div>
+              {i === 0 && <label style={lbl}>Nombre</label>}
+              <input style={inp} placeholder="Ej: Plaza Teresa"
+                value={p.nombre}
+                onChange={e => setPuntos(ps => ps.map((x, j) => j===i ? {...x, nombre:e.target.value} : x))} />
+            </div>
+            <div>
+              {i === 0 && <label style={lbl}>Dirección</label>}
+              <input style={inp} placeholder="Calle, colonia, ciudad, CP"
+                value={p.dir}
+                onChange={e => setPuntos(ps => ps.map((x, j) => j===i ? {...x, dir:e.target.value} : x))} />
+            </div>
+            <button type="button"
+              onClick={() => setPuntos(ps => ps.filter((_, j) => j !== i))}
+              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}>
+              ✕
+            </button>
           </div>
-          <div>
-            <label style={lbl}>Dirección</label>
-            <input style={inp} placeholder="Calle, colonia, ciudad, CP" value={form.negocio_direccion_2} onChange={set('negocio_direccion_2')} />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ── Pedidos ── */}

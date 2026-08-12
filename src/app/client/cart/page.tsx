@@ -423,28 +423,29 @@ export default function CartPage() {
               </div>
 
               {/* Puntos de recolección */}
-              {metodoEntrega === 'pickup' && (
-                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  {([
-                    { nombre: config.negocio_nombre,   dir: config.negocio_direccion   },
-                    { nombre: config.negocio_nombre_2, dir: config.negocio_direccion_2 },
-                  ] as { nombre:string; dir:string }[]).filter(p => p.nombre).map((p, idx) => (
-                    <div key={idx} onClick={() => setPuntoPickup(p.nombre)}
-                      style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, background:puntoPickup===p.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                        <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                          {puntoPickup===p.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+              {metodoEntrega === 'pickup' && (() => {
+                let pts: {nombre:string; dir:string}[] = []
+                try { pts = JSON.parse(config.puntos_recoleccion || '[]') } catch {}
+                return (
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    {pts.filter(p => p.nombre).map((p, idx) => (
+                      <div key={idx} onClick={() => setPuntoPickup(p.nombre)}
+                        style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, background:puntoPickup===p.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                          <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            {puntoPickup===p.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                          </div>
+                          <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>{p.nombre}</p>
                         </div>
-                        <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>{p.nombre}</p>
+                        {p.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{p.dir}</p>}
                       </div>
-                      {p.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{p.dir}</p>}
-                    </div>
-                  ))}
-                  {!config.negocio_nombre && (
-                    <p style={{ fontSize:12, color:'var(--txt3)', fontStyle:'italic' }}>Sin puntos de recolección configurados</p>
-                  )}
-                </div>
-              )}
+                    ))}
+                    {pts.length === 0 && (
+                      <p style={{ fontSize:12, color:'var(--txt3)', fontStyle:'italic' }}>Sin puntos de recolección configurados</p>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Direcciones de envío */}
               {metodoEntrega === 'envio' && (

@@ -347,7 +347,7 @@ export default function LandingPage() {
       {/* <div className="lp-nav" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span className="lp-navlink">📍 CDMX · Zona Metropolitana</span>
 
-        <span className="lp-navlink">🚚 Entrega express mismo día</span>
+        <span className="lp-navlink">🚚 Envío por paquetería</span>
 
         <span className="lp-navlink">% Descuentos desde 50 pzas</span>
         <div style={{marginLeft:'auto', display:'flex', gap:16}}>
@@ -428,7 +428,7 @@ export default function LandingPage() {
         <div className="inner">
           <div className="biz-grid">
             {[
-              { ico:'🚚', label:'Entrega express CDMX', sub:'Pedidos antes de las 2 PM llegan el mismo día' },
+              { ico:'🚚', label:'Envío por paquetería',  sub:'Estafeta, DHL, FedEx — entrega en 2 a 5 días hábiles' },
               { ico:'%',  label:'Descuentos mayoristas',  sub:'+50 pzas → 5% · +100 → 10% · +200 → 15%' },
               { ico:'📦', label:'+100 modelos activos',   sub:'Para todas las marcas y categorías' },
               { ico:<WhatsAppIcon size={28} color="#25D366"/>, label:'Pedidos por WhatsApp',   sub:'CharisBot procesa tu pedido al instante' },
