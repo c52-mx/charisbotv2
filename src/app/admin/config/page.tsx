@@ -22,6 +22,8 @@ interface ConfigForm {
   venta_importante_piezas: string
   negocio_nombre: string
   negocio_direccion: string
+  negocio_nombre_2: string
+  negocio_direccion_2: string
 }
 
 const EMPTY: ConfigForm = {
@@ -43,6 +45,8 @@ const EMPTY: ConfigForm = {
   venta_importante_piezas: '100',
   negocio_nombre: '',
   negocio_direccion: '',
+  negocio_nombre_2: '',
+  negocio_direccion_2: '',
 }
 
 export default function ConfigPage() {
@@ -121,20 +125,36 @@ export default function ConfigPage() {
         </div>
       )}
 
-      {/* ── Datos del negocio ── */}
+      {/* ── Datos del negocio / Puntos de recolección ── */}
       <div className="card" style={{ marginBottom:16 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🏢 Datos del negocio</h2>
+        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🏢 Puntos de recolección</h2>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
-          Se muestran al cliente cuando elige "Recoger en tienda" al pagar.
+          Se muestran al cliente como opciones al elegir "Recoger" en el carrito. Activa uno o ambos puntos llenando el nombre.
         </p>
-        <div className="g2">
+
+        {/* Punto 1 */}
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>PUNTO 1</p>
+        <div className="g2" style={{ marginBottom:14 }}>
           <div>
-            <label style={lbl}>Nombre del negocio</label>
-            <input style={inp} placeholder="Charis Distribuidor Mayorista" value={form.negocio_nombre} onChange={set('negocio_nombre')} />
+            <label style={lbl}>Nombre</label>
+            <input style={inp} placeholder="Ej: Plaza Teresa" value={form.negocio_nombre} onChange={set('negocio_nombre')} />
           </div>
           <div>
-            <label style={lbl}>Dirección para recolección</label>
+            <label style={lbl}>Dirección</label>
             <input style={inp} placeholder="Calle, colonia, ciudad, CP" value={form.negocio_direccion} onChange={set('negocio_direccion')} />
+          </div>
+        </div>
+
+        {/* Punto 2 */}
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--blue)', letterSpacing:'.06em', marginBottom:8 }}>PUNTO 2 (opcional)</p>
+        <div className="g2">
+          <div>
+            <label style={lbl}>Nombre</label>
+            <input style={inp} placeholder="Ej: CEDIS Guadalajara" value={form.negocio_nombre_2} onChange={set('negocio_nombre_2')} />
+          </div>
+          <div>
+            <label style={lbl}>Dirección</label>
+            <input style={inp} placeholder="Calle, colonia, ciudad, CP" value={form.negocio_direccion_2} onChange={set('negocio_direccion_2')} />
           </div>
         </div>
       </div>

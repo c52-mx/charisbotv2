@@ -53,14 +53,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente } = body
+    const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente, punto_pickup } = body
 
     if (!items?.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
 
     // Resolver la dirección elegida (o pickup) — la dirección guardada se
     // copia como foto fija al pedido, no se referencia en vivo.
     const entrega = metodo_entrega === 'pickup' ? 'pickup' : 'envio'
-    let direccion_entrega: any = { tipo: 'pickup' }
+    let direccion_entrega: any = { tipo: 'pickup', nombre: punto_pickup || undefined }
     if (entrega === 'envio') {
       if (!direccion_id) return NextResponse.json({ error: 'Selecciona una dirección de envío' }, { status: 400 })
       const [addr] = await query<any>(

@@ -3,11 +3,16 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
-import { descuentoPct, calcularTotal, type DescuentoTier } from '@/lib/pricing'
+import { calcularTotal, type DescuentoTier } from '@/lib/pricing'
 
 interface CartItem {
   _id?: string
   tipo_case: string; marca: string; modelo: string; color: string; cantidad: number; precio: number
+}
+
+interface Address {
+  id: string; nombre_contacto: string; telefono_contacto: string
+  calle: string; colonia: string; ciudad: string; cp: string; predeterminada: boolean
 }
 
 const TIPO_EMOJI: Record<string, string> = {
@@ -87,8 +92,27 @@ export default function CartPage() {
   const [tiers, setTiers] = useState<DescuentoTier[]>([])
   const skipSync = useRef(false)
 
+  // ── Entrega ──────────────────────────────────────────────────────────────
+  const [metodoEntrega, setMetodoEntrega] = useState<'pickup'|'envio'>('pickup')
+  const [puntoPickup,   setPuntoPickup]   = useState('')
+  const [config,        setConfig]        = useState<any>({})
+  const [addresses,     setAddresses]     = useState<Address[]>([])
+  const [direccionId,   setDireccionId]   = useState<string|null>(null)
+  const [addrLoading,   setAddrLoading]   = useState(false)
+
   useEffect(() => {
     fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
+    // Config de puntos de recolección
+    fetch('/api/client/config').then(r => r.json()).then(d => setConfig(d)).catch(() => {})
+    // Direcciones guardadas del cliente
+    setAddrLoading(true)
+    fetch('/api/client/addresses').then(r => r.json()).then(d => {
+      const items: Address[] = d.items || []
+      setAddresses(items)
+      const def = items.find(a => a.predeterminada) || items[0]
+      if (def) setDireccionId(def.id)
+      setAddrLoading(false)
+    }).catch(() => setAddrLoading(false))
   }, [])
 
   useEffect(() => {
@@ -196,12 +220,19 @@ export default function CartPage() {
 
   async function handleCheckout() {
     if (cart.length === 0 || placing) return
+    if (metodoEntrega === 'pickup' && !puntoPickup) { setCheckoutError('Selecciona un punto de recolección'); return }
+    if (metodoEntrega === 'envio'  && !direccionId) { setCheckoutError('Selecciona una dirección de envío'); return }
     setPlacing(true); setCheckoutError('')
     try {
       const res = await fetch('/api/client/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart }),
+        body: JSON.stringify({
+          items: cart,
+          metodo_entrega:  metodoEntrega,
+          direccion_id:    metodoEntrega === 'envio'   ? direccionId  : null,
+          punto_pickup:    metodoEntrega === 'pickup'  ? puntoPickup  : null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -372,10 +403,82 @@ export default function CartPage() {
               )}
             </div>
 
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <span style={{ fontSize:14, fontWeight:700, color:'var(--txt)' }}>Total</span>
               <span style={{ fontSize:20, fontWeight:900, color:'var(--blue)' }}>${total.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
             </div>
+
+            {/* ── Método de entrega ─────────────────────────────────── */}
+            <div style={{ marginBottom:14, paddingTop:14, borderTop:'1px solid var(--bg)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:8 }}>MÉTODO DE ENTREGA</p>
+
+              {/* Toggle pickup / envío */}
+              <div style={{ display:'flex', gap:6, marginBottom:10 }}>
+                {(['pickup','envio'] as const).map(m => (
+                  <button key={m} type="button" onClick={() => setMetodoEntrega(m)}
+                    style={{ flex:1, padding:'7px 4px', borderRadius:8, border:`1.5px solid ${metodoEntrega===m?'var(--blue)':'var(--field-border)'}`, background:metodoEntrega===m?'#eff6ff':'var(--field-bg)', color:metodoEntrega===m?'var(--blue)':'var(--txt2)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
+                    {m==='pickup' ? '🏬 Recoger' : '🚚 Envío'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Puntos de recolección */}
+              {metodoEntrega === 'pickup' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {([
+                    { nombre: config.negocio_nombre,   dir: config.negocio_direccion   },
+                    { nombre: config.negocio_nombre_2, dir: config.negocio_direccion_2 },
+                  ] as { nombre:string; dir:string }[]).filter(p => p.nombre).map((p, idx) => (
+                    <div key={idx} onClick={() => setPuntoPickup(p.nombre)}
+                      style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, background:puntoPickup===p.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                        <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          {puntoPickup===p.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                        </div>
+                        <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>{p.nombre}</p>
+                      </div>
+                      {p.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{p.dir}</p>}
+                    </div>
+                  ))}
+                  {!config.negocio_nombre && (
+                    <p style={{ fontSize:12, color:'var(--txt3)', fontStyle:'italic' }}>Sin puntos de recolección configurados</p>
+                  )}
+                </div>
+              )}
+
+              {/* Direcciones de envío */}
+              {metodoEntrega === 'envio' && (
+                <div>
+                  {addrLoading ? (
+                    <p style={{ fontSize:12, color:'var(--txt3)' }}>Cargando…</p>
+                  ) : addresses.length === 0 ? (
+                    <div style={{ padding:'10px 12px', borderRadius:9, border:'1.5px dashed var(--field-border)', textAlign:'center' }}>
+                      <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:6 }}>Sin direcciones guardadas</p>
+                      <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:700, textDecoration:'none' }}>+ Agregar en Mi Cuenta →</Link>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {addresses.map(a => (
+                        <div key={a.id} onClick={() => setDireccionId(a.id)}
+                          style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, background:direccionId===a.id?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                            <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                              {direccionId===a.id && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                            </div>
+                            <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>
+                              {a.nombre_contacto}{a.predeterminada && <span style={{ fontSize:10, color:'var(--blue)' }}> · Principal</span>}
+                            </p>
+                          </div>
+                          <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{a.calle}, {a.colonia}, {a.ciudad}</p>
+                        </div>
+                      ))}
+                      <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:600, textDecoration:'none', display:'block', textAlign:'center', paddingTop:4 }}>+ Agregar dirección</Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* ─────────────────────────────────────────────────────── */}
 
             {checkoutError && (
               <div style={{ background:'var(--err-bg)', border:'1px solid var(--err-border)', color:'var(--err-text)', borderRadius:8, padding:'10px 12px', fontSize:12, marginBottom:12, lineHeight:1.5 }}>
@@ -383,7 +486,9 @@ export default function CartPage() {
               </div>
             )}
 
-            <button className="btn-primary btn-block" disabled={placing} onClick={handleCheckout}>
+            <button className="btn-primary btn-block"
+              disabled={placing || (metodoEntrega==='pickup' ? !puntoPickup : !direccionId)}
+              onClick={handleCheckout}>
               {placing
                 ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando…</>
                 : `Confirmar pedido — $${total.toLocaleString('es-MX',{minimumFractionDigits:2})}`

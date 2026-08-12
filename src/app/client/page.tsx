@@ -161,7 +161,7 @@ export default function ClientHome() {
       <div className="biz-strip" style={{ borderRadius:16, overflow:'hidden', marginBottom:32, animation:'fadeUp .3s ease-out .08s both' }}>
         <div className="biz-grid">
           {[
-            { ico:'🚚', label:'Entrega express CDMX',  sub:'Pedidos antes de las 2 PM llegan el mismo día' },
+            { ico:'🚚', label:'Envío por paquetería',   sub:'Estafeta, DHL, FedEx — entrega en 2 a 5 días hábiles' },
             { ico:'%',  label:'Descuentos por volumen', sub:'+50 pzas → 5% · +100 → 10% · +200 → 15%' },
             { ico:'📦', label:'+800 modelos activos',   sub:'Blindaje, 3 en 1, Escudo y Anillo para todas las marcas' },
             { ico:<WhatsAppIcon size={28} color="#25D366"/>, label:'Pedidos por WhatsApp',   sub:'CharisBot procesa tu pedido al instante' },

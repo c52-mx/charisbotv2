@@ -295,7 +295,7 @@ export default function OrdersPage() {
               {selected.direccion_entrega && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
                   {selected.direccion_entrega.tipo === 'pickup' ? (
-                    <>🏬 Recoger en tienda</>
+                    <>🏬 Recoger en tienda{selected.direccion_entrega.nombre ? ` — ${selected.direccion_entrega.nombre}` : ''}</>
                   ) : (
                     <>📍 {selected.direccion_entrega.nombre_contacto || selected.direccion_entrega.nombre} — {selected.direccion_entrega.calle}, {selected.direccion_entrega.colonia}, {selected.direccion_entrega.ciudad}, {selected.direccion_entrega.estado_mx} {selected.direccion_entrega.cp}
                       {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>ℹ️ {selected.direccion_entrega.instrucciones_entrega}</div>}
