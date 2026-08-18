@@ -13,9 +13,12 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const filtros = {
-    desde: searchParams.get('desde') || undefined,
-    hasta: searchParams.get('hasta') || undefined,
-    tipo_case: searchParams.get('tipo_case') || undefined,
+    desde:        searchParams.get('desde')        || undefined,
+    hasta:        searchParams.get('hasta')         || undefined,
+    tipo_case:    searchParams.get('tipo_case')     || undefined,
+    modelo:       searchParams.get('modelo')        || undefined,
+    color:        searchParams.get('color')         || undefined,
+    ubicacion:    searchParams.get('ubicacion')     || undefined,
     soloStockBajo: searchParams.get('soloStockBajo') === 'true',
   }
   const { stock, movimientos, umbral } = await getReporteInventario(filtros)

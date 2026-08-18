@@ -9,6 +9,9 @@ export interface RangoFechas {
 export interface FiltrosPedidos extends RangoFechas {
   estado?: string
   telefono?: string
+  tipo_case?: string
+  origen?: string
+  cliente_nombre?: string
 }
 
 export async function getReportePedidos(f: FiltrosPedidos) {
@@ -16,10 +19,13 @@ export async function getReportePedidos(f: FiltrosPedidos) {
   const params: any[] = []
   let idx = 1
 
-  if (f.desde)    { conditions.push(`p.creado_en >= $${idx++}`); params.push(f.desde) }
-  if (f.hasta)    { conditions.push(`p.creado_en <= $${idx++}`); params.push(f.hasta) }
-  if (f.estado)   { conditions.push(`p.estado = $${idx++}`); params.push(f.estado) }
-  if (f.telefono) { conditions.push(`p.telefono ILIKE $${idx++}`); params.push(`%${f.telefono}%`) }
+  if (f.desde)          { conditions.push(`p.creado_en >= $${idx++}`);             params.push(f.desde) }
+  if (f.hasta)          { conditions.push(`p.creado_en <= $${idx++}`);             params.push(f.hasta) }
+  if (f.estado)         { conditions.push(`p.estado = $${idx++}`);                 params.push(f.estado) }
+  if (f.telefono)       { conditions.push(`p.telefono ILIKE $${idx++}`);           params.push(`%${f.telefono}%`) }
+  if (f.tipo_case)      { conditions.push(`p.tipo_case = $${idx++}`);              params.push(f.tipo_case) }
+  if (f.origen)         { conditions.push(`p.origen = $${idx++}`);                 params.push(f.origen) }
+  if (f.cliente_nombre) { conditions.push(`c.nombre ILIKE $${idx++}`);             params.push(`%${f.cliente_nombre}%`) }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
@@ -56,6 +62,9 @@ export async function getReportePedidos(f: FiltrosPedidos) {
 // ── Reporte de inventario (stock actual + movimientos) ──────────────────
 export interface FiltrosInventario extends RangoFechas {
   tipo_case?: string
+  modelo?: string
+  color?: string
+  ubicacion?: string
   soloStockBajo?: boolean
 }
 
@@ -64,6 +73,9 @@ export async function getReporteInventario(f: FiltrosInventario) {
   const paramsStock: any[] = []
   let idx = 1
   if (f.tipo_case) { condStock.push(`tipo_case = $${idx++}`); paramsStock.push(f.tipo_case) }
+  if (f.modelo)    { condStock.push(`modelo = $${idx++}`);    paramsStock.push(f.modelo) }
+  if (f.color)     { condStock.push(`color = $${idx++}`);     paramsStock.push(f.color) }
+  if (f.ubicacion) { condStock.push(`ubicacion = $${idx++}`); paramsStock.push(f.ubicacion) }
 
   const umbralRow = await query<{ valor: string }>(`SELECT valor FROM public.config_portal WHERE clave='stock_bajo_umbral'`, [])
   const umbral = parseInt(umbralRow[0]?.valor || '10')

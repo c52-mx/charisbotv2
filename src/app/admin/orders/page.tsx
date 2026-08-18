@@ -45,7 +45,7 @@ export default function OrdersPage() {
       try { setPuntosList(JSON.parse(d.puntos_recoleccion || '[]')) } catch {}
     }).catch(()=>{})
     fetch('/api/users').then(r=>r.json()).then(d=>{
-      setVendors((d.items||[]).filter((u:any) => u.activo && u.rol !== 'CLIENTE'))
+      setVendors((d.data||[]).filter((u:any) => u.activo && u.rol !== 'CLIENTE'))
     }).catch(()=>{})
   },[])
   function necesitaAtencion(o: any): boolean {

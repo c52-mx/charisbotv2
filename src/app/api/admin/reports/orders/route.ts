@@ -13,10 +13,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const filtros = {
-    desde: searchParams.get('desde') || undefined,
-    hasta: searchParams.get('hasta') || undefined,
-    estado: searchParams.get('estado') || undefined,
-    telefono: searchParams.get('telefono') || undefined,
+    desde:          searchParams.get('desde')          || undefined,
+    hasta:          searchParams.get('hasta')           || undefined,
+    estado:         searchParams.get('estado')          || undefined,
+    telefono:       searchParams.get('telefono')        || undefined,
+    tipo_case:      searchParams.get('tipo_case')       || undefined,
+    origen:         searchParams.get('origen')          || undefined,
+    cliente_nombre: searchParams.get('cliente_nombre')  || undefined,
   }
   const { rows, totales } = await getReportePedidos(filtros)
 

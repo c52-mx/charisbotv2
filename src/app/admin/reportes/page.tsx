@@ -73,6 +73,10 @@ export default function ReportesPage() {
     const endpoint = tab === 'pedidos' ? 'orders' : tab === 'inventario' ? 'inventory' : 'sales'
     const params = buildParams()
     params.set('format', 'xlsx')
+    // Pasar los filtros dinámicos activos al servidor para que el xlsx los respete
+    Object.entries(colFilters).forEach(([col, val]) => {
+      if (val) params.set(col, val)
+    })
     window.open(`/api/admin/reports/${endpoint}?${params}`, '_blank')
   }
 
