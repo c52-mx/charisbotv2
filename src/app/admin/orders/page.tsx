@@ -450,22 +450,27 @@ export default function OrdersPage() {
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
-                  {/* Vendedor — nombre libre con sugerencias de usuarios del sistema */}
+                  {/* Vendedor — texto libre con sugerencias de usuarios del sistema */}
                   <div>
                     <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor</label>
                     <p style={{ fontSize:10,color:'var(--txt3)',marginBottom:5 }}>
-                      Escribe el nombre del vendedor o elige uno de la lista. No requiere cuenta en el sistema.
+                      Escribe cualquier nombre o elige un usuario del sistema. No requiere cuenta.
                     </p>
                     <div style={{ display:'flex', gap:8 }}>
-                      <div style={{ flex:1 }}>
-                        <Combo
-                          value={editVendorNombre}
-                          onChange={setEditVendorNombre}
-                          options={vendors.map(v => ({ value: v.nombre, label: `${v.nombre} (${v.rol})` }))}
-                          placeholder="Nombre del vendedor…"
-                          allowNew
-                        />
-                      </div>
+                      <input
+                        className="cinput"
+                        style={{ flex:1 }}
+                        list="vendor-datalist"
+                        value={editVendorNombre}
+                        onChange={e => setEditVendorNombre(e.target.value)}
+                        placeholder="Nombre del vendedor…"
+                        autoComplete="off"
+                      />
+                      <datalist id="vendor-datalist">
+                        {vendors.map(v => (
+                          <option key={v.id} value={v.nombre}>{v.nombre} ({v.rol})</option>
+                        ))}
+                      </datalist>
                       <button className="cbtn cbtn-secondary" disabled={savingVendor || !editVendorNombre.trim()} onClick={() => saveVendor(selected.id)}>
                         {savingVendor ? 'Guardando…' : 'Guardar'}
                       </button>
