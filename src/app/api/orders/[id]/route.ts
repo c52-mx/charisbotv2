@@ -16,9 +16,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const pedido = await queryOne<any>(
-    `SELECT p.*, c.nombre as cliente_nombre
+    `SELECT p.*, c.nombre as cliente_nombre, u.nombre as creado_por_nombre
      FROM public.pedidos p
      LEFT JOIN public.clientes c ON c.telefono = p.telefono
+     LEFT JOIN public.usuarios u ON u.id = p.creado_por
      WHERE p.id = $1`,
     [params.id]
   )
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   )
 
   const timeline = await query(
-    `SELECT t.id, t.estado, t.nota, t.creado_en, u.nombre as realizado_por_nombre
+    `SELECT t.id, t.estado, t.tipo_evento, t.nota, t.detalle, t.creado_en, u.nombre as realizado_por_nombre
      FROM public.pedido_timeline t
      LEFT JOIN public.usuarios u ON u.id = t.realizado_por
      WHERE t.pedido_id = $1
@@ -52,7 +53,41 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a } = await req.json()
+  const body = await req.json()
+  const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
+          tipo_evento, nota_evento, detalle: detalleEvento } = body
+
+  // ── Eventos de bitácora (no cambian estado) ──────────────────────────────
+  // tipo_evento: 'VENDEDOR' | 'NOTA' | 'PICKUP'
+  if (tipo_evento && tipo_evento !== 'ESTADO') {
+    const TIPOS_VALIDOS = ['VENDEDOR', 'NOTA', 'PICKUP']
+    if (!TIPOS_VALIDOS.includes(tipo_evento)) {
+      return NextResponse.json({ error: 'tipo_evento inválido' }, { status: 400 })
+    }
+    // Para PICKUP, también actualiza direccion_entrega en el pedido
+    if (tipo_evento === 'PICKUP' && detalleEvento?.pickup_nuevo) {
+      await queryOne(
+        `UPDATE public.pedidos
+         SET direccion_entrega = jsonb_build_object('tipo','pickup','nombre',$1::text),
+             actualizado_en = NOW()
+         WHERE id = $2`,
+        [detalleEvento.pickup_nuevo, params.id]
+      )
+    }
+    await query(
+      `INSERT INTO public.pedido_timeline (pedido_id, estado, tipo_evento, nota, detalle, realizado_por)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        params.id,
+        tipo_evento,           // reutiliza la col estado como discriminador legible
+        tipo_evento,
+        nota_evento || null,
+        detalleEvento ? JSON.stringify(detalleEvento) : null,
+        session.sub,
+      ]
+    )
+    return NextResponse.json({ ok: true })
+  }
 
   // Solo permitir actualizar el monto a cobrar, la ubicación física y/o el
   // repartidor asignado, sin cambiar de estado (reasignación libre).

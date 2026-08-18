@@ -26,12 +26,20 @@ export async function getReportePedidos(f: FiltrosPedidos) {
   const rows = await query(
     `SELECT p.id, p.numero_pedido, p.telefono, c.nombre as cliente_nombre,
             p.tipo_case, p.estado, p.origen, p.monto_total, p.creado_en,
-            COALESCE(SUM(pi.cantidad), 0) as total_piezas
+            COALESCE(SUM(pi.cantidad), 0) as total_piezas,
+            COALESCE(
+              (SELECT pt.detalle->>'vendedor_nuevo_nombre'
+               FROM public.pedido_timeline pt
+               WHERE pt.pedido_id = p.id AND pt.tipo_evento = 'VENDEDOR'
+               ORDER BY pt.creado_en DESC LIMIT 1),
+              u_creador.nombre
+            ) as vendedor_nombre
      FROM public.pedidos p
      LEFT JOIN public.clientes c ON c.telefono = p.telefono
      LEFT JOIN public.pedido_items pi ON pi.pedido_id = p.id
+     LEFT JOIN public.usuarios u_creador ON u_creador.id = p.creado_por
      ${where}
-     GROUP BY p.id, c.nombre
+     GROUP BY p.id, c.nombre, u_creador.nombre
      ORDER BY p.creado_en DESC`,
     params
   )

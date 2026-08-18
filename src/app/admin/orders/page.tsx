@@ -32,6 +32,8 @@ export default function OrdersPage() {
   // useEffect(()=>{ fetch('/api/admin/repartidores').then(r=>r.json()).then(d=>setRepartidores(d.data||[])).catch(()=>{}) },[])
   // const [repartidorSel, setRepartidorSel] = useState('')
   const [slaSurtido, setSlaSurtido] = useState({ tiempoHoras: 72, avisoHoras: 24 })
+  const [vendors,    setVendors]    = useState<{id:string;nombre:string;rol:string}[]>([])
+  const [puntosList, setPuntosList] = useState<{nombre:string;dir:string}[]>([])
   useEffect(()=>{
     fetch('/api/client/config').then(r=>r.json()).then(d=>{
       const tiempoHoras = parseInt(d.tiempo_surtido_horas)
@@ -40,6 +42,10 @@ export default function OrdersPage() {
         tiempoHoras: Number.isFinite(tiempoHoras) ? tiempoHoras : 72,
         avisoHoras:  Number.isFinite(avisoHoras)  ? avisoHoras  : 24,
       })
+      try { setPuntosList(JSON.parse(d.puntos_recoleccion || '[]')) } catch {}
+    }).catch(()=>{})
+    fetch('/api/users').then(r=>r.json()).then(d=>{
+      setVendors((d.items||[]).filter((u:any) => u.activo && u.rol !== 'CLIENTE'))
     }).catch(()=>{})
   },[])
   function necesitaAtencion(o: any): boolean {
@@ -60,6 +66,13 @@ export default function OrdersPage() {
   const [savingMonto, setSavingMonto] = useState(false)
   const [ubicacionInput, setUbicacionInput] = useState('')
   const [savingUbicacion, setSavingUbicacion] = useState(false)
+  // ── Edit panel state ──────────────────────────────────────────────────
+  const [editVendorId,  setEditVendorId]  = useState('')
+  const [savingVendor,  setSavingVendor]  = useState(false)
+  const [editNota,      setEditNota]      = useState('')
+  const [savingNota,    setSavingNota]    = useState(false)
+  const [editPickup,    setEditPickup]    = useState('')
+  const [savingPickup,  setSavingPickup]  = useState(false)
   const [pendingChange, setPendingChange] = useState<{ id:string; estado:string; desde:string } | null>(null)
   const [motivoCancel, setMotivoCancel] = useState('')
   const [motivoRechazo, setMotivoRechazo] = useState('')
@@ -86,6 +99,70 @@ export default function OrdersPage() {
     setSelected(data)
     setMontoInput(data.monto_total != null ? String(data.monto_total) : '')
     setUbicacionInput(data.ubicacion_fisica || '')
+    setEditNota('')
+    // Pre-seleccionar pickup actual
+    if (data.direccion_entrega?.tipo === 'pickup') {
+      setEditPickup(data.direccion_entrega?.nombre || '')
+    } else {
+      setEditPickup('')
+    }
+    // Resolver vendedor actual: último evento VENDEDOR o fallback a creado_por
+    const vendorEvents = (data.timeline || []).filter((t:any) => t.tipo_evento === 'VENDEDOR')
+    if (vendorEvents.length > 0) {
+      const last = vendorEvents[vendorEvents.length - 1]
+      setEditVendorId(last.detalle?.vendedor_nuevo_id || data.creado_por || '')
+    } else {
+      setEditVendorId(data.creado_por || '')
+    }
+  }
+
+  async function saveVendor(pedidoId: string) {
+    if (!editVendorId || !selected) return
+    const vendorObj = vendors.find(v => v.id === editVendorId)
+    if (!vendorObj) return
+    setSavingVendor(true)
+    const vendorEvents = (selected.timeline || []).filter((t:any) => t.tipo_evento === 'VENDEDOR')
+    const anteriorId     = vendorEvents.length > 0 ? vendorEvents[vendorEvents.length-1].detalle?.vendedor_nuevo_id   : selected.creado_por
+    const anteriorNombre = vendorEvents.length > 0 ? vendorEvents[vendorEvents.length-1].detalle?.vendedor_nuevo_nombre : selected.creado_por_nombre
+    await fetch(`/api/orders/${pedidoId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tipo_evento: 'VENDEDOR',
+        nota_evento: `${anteriorNombre || 'N/A'} → ${vendorObj.nombre}`,
+        detalle: { vendedor_anterior_id: anteriorId, vendedor_anterior_nombre: anteriorNombre, vendedor_nuevo_id: vendorObj.id, vendedor_nuevo_nombre: vendorObj.nombre },
+      }),
+    })
+    await loadDetail(pedidoId)
+    setSavingVendor(false)
+  }
+
+  async function saveNota(pedidoId: string) {
+    if (!editNota.trim()) return
+    setSavingNota(true)
+    await fetch(`/api/orders/${pedidoId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ tipo_evento: 'NOTA', nota_evento: editNota.trim() }),
+    })
+    setEditNota('')
+    await loadDetail(pedidoId)
+    setSavingNota(false)
+  }
+
+  async function savePickup(pedidoId: string) {
+    if (!editPickup || !selected) return
+    const anteriorNombre = selected.direccion_entrega?.nombre || ''
+    if (anteriorNombre === editPickup) return
+    setSavingPickup(true)
+    await fetch(`/api/orders/${pedidoId}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        tipo_evento: 'PICKUP',
+        nota_evento: `${anteriorNombre || 'N/A'} → ${editPickup}`,
+        detalle: { pickup_anterior: anteriorNombre, pickup_nuevo: editPickup },
+      }),
+    })
+    await loadDetail(pedidoId)
+    setSavingPickup(false)
   }
   async function saveMonto(id: string) {
     setSavingMonto(true)
@@ -361,6 +438,60 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {/* ── Panel: editar información del pedido ─────────────── */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>
+                  ✏️ Editar información del pedido
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+
+                  {/* Vendedor */}
+                  <div>
+                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor</label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <select className="cinput" style={{ flex:1 }} value={editVendorId} onChange={e => setEditVendorId(e.target.value)}>
+                        <option value="">— Sin asignar —</option>
+                        {vendors.map(v => <option key={v.id} value={v.id}>{v.nombre} ({v.rol})</option>)}
+                      </select>
+                      <button className="cbtn cbtn-secondary" disabled={savingVendor || !editVendorId} onClick={() => saveVendor(selected.id)}>
+                        {savingVendor ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sede pickup (solo si el pedido es de recolección) */}
+                  {selected.metodo_entrega === 'pickup' && puntosList.filter(p=>p.nombre).length > 0 && (
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>🏬 Sede de recolección</label>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <select className="cinput" style={{ flex:1 }} value={editPickup} onChange={e => setEditPickup(e.target.value)}>
+                          <option value="">— Seleccionar —</option>
+                          {puntosList.filter(p=>p.nombre).map((p,i) => <option key={i} value={p.nombre}>{p.nombre}</option>)}
+                        </select>
+                        <button className="cbtn cbtn-secondary" disabled={savingPickup || !editPickup || editPickup===selected.direccion_entrega?.nombre} onClick={() => savePickup(selected.id)}>
+                          {savingPickup ? 'Guardando…' : 'Guardar'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nota interna */}
+                  <div>
+                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>📝 Agregar observación interna</label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <input className="cinput" style={{ flex:1 }} placeholder="Observación visible solo para el equipo…"
+                             value={editNota} onChange={e => setEditNota(e.target.value)}
+                             onKeyDown={e => { if (e.key==='Enter' && editNota.trim()) saveNota(selected.id) }} />
+                      <button className="cbtn cbtn-secondary" disabled={savingNota || !editNota.trim()} onClick={() => saveNota(selected.id)}>
+                        {savingNota ? 'Guardando…' : 'Agregar'}
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+              {/* ──────────────────────────────────────────────────── */}
+
               {selected.motivo_rechazo_surtido && selected.estado === 'EN_PREPARACION' && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
                   ✕ Surtido rechazado: {selected.motivo_rechazo_surtido}
@@ -473,20 +604,31 @@ export default function OrdersPage() {
 
               {selected.timeline?.length > 0 && (
                 <div style={{ marginTop:18 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Historial</div>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Bitácora del pedido</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    {selected.timeline.map((t:any,i:number) => (
-                      <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'6px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
-                        <div>
-                          <span style={{ fontWeight:600, color:'var(--txt)' }}>{t.estado.replace(/_/g,' ')}</span>
-                          {t.nota ? <span> — {t.nota}</span> : null}
+                    {selected.timeline.map((t:any,i:number) => {
+                      const tipo = t.tipo_evento || 'ESTADO'
+                      const esEstado = tipo === 'ESTADO'
+                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : '📌'
+                      return (
+                        <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'7px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
+                          <div style={{ flex:1 }}>
+                            {esEstado ? (
+                              <>
+                                <span style={{ fontWeight:600, color:'var(--txt)' }}>{icon} {(t.estado||'').replace(/_/g,' ')}</span>
+                                {t.nota ? <span style={{ color:'var(--txt2)' }}> — {t.nota}</span> : null}
+                              </>
+                            ) : (
+                              <span>{icon} {t.nota || tipo}</span>
+                            )}
+                          </div>
+                          <div style={{ textAlign:'right', flexShrink:0, fontSize:11 }}>
+                            <div>{format(new Date(t.creado_en),'dd MMM HH:mm',{locale:es})}</div>
+                            <div style={{ color:'var(--txt3)' }}>{t.realizado_por_nombre || 'Sistema'}</div>
+                          </div>
                         </div>
-                        <div style={{ textAlign:'right', flexShrink:0, fontSize:11 }}>
-                          <div>{format(new Date(t.creado_en),'dd MMM HH:mm',{locale:es})}</div>
-                          <div style={{ color:'var(--txt3)' }}>{t.realizado_por_nombre || 'Sistema'}</div>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}

@@ -1,11 +1,33 @@
 'use client'
-import { useState, useEffect, useCallback, useContext } from 'react'
+import { useState, useEffect, useCallback, useContext, useMemo } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
 
 type Tab = 'pedidos' | 'inventario' | 'ventas'
 
 const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA','ENTREGADO','CANCELADO']
+
+// ── Columnas excluidas de los auto-filtros por tab ────────────────────────
+const EXCLUDE_COLS: Record<Tab, string[]> = {
+  pedidos:    ['id', 'creado_en', 'monto_total', 'total_piezas', 'numero_pedido'],
+  inventario: ['case_id', 'stock'],
+  ventas:     [],
+}
+
+// Detecta filtros automáticos a partir del array de filas
+function buildAutoFilters(rows: any[], excludeCols: string[]) {
+  if (!rows.length) return []
+  const cols = Object.keys(rows[0]).filter(k => !excludeCols.includes(k))
+  return cols.flatMap(col => {
+    const rawValues = rows.map(r => r[col])
+    // Saltar columnas numéricas (stock, precios, etc.)
+    if (rawValues.some(v => v !== null && v !== undefined && v !== '' && typeof v === 'number')) return []
+    const values = [...new Set(rawValues.filter(v => v != null && v !== '').map(String))].sort()
+    if (values.length === 0) return []
+    const type: 'select' | 'text' = values.length <= 20 ? 'select' : 'text'
+    return [{ col, type, values }]
+  })
+}
 
 export default function ReportesPage() {
   const { dark } = useContext(ThemeContext)
@@ -18,6 +40,11 @@ export default function ReportesPage() {
   const [soloStockBajo, setSoloStockBajo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
+  // Filtros dinámicos por columna (client-side)
+  const [colFilters, setColFilters] = useState<Record<string, string>>({})
+
+  // Resetear filtros de columna al cambiar de tab o recargar datos
+  useEffect(() => { setColFilters({}) }, [tab])
 
   const buildParams = useCallback(() => {
     const p = new URLSearchParams()
@@ -33,6 +60,7 @@ export default function ReportesPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setColFilters({})
     const endpoint = tab === 'pedidos' ? 'orders' : tab === 'inventario' ? 'inventory' : 'sales'
     const r = await fetch(`/api/admin/reports/${endpoint}?${buildParams()}`)
     setData(await r.json())
@@ -47,6 +75,26 @@ export default function ReportesPage() {
     params.set('format', 'xlsx')
     window.open(`/api/admin/reports/${endpoint}?${params}`, '_blank')
   }
+
+  // Filas filtradas client-side
+  const filteredRows = useMemo(() => {
+    if (!data) return []
+    const rows = tab === 'pedidos' ? (data.rows || []) : tab === 'inventario' ? (data.stock || []) : []
+    if (!Object.keys(colFilters).length) return rows
+    return rows.filter((row: any) =>
+      Object.entries(colFilters).every(([col, val]) => {
+        if (!val) return true
+        return String(row[col] ?? '').toLowerCase().includes(val.toLowerCase())
+      })
+    )
+  }, [data, colFilters, tab])
+
+  // Auto-filtros generados a partir de los datos descargados
+  const autoFilters = useMemo(() => {
+    if (!data) return []
+    const rows = tab === 'pedidos' ? (data.rows || []) : tab === 'inventario' ? (data.stock || []) : []
+    return buildAutoFilters(rows, EXCLUDE_COLS[tab] || [])
+  }, [data, tab])
 
   const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
@@ -69,7 +117,8 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      <div className="ccard" style={{ padding:'14px 16px', marginBottom:16, display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
+      {/* ── Filtros servidor (fecha + específicos del tab) ── */}
+      <div className="ccard" style={{ padding:'14px 16px', marginBottom:12, display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
         <div style={{ minWidth:150 }}>
           <label style={lbl}>Desde</label>
           <input type="date" style={inp} value={desde} onChange={e => setDesde(e.target.value)} />
@@ -99,14 +148,43 @@ export default function ReportesPage() {
         <button className="cbtn cbtn-secondary" onClick={load} disabled={loading}>{loading ? 'Cargando…' : '🔄 Aplicar'}</button>
       </div>
 
+      {/* ── Auto-filtros por columna (client-side) ── */}
+      {!loading && autoFilters.length > 0 && (
+        <div className="ccard" style={{ padding:'12px 16px', marginBottom:12, display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:10, flexShrink:0 }}>
+            🔍 Filtrar tabla
+          </span>
+          {autoFilters.map(({ col, type, values }) => (
+            <div key={col} style={{ minWidth:140 }}>
+              <label style={lbl}>{col.replace(/_/g,' ')}</label>
+              {type === 'select' ? (
+                <select style={{ ...inp, cursor:'pointer' }}
+                        value={colFilters[col] || ''}
+                        onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))}>
+                  <option value="">Todos</option>
+                  {values.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              ) : (
+                <input style={inp} placeholder="Buscar…"
+                       value={colFilters[col] || ''}
+                       onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))} />
+              )}
+            </div>
+          ))}
+          {Object.values(colFilters).some(v => v) && (
+            <button className="cbtn cbtn-ghost" style={{ paddingBottom:9 }} onClick={() => setColFilters({})}>✕ Limpiar</button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48 }}>
           <div style={{ width:24, height:24, borderRadius:'50%', border:'2.5px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
         </div>
       ) : tab === 'pedidos' ? (
-        <PedidosTab data={data} />
+        <PedidosTab data={data} filteredRows={filteredRows} />
       ) : tab === 'inventario' ? (
-        <InventarioTab data={data} />
+        <InventarioTab data={data} filteredRows={filteredRows} />
       ) : (
         <VentasTab data={data} />
       )}
@@ -114,32 +192,43 @@ export default function ReportesPage() {
   )
 }
 
-function PedidosTab({ data }: { data: any }) {
-  const rows = data?.rows || []
+function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) {
   const t = data?.totales || { pedidos:0, piezas:0, monto:0 }
+  // Totales sobre las filas filtradas, no el total original
+  const totFiltrado = filteredRows.reduce((acc, r) => ({
+    pedidos: acc.pedidos + 1,
+    piezas:  acc.piezas  + Number(r.total_piezas || 0),
+    monto:   acc.monto   + Number(r.monto_total  || 0),
+  }), { pedidos:0, piezas:0, monto:0 })
+
   return (
     <>
       <div style={{ display:'flex', gap:16, marginBottom:14, fontSize:13, color:'var(--txt2)' }}>
-        <span><b style={{ color:'var(--txt)' }}>{t.pedidos}</b> pedidos</span>
-        <span><b style={{ color:'var(--txt)' }}>{t.piezas}</b> piezas</span>
-        <span><b style={{ color:'var(--txt)' }}>${t.monto.toLocaleString('es-MX')}</b> monto</span>
+        <span><b style={{ color:'var(--txt)' }}>{totFiltrado.pedidos}</b> pedidos</span>
+        <span><b style={{ color:'var(--txt)' }}>{totFiltrado.piezas}</b> piezas</span>
+        <span><b style={{ color:'var(--txt)' }}>${totFiltrado.monto.toLocaleString('es-MX')}</b> monto</span>
+        {totFiltrado.pedidos !== t.pedidos && (
+          <span style={{ color:'var(--txt3)' }}>(de {t.pedidos} en total)</span>
+        )}
       </div>
       <div className="table-wrap">
         <table className="ctable rtable">
-          <thead><tr><th>Pedido</th><th>Cliente/Tel</th><th>Tipo</th><th>Estado</th><th>Piezas</th><th>Monto</th><th>Fecha</th></tr></thead>
+          <thead><tr><th>Pedido</th><th>Cliente/Tel</th><th>Tipo</th><th>Estado</th><th>Origen</th><th>Vendedor</th><th>Piezas</th><th>Monto</th><th>Fecha</th></tr></thead>
           <tbody>
-            {rows.map((r:any) => (
+            {filteredRows.map((r:any) => (
               <tr key={r.id}>
                 <td style={{ fontFamily:'monospace', fontSize:11 }}>#{(r.numero_pedido||r.id.slice(0,8)).toUpperCase()}</td>
                 <td>{r.cliente_nombre || r.telefono}</td>
                 <td>{r.tipo_case}</td>
                 <td><span className="badge badge-blue">{r.estado.replace(/_/g,' ')}</span></td>
+                <td>{r.origen}</td>
+                <td style={{ fontSize:12 }}>{r.vendedor_nombre || '—'}</td>
                 <td>{r.total_piezas}</td>
                 <td>{r.monto_total ? `$${Number(r.monto_total).toLocaleString('es-MX')}` : '—'}</td>
                 <td style={{ fontSize:12, color:'var(--txt2)' }}>{new Date(r.creado_en).toLocaleDateString('es-MX')}</td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={7} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
+            {!filteredRows.length && <tr><td colSpan={9} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
           </tbody>
         </table>
       </div>
@@ -147,8 +236,7 @@ function PedidosTab({ data }: { data: any }) {
   )
 }
 
-function InventarioTab({ data }: { data: any }) {
-  const stock = data?.stock || []
+function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] }) {
   const movimientos = data?.movimientos || []
   const umbral = data?.umbral ?? 10
   return (
@@ -157,14 +245,14 @@ function InventarioTab({ data }: { data: any }) {
         <table className="ctable rtable">
           <thead><tr><th>Tipo</th><th>Modelo</th><th>Color</th><th>Stock</th><th>Ubicación</th></tr></thead>
           <tbody>
-            {stock.map((r:any) => (
+            {filteredRows.map((r:any) => (
               <tr key={r.case_id}>
                 <td>{r.tipo_case}</td><td>{r.modelo}</td><td>{r.color}</td>
                 <td><span className={`badge ${r.stock===0?'badge-red':r.stock<=umbral?'badge-warn':'badge-ok'}`}>{r.stock}</span></td>
                 <td>{r.ubicacion || '—'}</td>
               </tr>
             ))}
-            {!stock.length && <tr><td colSpan={5} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
+            {!filteredRows.length && <tr><td colSpan={5} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
           </tbody>
         </table>
       </div>

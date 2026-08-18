@@ -93,12 +93,13 @@ export default function CartPage() {
   const skipSync = useRef(false)
 
   // ── Entrega ──────────────────────────────────────────────────────────────
-  const [metodoEntrega, setMetodoEntrega] = useState<'pickup'|'envio'>('pickup')
-  const [puntoPickup,   setPuntoPickup]   = useState('')
-  const [config,        setConfig]        = useState<any>({})
-  const [addresses,     setAddresses]     = useState<Address[]>([])
-  const [direccionId,   setDireccionId]   = useState<string|null>(null)
-  const [addrLoading,   setAddrLoading]   = useState(false)
+  const [metodoEntrega,   setMetodoEntrega]   = useState<'pickup'|'envio'>('pickup')
+  const [puntoPickup,     setPuntoPickup]     = useState('')
+  const [showPickupModal, setShowPickupModal] = useState(false)
+  const [config,          setConfig]          = useState<any>({})
+  const [addresses,       setAddresses]       = useState<Address[]>([])
+  const [direccionId,     setDireccionId]     = useState<string|null>(null)
+  const [addrLoading,     setAddrLoading]     = useState(false)
 
   useEffect(() => {
     fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
@@ -422,28 +423,66 @@ export default function CartPage() {
                 ))}
               </div>
 
-              {/* Puntos de recolección */}
+              {/* Puntos de recolección — botón compacto + modal */}
               {metodoEntrega === 'pickup' && (() => {
                 let pts: {nombre:string; dir:string}[] = []
                 try { pts = JSON.parse(config.puntos_recoleccion || '[]') } catch {}
+                pts = pts.filter(p => p.nombre)
+                const selectedPt = pts.find(p => p.nombre === puntoPickup)
                 return (
-                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                    {pts.filter(p => p.nombre).map((p, idx) => (
-                      <div key={idx} onClick={() => setPuntoPickup(p.nombre)}
-                        style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, background:puntoPickup===p.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                          <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                            {puntoPickup===p.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                  <>
+                    {selectedPt ? (
+                      <div style={{ padding:'9px 11px', borderRadius:9, border:'1.5px solid var(--blue)', background:'#eff6ff' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                          <div>
+                            <p style={{ fontSize:12, fontWeight:700, color:'var(--blue)', margin:0 }}>🏬 {selectedPt.nombre}</p>
+                            {selectedPt.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3 }}>{selectedPt.dir}</p>}
                           </div>
-                          <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>{p.nombre}</p>
+                          <button onClick={() => setShowPickupModal(true)} style={{ fontSize:11, color:'var(--blue)', fontWeight:700, background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0, flexShrink:0, marginLeft:8, textDecoration:'underline' }}>
+                            Cambiar
+                          </button>
                         </div>
-                        {p.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{p.dir}</p>}
                       </div>
-                    ))}
-                    {pts.length === 0 && (
+                    ) : pts.length > 0 ? (
+                      <button onClick={() => setShowPickupModal(true)}
+                        style={{ width:'100%', padding:'10px 13px', borderRadius:9, border:'1.5px dashed var(--field-border)', background:'var(--field-bg)', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', textAlign:'left', transition:'border-color .15s' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor='var(--blue)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor='var(--field-border)')}>
+                        📍 Seleccionar sede de recolección →
+                      </button>
+                    ) : (
                       <p style={{ fontSize:12, color:'var(--txt3)', fontStyle:'italic' }}>Sin puntos de recolección configurados</p>
                     )}
-                  </div>
+
+                    {/* Modal de selección */}
+                    {showPickupModal && pts.length > 0 && (
+                      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+                           onClick={e => { if (e.target===e.currentTarget) setShowPickupModal(false) }}>
+                        <div style={{ background:'white', borderRadius:18, width:'100%', maxWidth:380, overflow:'hidden', animation:'fadeUp .2s ease-out', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+                          <div style={{ padding:'16px 20px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                            <h3 style={{ fontWeight:800, fontSize:15, color:'var(--txt)', margin:0 }}>🏬 Sede de recolección</h3>
+                            <button onClick={() => setShowPickupModal(false)} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', color:'var(--txt3)', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+                          </div>
+                          <div style={{ padding:'14px 20px 20px', display:'flex', flexDirection:'column', gap:8 }}>
+                            {pts.map((p, idx) => (
+                              <div key={idx} onClick={() => { setPuntoPickup(p.nombre); setShowPickupModal(false) }}
+                                style={{ padding:'11px 13px', borderRadius:10, border:`1.5px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, background:puntoPickup===p.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                  <div style={{ width:15, height:15, borderRadius:'50%', border:`2px solid ${puntoPickup===p.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                    {puntoPickup===p.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)', margin:0 }}>{p.nombre}</p>
+                                    {p.dir && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>{p.dir}</p>}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )
               })()}
 

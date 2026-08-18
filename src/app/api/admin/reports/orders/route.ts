@@ -22,10 +22,11 @@ export async function GET(req: NextRequest) {
 
   if (searchParams.get('format') === 'xlsx') {
     return excelResponse('reporte-pedidos.xlsx', wb => {
-      addSheet(wb, 'Pedidos', ['Pedido', 'Teléfono', 'Cliente', 'Tipo', 'Estado', 'Origen', 'Piezas', 'Monto', 'Fecha'],
+      addSheet(wb, 'Pedidos', ['Pedido', 'Teléfono', 'Cliente', 'Tipo', 'Estado', 'Origen', 'Vendedor', 'Piezas', 'Monto', 'Fecha'],
         rows.map((r: any) => [
           (r.numero_pedido || r.id.slice(0, 8)).toUpperCase(), r.telefono, r.cliente_nombre || '',
-          r.tipo_case, r.estado, r.origen, Number(r.total_piezas), r.monto_total ? Number(r.monto_total) : null,
+          r.tipo_case, r.estado, r.origen, r.vendedor_nombre || '',
+          Number(r.total_piezas), r.monto_total ? Number(r.monto_total) : null,
           new Date(r.creado_en).toLocaleString('es-MX'),
         ]))
     })
