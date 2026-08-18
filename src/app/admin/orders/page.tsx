@@ -67,8 +67,8 @@ export default function OrdersPage() {
   const [ubicacionInput, setUbicacionInput] = useState('')
   const [savingUbicacion, setSavingUbicacion] = useState(false)
   // ── Edit panel state ──────────────────────────────────────────────────
-  const [editVendorId,  setEditVendorId]  = useState('')
-  const [savingVendor,  setSavingVendor]  = useState(false)
+  const [editVendorNombre, setEditVendorNombre] = useState('')
+  const [savingVendor,     setSavingVendor]     = useState(false)
   const [editNota,      setEditNota]      = useState('')
   const [savingNota,    setSavingNota]    = useState(false)
   const [editPickup,    setEditPickup]    = useState('')
@@ -106,30 +106,35 @@ export default function OrdersPage() {
     } else {
       setEditPickup('')
     }
-    // Resolver vendedor actual: último evento VENDEDOR o fallback a creado_por
+    // Resolver vendedor actual: último evento VENDEDOR o fallback a creado_por_nombre
     const vendorEvents = (data.timeline || []).filter((t:any) => t.tipo_evento === 'VENDEDOR')
     if (vendorEvents.length > 0) {
       const last = vendorEvents[vendorEvents.length - 1]
-      setEditVendorId(last.detalle?.vendedor_nuevo_id || data.creado_por || '')
+      setEditVendorNombre(last.detalle?.vendedor_nuevo_nombre || '')
     } else {
-      setEditVendorId(data.creado_por || '')
+      setEditVendorNombre(data.creado_por_nombre || '')
     }
   }
 
   async function saveVendor(pedidoId: string) {
-    if (!editVendorId || !selected) return
-    const vendorObj = vendors.find(v => v.id === editVendorId)
-    if (!vendorObj) return
+    if (!editVendorNombre.trim() || !selected) return
     setSavingVendor(true)
+    // Opcional: si el nombre coincide con un usuario del sistema, incluir su ID
+    const matchingUser = vendors.find(v => v.nombre === editVendorNombre.trim())
     const vendorEvents = (selected.timeline || []).filter((t:any) => t.tipo_evento === 'VENDEDOR')
     const anteriorId     = vendorEvents.length > 0 ? vendorEvents[vendorEvents.length-1].detalle?.vendedor_nuevo_id   : selected.creado_por
-    const anteriorNombre = vendorEvents.length > 0 ? vendorEvents[vendorEvents.length-1].detalle?.vendedor_nuevo_nombre : selected.creado_por_nombre
+    const anteriorNombre = vendorEvents.length > 0 ? vendorEvents[vendorEvents.length-1].detalle?.vendedor_nuevo_nombre : (selected.creado_por_nombre || '')
     await fetch(`/api/orders/${pedidoId}`, {
       method:'PATCH', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         tipo_evento: 'VENDEDOR',
-        nota_evento: `${anteriorNombre || 'N/A'} → ${vendorObj.nombre}`,
-        detalle: { vendedor_anterior_id: anteriorId, vendedor_anterior_nombre: anteriorNombre, vendedor_nuevo_id: vendorObj.id, vendedor_nuevo_nombre: vendorObj.nombre },
+        nota_evento: `${anteriorNombre || 'N/A'} → ${editVendorNombre.trim()}`,
+        detalle: {
+          vendedor_anterior_id:     anteriorId   || null,
+          vendedor_anterior_nombre: anteriorNombre || null,
+          vendedor_nuevo_id:        matchingUser?.id || null,
+          vendedor_nuevo_nombre:    editVendorNombre.trim(),
+        },
       }),
     })
     await loadDetail(pedidoId)
@@ -445,15 +450,23 @@ export default function OrdersPage() {
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
-                  {/* Vendedor */}
+                  {/* Vendedor — nombre libre con sugerencias de usuarios del sistema */}
                   <div>
                     <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor</label>
+                    <p style={{ fontSize:10,color:'var(--txt3)',marginBottom:5 }}>
+                      Escribe el nombre del vendedor o elige uno de la lista. No requiere cuenta en el sistema.
+                    </p>
                     <div style={{ display:'flex', gap:8 }}>
-                      <select className="cinput" style={{ flex:1 }} value={editVendorId} onChange={e => setEditVendorId(e.target.value)}>
-                        <option value="">— Sin asignar —</option>
-                        {vendors.map(v => <option key={v.id} value={v.id}>{v.nombre} ({v.rol})</option>)}
-                      </select>
-                      <button className="cbtn cbtn-secondary" disabled={savingVendor || !editVendorId} onClick={() => saveVendor(selected.id)}>
+                      <div style={{ flex:1 }}>
+                        <Combo
+                          value={editVendorNombre}
+                          onChange={setEditVendorNombre}
+                          options={vendors.map(v => ({ value: v.nombre, label: `${v.nombre} (${v.rol})` }))}
+                          placeholder="Nombre del vendedor…"
+                          allowNew
+                        />
+                      </div>
+                      <button className="cbtn cbtn-secondary" disabled={savingVendor || !editVendorNombre.trim()} onClick={() => saveVendor(selected.id)}>
                         {savingVendor ? 'Guardando…' : 'Guardar'}
                       </button>
                     </div>
@@ -724,10 +737,10 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
     })
     // Load ALL catalog rows (including color) for dynamic filtering
     fetch('/api/catalog?limit=2000&activo=true').then(r=>r.json()).then(d=>{
-      setCatalogFull((d.data||[]).map((c:any)=>({ tipo:c.tipo_case, modelo:c.modelo, color:c.color })))
+      setCatalogFull((d.items||[]).map((c:any)=>({ tipo:c.tipo_case, modelo:c.modelo, color:c.color })))
       // Model options: unique per tipo
       const uniq = new Map<string,{value:string,label:string,tipo:string}>()
-      for (const c of (d.data||[])) {
+      for (const c of (d.items||[])) {
         const key = `${c.tipo_case}__${c.modelo}`
         if (!uniq.has(key)) uniq.set(key, { value:c.modelo, label:`${c.modelo}`, tipo:c.tipo_case })
       }
