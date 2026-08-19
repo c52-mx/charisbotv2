@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarCliente } from '@/lib/notify'
-import { finalizarPedido, liberarPedido } from '@/lib/stock'
+import { finalizarPedido, liberarPedido, restaurarStockPedido } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
 
@@ -195,11 +195,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   )
 
   // Confirmado/pagado por primera vez → descuenta stock definitivo y libera la reserva.
-  // Cancelado → libera la reserva sin tocar el stock (nunca se vendió).
+  // Cancelado → libera reservas; si ya estaba confirmado (stock descontado), lo restaura.
   if (ESTADOS_FINALES.includes(estado) && !ESTADOS_FINALES.includes(before.estado)) {
     await finalizarPedido(params.id, session.sub).catch(e => console.error('[finalizarPedido]', e))
   } else if (estado === 'CANCELADO' && before.estado !== 'CANCELADO') {
     await liberarPedido(params.id).catch(e => console.error('[liberarPedido]', e))
+    // Si el pedido ya tenía stock descontado (CONFIRMADO o etapas posteriores), revertirlo
+    const ESTADOS_CON_STOCK_DESCONTADO = ['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA']
+    if (ESTADOS_CON_STOCK_DESCONTADO.includes(before.estado)) {
+      await restaurarStockPedido(params.id, session.sub).catch(e => console.error('[restaurarStock]', e))
+    }
   }
 
   // Notificar al cliente — "por validar surtido" es un estado interno, no se

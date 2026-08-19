@@ -552,11 +552,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {/* ── TOP BAR ── */}
       <div className="c-topbar">
         <div className="c-topbar-inner">
-          <span className="c-topbar-item">📍 Entregar en: CDMX</span>
+          <span className="c-topbar-item">🚚 Envío nacional</span>
           <span className="c-topbar-sep">|</span>
-          <span className="c-topbar-item">🚚 Envío gratis en pedidos de + $5,000</span>
-          <span className="c-topbar-sep">|</span>
-          <span className="c-topbar-item">⏱ Entrega CDMX 24h</span>
+          <span className="c-topbar-item">📍 Entregas en CDMX</span>
           <span className="c-topbar-badge">Portal Distribuidores</span>
         </div>
       </div>

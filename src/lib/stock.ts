@@ -215,6 +215,35 @@ export async function liberarPedido(pedidoId: string): Promise<void> {
   await query(`DELETE FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`, [pedidoId])
 }
 
+// Restaura el stock físico de un pedido cancelado que ya estaba CONFIRMADO.
+// Lee los movimientos SALIDA asociados al pedido y los revierte con un AJUSTE.
+export async function restaurarStockPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
+  const salidas = await query<{ case_id: string; cantidad: number }>(
+    `SELECT case_id, SUM(cantidad)::int as cantidad
+     FROM public.movimientos_stock
+     WHERE pedido_id = $1 AND tipo = 'SALIDA'
+     GROUP BY case_id`,
+    [pedidoId]
+  )
+  for (const s of salidas) {
+    const [updated] = await query<{ stock: number }>(
+      `UPDATE public.catalogo_cases SET stock = stock + $1 WHERE case_id = $2 RETURNING stock`,
+      [s.cantidad, s.case_id]
+    )
+    if (updated) {
+      await registrarMovimiento({
+        case_id: s.case_id,
+        tipo: 'AJUSTE',
+        cantidad: s.cantidad,
+        stock_resultante: updated.stock,
+        motivo: 'Devolución por cancelación de pedido',
+        pedido_id: pedidoId,
+        realizado_por: realizadoPor,
+      })
+    }
+  }
+}
+
 // Reactiva un pedido CANCELADO: revalida disponibilidad igual que un pedido
 // nuevo y, si alcanza, descuenta stock y lo regresa a CONFIRMADO. Si no
 // alcanza, lanza InsufficientStockError sin tocar nada (el admin decide).
