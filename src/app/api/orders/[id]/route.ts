@@ -55,7 +55,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const body = await req.json()
   const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
-          tipo_evento, nota_evento, detalle: detalleEvento } = body
+          tipo_evento, nota_evento, detalle: detalleEvento,
+          envio_guia, envio_costo, envio_rastreo_url, envio_observaciones, envio_archivo_url } = body
+
+  // ── Actualización de datos de guía/envío (sin cambiar estado) ─────────
+  if (envio_guia !== undefined || envio_costo !== undefined || envio_rastreo_url !== undefined ||
+      envio_observaciones !== undefined || envio_archivo_url !== undefined) {
+    await query(
+      `UPDATE public.pedidos SET
+         envio_guia          = COALESCE($1, envio_guia),
+         envio_costo         = COALESCE($2::numeric, envio_costo),
+         envio_rastreo_url   = COALESCE($3, envio_rastreo_url),
+         envio_observaciones = COALESCE($4, envio_observaciones),
+         envio_archivo_url   = COALESCE($5, envio_archivo_url),
+         actualizado_en = NOW()
+       WHERE id = $6`,
+      [envio_guia ?? null, envio_costo ?? null, envio_rastreo_url ?? null,
+       envio_observaciones ?? null, envio_archivo_url ?? null, params.id]
+    )
+    if (!estado && !tipo_evento) return NextResponse.json({ ok: true })
+  }
 
   // ── Eventos de bitácora (no cambian estado) ──────────────────────────────
   // tipo_evento: 'VENDEDOR' | 'NOTA' | 'PICKUP'

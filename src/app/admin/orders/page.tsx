@@ -43,6 +43,7 @@ export default function OrdersPage() {
         avisoHoras:  Number.isFinite(avisoHoras)  ? avisoHoras  : 24,
       })
       try { setPuntosList(JSON.parse(d.puntos_recoleccion || '[]')) } catch {}
+      try { setPaqueteriasList(JSON.parse(d.paqueterias || '[]')) } catch {}
     }).catch(()=>{})
     fetch('/api/users').then(r=>r.json()).then(d=>{
       setVendors((d.data||[]).filter((u:any) => u.activo && u.rol !== 'CLIENTE'))
@@ -73,6 +74,14 @@ export default function OrdersPage() {
   const [savingNota,    setSavingNota]    = useState(false)
   const [editPickup,    setEditPickup]    = useState('')
   const [savingPickup,  setSavingPickup]  = useState(false)
+  // Guía / datos de envío
+  const [envioGuia,         setEnvioGuia]         = useState('')
+  const [envioCosto,        setEnvioCosto]         = useState('')
+  const [envioRastreo,      setEnvioRastreo]       = useState('')
+  const [envioObs,          setEnvioObs]           = useState('')
+  const [envioArchivo,      setEnvioArchivo]       = useState<File|null>(null)
+  const [savingEnvio,       setSavingEnvio]        = useState(false)
+  const [paqueteriasList,   setPaqueteriasList]    = useState<{nombre:string;dias_estimados:string;logo_url:string}[]>([])
   const [pendingChange, setPendingChange] = useState<{ id:string; estado:string; desde:string } | null>(null)
   const [motivoCancel, setMotivoCancel] = useState('')
   const [motivoRechazo, setMotivoRechazo] = useState('')
@@ -114,6 +123,11 @@ export default function OrdersPage() {
     } else {
       setEditVendorNombre(data.creado_por_nombre || '')
     }
+    // Pre-cargar datos de guía/envío
+    setEnvioGuia(data.envio_guia || '')
+    setEnvioCosto(data.envio_costo != null ? String(data.envio_costo) : '')
+    setEnvioRastreo(data.envio_rastreo_url || '')
+    setEnvioObs(data.envio_observaciones || '')
   }
 
   async function saveVendor(pedidoId: string) {
@@ -169,6 +183,30 @@ export default function OrdersPage() {
     await loadDetail(pedidoId)
     setSavingPickup(false)
   }
+  async function saveEnvio(pedidoId: string) {
+    setSavingEnvio(true)
+    try {
+      const body: any = {}
+      if (envioGuia.trim())    body.envio_guia          = envioGuia.trim()
+      if (envioCosto.trim())   body.envio_costo         = parseFloat(envioCosto)
+      if (envioRastreo.trim()) body.envio_rastreo_url   = envioRastreo.trim()
+      if (envioObs.trim())     body.envio_observaciones = envioObs.trim()
+      // Subir archivo de guía si hay uno seleccionado
+      if (envioArchivo) {
+        const fd = new FormData()
+        fd.append('file', envioArchivo)
+        const upRes = await fetch('/api/upload/logo', { method:'POST', body: fd })
+        const upData = await upRes.json()
+        if (upData.url) body.envio_archivo_url = upData.url
+      }
+      await fetch(`/api/orders/${pedidoId}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+      })
+      setEnvioArchivo(null)
+      await loadDetail(pedidoId)
+    } finally { setSavingEnvio(false) }
+  }
+
   async function saveMonto(id: string) {
     setSavingMonto(true)
     await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ monto_total: montoInput }) })
@@ -509,6 +547,65 @@ export default function OrdersPage() {
                 </div>
               </div>
               {/* ──────────────────────────────────────────────────── */}
+
+              {/* ── Panel: datos de envío / guía (solo pedidos de envío) ── */}
+              {selected.metodo_entrega === 'envio' && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>
+                    📦 Datos de envío
+                  </div>
+                  {/* Paquetería elegida por el cliente */}
+                  {selected.paqueteria && (
+                    <div style={{ marginBottom:8, padding:'7px 10px', borderRadius:8, background:'var(--bg3)', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
+                      {(() => {
+                        const p = paqueteriasList.find(x => x.nombre === selected.paqueteria)
+                        return p?.logo_url
+                          ? <img src={p.logo_url} alt={p.nombre} style={{ height:20, objectFit:'contain' }} />
+                          : <span>🚚</span>
+                      })()}
+                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{selected.paqueteria}</span>
+                      {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados &&
+                        <span style={{ color:'var(--txt3)' }}>· {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados}</span>}
+                    </div>
+                  )}
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      <div>
+                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>N° de guía</label>
+                        <input className="cinput" value={envioGuia} onChange={e=>setEnvioGuia(e.target.value)} placeholder="Ej: 1234567890" />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Costo de envío (MXN)</label>
+                        <input className="cinput" type="number" min="0" step="0.01" value={envioCosto} onChange={e=>setEnvioCosto(e.target.value)} placeholder="0.00" />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>URL de rastreo</label>
+                      <input className="cinput" value={envioRastreo} onChange={e=>setEnvioRastreo(e.target.value)} placeholder="https://rastreo.paqueteria.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Observaciones de envío</label>
+                      <input className="cinput" value={envioObs} onChange={e=>setEnvioObs(e.target.value)} placeholder="Instrucciones especiales, notas de entrega…" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía</label>
+                      {selected.envio_archivo_url && (
+                        <a href={selected.envio_archivo_url} target="_blank" rel="noreferrer"
+                           style={{ display:'inline-block', marginBottom:6, fontSize:11, color:'var(--blue)', textDecoration:'underline' }}>
+                          📎 Ver archivo actual
+                        </a>
+                      )}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={e=>setEnvioArchivo(e.target.files?.[0]||null)}
+                        style={{ fontSize:11, color:'var(--txt2)' }} />
+                    </div>
+                    <button className="cbtn cbtn-secondary" style={{ alignSelf:'flex-start' }}
+                      disabled={savingEnvio} onClick={() => saveEnvio(selected.id)}>
+                      {savingEnvio ? 'Guardando…' : '💾 Guardar datos de envío'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {selected.motivo_rechazo_surtido && selected.estado === 'EN_PREPARACION' && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>

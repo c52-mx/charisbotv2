@@ -93,13 +93,15 @@ export default function CartPage() {
   const skipSync = useRef(false)
 
   // ── Entrega ──────────────────────────────────────────────────────────────
-  const [metodoEntrega,   setMetodoEntrega]   = useState<'pickup'|'envio'>('pickup')
-  const [puntoPickup,     setPuntoPickup]     = useState('')
-  const [showPickupModal, setShowPickupModal] = useState(false)
-  const [config,          setConfig]          = useState<any>({})
-  const [addresses,       setAddresses]       = useState<Address[]>([])
-  const [direccionId,     setDireccionId]     = useState<string|null>(null)
-  const [addrLoading,     setAddrLoading]     = useState(false)
+  const [metodoEntrega,    setMetodoEntrega]    = useState<'pickup'|'envio'>('pickup')
+  const [puntoPickup,      setPuntoPickup]      = useState('')
+  const [showPickupModal,  setShowPickupModal]  = useState(false)
+  const [selectedCarrier,  setSelectedCarrier]  = useState('')
+  const [showCarrierModal, setShowCarrierModal] = useState(false)
+  const [config,           setConfig]           = useState<any>({})
+  const [addresses,        setAddresses]        = useState<Address[]>([])
+  const [direccionId,      setDireccionId]      = useState<string|null>(null)
+  const [addrLoading,      setAddrLoading]      = useState(false)
 
   useEffect(() => {
     fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
@@ -221,8 +223,9 @@ export default function CartPage() {
 
   async function handleCheckout() {
     if (cart.length === 0 || placing) return
-    if (metodoEntrega === 'pickup' && !puntoPickup) { setCheckoutError('Selecciona un punto de recolección'); return }
-    if (metodoEntrega === 'envio'  && !direccionId) { setCheckoutError('Selecciona una dirección de envío'); return }
+    if (metodoEntrega === 'pickup' && !puntoPickup)     { setCheckoutError('Selecciona un punto de recolección'); return }
+    if (metodoEntrega === 'envio'  && !direccionId)     { setCheckoutError('Selecciona una dirección de envío'); return }
+    if (metodoEntrega === 'envio'  && !selectedCarrier) { setCheckoutError('Selecciona una paquetería'); return }
     setPlacing(true); setCheckoutError('')
     try {
       const res = await fetch('/api/client/orders', {
@@ -231,8 +234,9 @@ export default function CartPage() {
         body: JSON.stringify({
           items: cart,
           metodo_entrega:  metodoEntrega,
-          direccion_id:    metodoEntrega === 'envio'   ? direccionId  : null,
-          punto_pickup:    metodoEntrega === 'pickup'  ? puntoPickup  : null,
+          direccion_id:    metodoEntrega === 'envio'   ? direccionId     : null,
+          punto_pickup:    metodoEntrega === 'pickup'  ? puntoPickup     : null,
+          paqueteria:      metodoEntrega === 'envio'   ? selectedCarrier : null,
         }),
       })
       const data = await res.json()
@@ -488,33 +492,113 @@ export default function CartPage() {
 
               {/* Direcciones de envío */}
               {metodoEntrega === 'envio' && (
-                <div>
-                  {addrLoading ? (
-                    <p style={{ fontSize:12, color:'var(--txt3)' }}>Cargando…</p>
-                  ) : addresses.length === 0 ? (
-                    <div style={{ padding:'10px 12px', borderRadius:9, border:'1.5px dashed var(--field-border)', textAlign:'center' }}>
-                      <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:6 }}>Sin direcciones guardadas</p>
-                      <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:700, textDecoration:'none' }}>+ Agregar en Mi Cuenta →</Link>
-                    </div>
-                  ) : (
-                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      {addresses.map(a => (
-                        <div key={a.id} onClick={() => setDireccionId(a.id)}
-                          style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, background:direccionId===a.id?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                            <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                              {direccionId===a.id && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {/* Dirección */}
+                  <div>
+                    {addrLoading ? (
+                      <p style={{ fontSize:12, color:'var(--txt3)' }}>Cargando…</p>
+                    ) : addresses.length === 0 ? (
+                      <div style={{ padding:'10px 12px', borderRadius:9, border:'1.5px dashed var(--field-border)', textAlign:'center' }}>
+                        <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:6 }}>Sin direcciones guardadas</p>
+                        <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:700, textDecoration:'none' }}>+ Agregar en Mi Cuenta →</Link>
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                        {addresses.map(a => (
+                          <div key={a.id} onClick={() => setDireccionId(a.id)}
+                            style={{ padding:'9px 11px', borderRadius:9, border:`1.5px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, background:direccionId===a.id?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                              <div style={{ width:14, height:14, borderRadius:'50%', border:`2px solid ${direccionId===a.id?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                {direccionId===a.id && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                              </div>
+                              <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>
+                                {a.nombre_contacto}{a.predeterminada && <span style={{ fontSize:10, color:'var(--blue)' }}> · Principal</span>}
+                              </p>
                             </div>
-                            <p style={{ fontSize:12, fontWeight:700, color:'var(--txt)', margin:0 }}>
-                              {a.nombre_contacto}{a.predeterminada && <span style={{ fontSize:10, color:'var(--blue)' }}> · Principal</span>}
-                            </p>
+                            <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{a.calle}, {a.colonia}, {a.ciudad}</p>
                           </div>
-                          <p style={{ fontSize:11, color:'var(--txt3)', marginTop:3, marginLeft:21 }}>{a.calle}, {a.colonia}, {a.ciudad}</p>
+                        ))}
+                        <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:600, textDecoration:'none', display:'block', textAlign:'center', paddingTop:4 }}>+ Agregar dirección</Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Paquetería — selector obligatorio */}
+                  {(() => {
+                    let carriers: {nombre:string; dias_estimados:string; logo_url:string}[] = []
+                    try { carriers = JSON.parse(config.paqueterias || '[]') } catch {}
+                    carriers = carriers.filter(c => c.nombre)
+                    const sel = carriers.find(c => c.nombre === selectedCarrier)
+                    return (
+                      <>
+                        <div style={{ borderTop:'1px solid var(--bg)', paddingTop:10 }}>
+                          <p style={{ fontSize:11, fontWeight:700, color:'var(--txt3)', letterSpacing:'.06em', marginBottom:8 }}>PAQUETERÍA</p>
+                          {sel ? (
+                            <div style={{ padding:'9px 11px', borderRadius:9, border:'1.5px solid var(--blue)', background:'#eff6ff' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                  {sel.logo_url
+                                    ? <img src={sel.logo_url} alt={sel.nombre} style={{ height:24, objectFit:'contain' }} />
+                                    : <span style={{ fontSize:18 }}>🚚</span>
+                                  }
+                                  <div>
+                                    <p style={{ fontSize:12, fontWeight:700, color:'var(--blue)', margin:0 }}>{sel.nombre}</p>
+                                    {sel.dias_estimados && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:1 }}>{sel.dias_estimados}</p>}
+                                  </div>
+                                </div>
+                                <button onClick={() => setShowCarrierModal(true)} style={{ fontSize:11, color:'var(--blue)', fontWeight:700, background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0, textDecoration:'underline' }}>
+                                  Cambiar
+                                </button>
+                              </div>
+                            </div>
+                          ) : carriers.length > 0 ? (
+                            <button onClick={() => setShowCarrierModal(true)}
+                              style={{ width:'100%', padding:'10px 13px', borderRadius:9, border:'1.5px dashed var(--field-border)', background:'var(--field-bg)', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', textAlign:'left', transition:'border-color .15s' }}
+                              onMouseEnter={e => (e.currentTarget.style.borderColor='var(--blue)')}
+                              onMouseLeave={e => (e.currentTarget.style.borderColor='var(--field-border)')}>
+                              🚚 Seleccionar paquetería →
+                            </button>
+                          ) : (
+                            <p style={{ fontSize:12, color:'var(--txt3)', fontStyle:'italic' }}>Sin paqueterías configuradas</p>
+                          )}
                         </div>
-                      ))}
-                      <Link href="/client/account" style={{ fontSize:11, color:'var(--blue)', fontWeight:600, textDecoration:'none', display:'block', textAlign:'center', paddingTop:4 }}>+ Agregar dirección</Link>
-                    </div>
-                  )}
+
+                        {/* Modal de selección de paquetería */}
+                        {showCarrierModal && carriers.length > 0 && (
+                          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+                               onClick={e => { if (e.target===e.currentTarget) setShowCarrierModal(false) }}>
+                            <div style={{ background:'white', borderRadius:18, width:'100%', maxWidth:380, overflow:'hidden', animation:'fadeUp .2s ease-out', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+                              <div style={{ padding:'16px 20px 12px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                <h3 style={{ fontWeight:800, fontSize:15, color:'var(--txt)', margin:0 }}>🚚 Selecciona paquetería</h3>
+                                <button onClick={() => setShowCarrierModal(false)} style={{ width:28, height:28, borderRadius:7, border:'1px solid var(--border)', background:'transparent', color:'var(--txt3)', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+                              </div>
+                              <p style={{ fontSize:12, color:'var(--txt3)', margin:'10px 20px 4px' }}>El costo de envío se cotiza al armar el paquete.</p>
+                              <div style={{ padding:'10px 20px 20px', display:'flex', flexDirection:'column', gap:8 }}>
+                                {carriers.map((c, idx) => (
+                                  <div key={idx} onClick={() => { setSelectedCarrier(c.nombre); setShowCarrierModal(false) }}
+                                    style={{ padding:'12px 14px', borderRadius:10, border:`1.5px solid ${selectedCarrier===c.nombre?'var(--blue)':'var(--field-border)'}`, background:selectedCarrier===c.nombre?'#eff6ff':'var(--field-bg)', cursor:'pointer', transition:'all .15s' }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                                      <div style={{ width:15, height:15, borderRadius:'50%', border:`2px solid ${selectedCarrier===c.nombre?'var(--blue)':'var(--field-border)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                        {selectedCarrier===c.nombre && <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--blue)' }}/>}
+                                      </div>
+                                      {c.logo_url
+                                        ? <img src={c.logo_url} alt={c.nombre} style={{ height:28, objectFit:'contain', flexShrink:0 }} />
+                                        : <span style={{ fontSize:22, flexShrink:0 }}>🚚</span>
+                                      }
+                                      <div>
+                                        <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)', margin:0 }}>{c.nombre}</p>
+                                        {c.dias_estimados && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:2 }}>Entrega en {c.dias_estimados}</p>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
             </div>
@@ -527,7 +611,7 @@ export default function CartPage() {
             )}
 
             <button className="btn-primary btn-block"
-              disabled={placing || (metodoEntrega==='pickup' ? !puntoPickup : !direccionId)}
+              disabled={placing || (metodoEntrega==='pickup' ? !puntoPickup : (!direccionId || !selectedCarrier))}
               onClick={handleCheckout}>
               {placing
                 ? <><div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', animation:'spin .7s linear infinite' }}/> Procesando…</>

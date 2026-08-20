@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente, punto_pickup } = body
+    const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente, punto_pickup, paqueteria } = body
 
     if (!items?.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
 
@@ -141,14 +141,15 @@ export async function POST(req: NextRequest) {
             conversacion_id, telefono, tipo_case, estado,
             requiere_firma, resumen, pedido_json,
             metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-            monto_total, metodo_entrega, creado_en, creado_por
-          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, NOW(), $12)
+            monto_total, metodo_entrega, paqueteria, creado_en, creado_por
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, $12, NOW(), $13)
           RETURNING id, numero_pedido
         `, [
           conv.id, session.email, tipo, resumen,
           JSON.stringify(pedidoJson), metodo_pago || 'transferencia',
           referencia_pago || null, JSON.stringify(direccion_entrega || {}),
-          notas_cliente || null, montoTotal, entrega, session.sub,
+          notas_cliente || null, montoTotal, entrega,
+          (entrega === 'envio' ? (paqueteria || null) : null), session.sub,
         ])
 
         if (itemsConPrecio.length > 0) {

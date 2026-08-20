@@ -32,6 +32,7 @@ export async function getReportePedidos(f: FiltrosPedidos) {
   const rows = await query(
     `SELECT p.id, p.numero_pedido, p.telefono, c.nombre as cliente_nombre,
             p.tipo_case, p.estado, p.origen, p.monto_total, p.creado_en,
+            p.paqueteria, p.envio_costo,
             COALESCE(SUM(pi.cantidad), 0) as total_piezas,
             COALESCE(
               (SELECT pt.detalle->>'vendedor_nuevo_nombre'

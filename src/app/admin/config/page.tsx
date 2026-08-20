@@ -53,7 +53,9 @@ export default function ConfigPage() {
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState('')
   const [pagosEnv, setPagosEnv] = useState({ stripe_configurado: false, mercadopago_configurado: false })
-  const [puntos,   setPuntos]   = useState<{nombre:string; dir:string}[]>([])
+  const [puntos,       setPuntos]       = useState<{nombre:string; dir:string}[]>([])
+  const [paqueterias,  setPaqueterias]  = useState<{nombre:string; dias_estimados:string; logo_url:string}[]>([])
+  const [uploadingLogo, setUploadingLogo] = useState<number|null>(null)
 
   useEffect(() => {
     fetch('/api/admin/config').then(r => r.json()).then(d => {
@@ -63,9 +65,28 @@ export default function ConfigPage() {
         const ps = JSON.parse(d.config?.puntos_recoleccion || '[]')
         if (Array.isArray(ps) && ps.length > 0) setPuntos(ps)
       } catch {}
+      try {
+        const pqs = JSON.parse(d.config?.paqueterias || '[]')
+        if (Array.isArray(pqs) && pqs.length > 0) setPaqueterias(pqs)
+        else setPaqueterias([
+          { nombre:'PAQUETEEXPRESS', dias_estimados:'2 a 3 días', logo_url:'' },
+          { nombre:'FEDEX',          dias_estimados:'2 a 5 días', logo_url:'' },
+          { nombre:'ESTAFETA',       dias_estimados:'2 a 5 días', logo_url:'' },
+        ])
+      } catch {}
       setLoading(false)
     })
   }, [])
+
+  async function uploadLogo(idx: number, file: File) {
+    setUploadingLogo(idx)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const res = await fetch('/api/upload/logo', { method:'POST', body: fd })
+      const d = await res.json()
+      if (d.url) setPaqueterias(ps => ps.map((p, i) => i===idx ? { ...p, logo_url: d.url } : p))
+    } finally { setUploadingLogo(null) }
+  }
 
   function set<K extends keyof ConfigForm>(k: K) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -82,7 +103,7 @@ export default function ConfigPage() {
       const res = await fetch('/api/admin/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, puntos_recoleccion: JSON.stringify(puntos) }),
+        body: JSON.stringify({ ...form, puntos_recoleccion: JSON.stringify(puntos), paqueterias: JSON.stringify(paqueterias) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
@@ -160,6 +181,65 @@ export default function ConfigPage() {
             </div>
             <button type="button"
               onClick={() => setPuntos(ps => ps.filter((_, j) => j !== i))}
+              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}>
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Paqueterías ── */}
+      <div className="card" style={{ marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:0 }}>🚚 Paqueterías</h2>
+          <button type="button"
+            onClick={() => setPaqueterias(p => [...p, { nombre:'', dias_estimados:'', logo_url:'' }])}
+            style={{ padding:'5px 12px', borderRadius:8, border:'1.5px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            + Agregar
+          </button>
+        </div>
+        <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
+          Se muestran al cliente al elegir "Envío". El logo es opcional; sin logo se muestra un ícono genérico.
+        </p>
+
+        {paqueterias.length === 0 && (
+          <p style={{ fontSize:13, color:'var(--txt3)', fontStyle:'italic' }}>Sin paqueterías configuradas — haz clic en "+ Agregar"</p>
+        )}
+
+        {paqueterias.map((p, i) => (
+          <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto auto', gap:8, marginBottom:10, alignItems:'flex-end' }}>
+            <div>
+              {i === 0 && <label style={lbl}>Nombre</label>}
+              <input style={inp} placeholder="Ej: ESTAFETA"
+                value={p.nombre}
+                onChange={e => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, nombre:e.target.value.toUpperCase()} : x))} />
+            </div>
+            <div>
+              {i === 0 && <label style={lbl}>Días estimados</label>}
+              <input style={inp} placeholder="Ej: 2 a 5 días"
+                value={p.dias_estimados}
+                onChange={e => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, dias_estimados:e.target.value} : x))} />
+            </div>
+            <div>
+              {i === 0 && <label style={lbl}>Logo</label>}
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                {p.logo_url
+                  ? <img src={p.logo_url} alt={p.nombre} style={{ height:32, borderRadius:6, border:'1px solid var(--border)', objectFit:'contain', background:'white', padding:2 }} />
+                  : <span style={{ fontSize:22 }}>🚚</span>
+                }
+                <label style={{ cursor:'pointer', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg3)', fontSize:11, fontWeight:600, color:'var(--txt2)', whiteSpace:'nowrap' }}>
+                  {uploadingLogo === i ? 'Subiendo…' : 'Subir'}
+                  <input type="file" accept="image/*" style={{ display:'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(i, f) }} />
+                </label>
+                {p.logo_url && (
+                  <button type="button" onClick={() => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, logo_url:''} : x))}
+                    style={{ background:'none', border:'none', color:'var(--err)', cursor:'pointer', fontSize:12, padding:0 }}>✕</button>
+                )}
+              </div>
+            </div>
+            <button type="button"
+              onClick={() => setPaqueterias(ps => ps.filter((_, j) => j !== i))}
               style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}>
               ✕
             </button>
