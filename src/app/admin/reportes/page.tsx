@@ -9,7 +9,7 @@ const ESTADOS = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','CONFIRMADO','EN_PREP
 
 // ── Columnas excluidas de los auto-filtros por tab ────────────────────────
 const EXCLUDE_COLS: Record<Tab, string[]> = {
-  pedidos:    ['id', 'creado_en', 'monto_total', 'total_piezas', 'numero_pedido'],
+  pedidos:    ['id', 'creado_en', 'monto_total', 'total_piezas', 'numero_pedido', 'envio_costo'],
   inventario: ['case_id', 'stock'],
   ventas:     [],
 }
@@ -217,7 +217,7 @@ function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) 
       </div>
       <div className="table-wrap">
         <table className="ctable rtable">
-          <thead><tr><th>Pedido</th><th>Cliente/Tel</th><th>Tipo</th><th>Estado</th><th>Origen</th><th>Vendedor</th><th>Piezas</th><th>Monto</th><th>Fecha</th></tr></thead>
+          <thead><tr><th>Pedido</th><th>Cliente/Tel</th><th>Tipo</th><th>Estado</th><th>Origen</th><th>Vendedor</th><th>Paquetería</th><th>Costo Envío</th><th>Piezas</th><th>Monto</th><th>Fecha</th></tr></thead>
           <tbody>
             {filteredRows.map((r:any) => (
               <tr key={r.id}>
@@ -227,12 +227,14 @@ function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) 
                 <td><span className="badge badge-blue">{r.estado.replace(/_/g,' ')}</span></td>
                 <td>{r.origen}</td>
                 <td style={{ fontSize:12 }}>{r.vendedor_nombre || '—'}</td>
+                <td style={{ fontSize:12 }}>{r.paqueteria || '—'}</td>
+                <td style={{ fontSize:12 }}>{r.envio_costo ? `$${Number(r.envio_costo).toLocaleString('es-MX')}` : '—'}</td>
                 <td>{r.total_piezas}</td>
                 <td>{r.monto_total ? `$${Number(r.monto_total).toLocaleString('es-MX')}` : '—'}</td>
                 <td style={{ fontSize:12, color:'var(--txt2)' }}>{new Date(r.creado_en).toLocaleDateString('es-MX')}</td>
               </tr>
             ))}
-            {!filteredRows.length && <tr><td colSpan={9} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
+            {!filteredRows.length && <tr><td colSpan={11} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}
           </tbody>
         </table>
       </div>

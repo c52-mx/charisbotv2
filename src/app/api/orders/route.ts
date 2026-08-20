@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
-  const { telefono, items, tipo_case, requiere_firma, notas } = body
+  const { telefono, items, tipo_case, requiere_firma, notas,
+          metodo_entrega, punto_pickup, paqueteria } = body
 
   if (!telefono || !items || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'telefono e items son requeridos' }, { status: 400 })
@@ -141,10 +142,19 @@ export async function POST(req: NextRequest) {
     [telefono]
   )
 
+  // Normalizar entrega
+  const metodoNorm: 'pickup'|'envio' = metodo_entrega === 'envio' ? 'envio' : 'pickup'
+  const direccionEntrega = metodoNorm === 'pickup' && punto_pickup
+    ? JSON.stringify({ tipo: 'pickup', nombre: punto_pickup })
+    : metodoNorm === 'envio'
+    ? JSON.stringify({ tipo: 'envio' })
+    : null
+
   const pedido = await queryOne<any>(
     `INSERT INTO public.pedidos
-       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen, confirmado_en, monto_total, creado_por)
-     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL', NOW(), $7, $8)
+       (conversacion_id, telefono, tipo_case, estado, requiere_firma, resumen, pedido_json, origen,
+        confirmado_en, monto_total, creado_por, metodo_entrega, paqueteria, direccion_entrega)
+     VALUES ($1, $2, $3, 'CONFIRMADO', $4, $5, $6, 'PORTAL', NOW(), $7, $8, $9, $10, $11)
      RETURNING id`,
     [
       conv?.id,
@@ -155,6 +165,9 @@ export async function POST(req: NextRequest) {
       JSON.stringify({ items }),
       montoTotal,
       session.sub,
+      metodoNorm,
+      metodoNorm === 'envio' ? (paqueteria || null) : null,
+      direccionEntrega,
     ]
   )
 

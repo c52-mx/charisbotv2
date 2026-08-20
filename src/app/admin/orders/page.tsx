@@ -817,16 +817,20 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
   const tv = getThemeVars(dark)
   const [telefono, setTelefono] = useState('')
   const [clienteOpts, setClienteOpts] = useState<{value:string,label:string}[]>([])
-  // catalogFull: ALL rows (tipo+modelo+color) for filtering colors
   const [catalogFull, setCatalogFull] = useState<{tipo:string,modelo:string,color:string}[]>([])
   const [catalogOpts, setCatalogOpts] = useState<{value:string,label:string,tipo:string}[]>([])
-  // items start with empty color so user must pick one
   const [items,    setItems]   = useState([{ tipo_case:'', modelo:'', color:'', cantidad:1 }])
   const [notas,    setNotas]   = useState('')
   const [pedidoId, setPedidoId]= useState<string|null>(null)
   const [loading,  setLoading] = useState(false)
   const [error,    setError]   = useState('')
   const [tiposList, setTiposList] = useState<string[]>([])
+  // Entrega
+  const [metodoEntregaC,  setMetodoEntregaC]  = useState<'pickup'|'envio'>('pickup')
+  const [puntoPickupC,    setPuntoPickupC]    = useState('')
+  const [paqueteriaC,     setPaqueteriaC]     = useState('')
+  const [puntosC,         setPuntosC]         = useState<{nombre:string;dir:string}[]>([])
+  const [paqueteriasC,    setPaqueteriasC]    = useState<{nombre:string;dias_estimados:string;logo_url:string}[]>([])
 
   useEffect(() => {
     fetch('/api/tipos-case').then(r=>r.json()).then(d=>{
@@ -837,10 +841,8 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
     fetch('/api/clients?limit=200').then(r=>r.json()).then(d=>{
       setClienteOpts((d.data||[]).map((c:any)=>({ value: c.telefono, label: `${c.nombre||'Sin nombre'} — ${c.telefono}` })))
     })
-    // Load ALL catalog rows (including color) for dynamic filtering
     fetch('/api/catalog?limit=2000&activo=true').then(r=>r.json()).then(d=>{
       setCatalogFull((d.items||[]).map((c:any)=>({ tipo:c.tipo_case, modelo:c.modelo, color:c.color })))
-      // Model options: unique per tipo
       const uniq = new Map<string,{value:string,label:string,tipo:string}>()
       for (const c of (d.items||[])) {
         const key = `${c.tipo_case}__${c.modelo}`
@@ -848,6 +850,10 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
       }
       setCatalogOpts(Array.from(uniq.values()))
     })
+    fetch('/api/client/config').then(r=>r.json()).then(d=>{
+      try { setPuntosC(JSON.parse(d.puntos_recoleccion || '[]')) } catch {}
+      try { setPaqueteriasC(JSON.parse(d.paqueterias || '[]')) } catch {}
+    }).catch(()=>{})
   }, [])
 
   // Get colors available for a specific tipo+modelo combination
@@ -883,9 +889,21 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
 
   async function handleSubmit(e:React.FormEvent) {
     e.preventDefault(); setLoading(true); setError('')
+    // Validate delivery method selection
+    if (metodoEntregaC === 'pickup' && !puntoPickupC) {
+      setError('Selecciona un punto de recolección'); setLoading(false); return
+    }
+    if (metodoEntregaC === 'envio' && !paqueteriaC) {
+      setError('Selecciona una paquetería'); setLoading(false); return
+    }
     try {
       const r = await fetch('/api/orders', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ telefono, items, notas }) })
+        body: JSON.stringify({
+          telefono, items, notas,
+          metodo_entrega: metodoEntregaC,
+          punto_pickup:   metodoEntregaC === 'pickup' ? puntoPickupC : undefined,
+          paqueteria:     metodoEntregaC === 'envio'  ? paqueteriaC  : undefined,
+        }) })
       if (!r.ok) throw new Error((await r.json()).error)
       const d = await r.json()
       setPedidoId(d.id || null)
@@ -995,9 +1013,63 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
             </div>
 
             {/* Notas */}
-            <div style={{ marginBottom:20 }}>
+            <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Notas (opcional)</label>
               <textarea className="cinput" placeholder="Comentarios, referencias del cliente, aclaraciones..." value={notas} onChange={e=>setNotas(e.target.value)} style={{ minHeight:64 }} />
+            </div>
+
+            {/* Método de entrega */}
+            <div style={{ marginBottom:20 }}>
+              <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:8 }}>Método de entrega *</label>
+              <div style={{ display:'flex',gap:8,marginBottom:12 }}>
+                {(['pickup','envio'] as const).map(m => (
+                  <button key={m} type="button"
+                    onClick={() => { setMetodoEntregaC(m); setPuntoPickupC(''); setPaqueteriaC('') }}
+                    style={{ flex:1,padding:'8px 0',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',
+                      border: metodoEntregaC === m ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: metodoEntregaC === m ? 'var(--accent)' : 'var(--bg3)',
+                      color: metodoEntregaC === m ? '#fff' : 'var(--txt)' }}>
+                    {m === 'pickup' ? '🏪 Pick Up' : '📦 Envío'}
+                  </button>
+                ))}
+              </div>
+
+              {metodoEntregaC === 'pickup' && (
+                <div>
+                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Punto de recolección *</label>
+                  {puntosC.length === 0
+                    ? <p style={{ fontSize:12,color:'var(--txt2)',fontStyle:'italic' }}>No hay puntos configurados. Agrega puntos en Configuración.</p>
+                    : <select className="cinput" value={puntoPickupC} onChange={e=>setPuntoPickupC(e.target.value)}>
+                        <option value="">Selecciona un punto...</option>
+                        {puntosC.map((p,i) => (
+                          <option key={i} value={p.nombre}>{p.nombre}{p.dir ? ` — ${p.dir}` : ''}</option>
+                        ))}
+                      </select>
+                  }
+                </div>
+              )}
+
+              {metodoEntregaC === 'envio' && (
+                <div>
+                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:8 }}>Paquetería *</label>
+                  {paqueteriasC.length === 0
+                    ? <p style={{ fontSize:12,color:'var(--txt2)',fontStyle:'italic' }}>No hay paqueterías configuradas. Agrega en Configuración.</p>
+                    : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
+                        {paqueteriasC.map((pk,i) => (
+                          <label key={i} style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,cursor:'pointer',
+                            border: paqueteriaC === pk.nombre ? '2px solid var(--accent)' : '1px solid var(--border)',
+                            background: paqueteriaC === pk.nombre ? 'rgba(var(--accent-rgb,99,102,241),0.08)' : 'var(--bg3)' }}>
+                            <input type="radio" name="paq-create" value={pk.nombre} checked={paqueteriaC === pk.nombre}
+                              onChange={()=>setPaqueteriaC(pk.nombre)} style={{ accentColor:'var(--accent)' }} />
+                            {pk.logo_url && <img src={pk.logo_url} alt={pk.nombre} style={{ height:24,objectFit:'contain' }} />}
+                            <span style={{ fontSize:13,fontWeight:600,color:'var(--txt)' }}>{pk.nombre}</span>
+                            {pk.dias_estimados && <span style={{ fontSize:12,color:'var(--txt2)',marginLeft:'auto' }}>{pk.dias_estimados} días</span>}
+                          </label>
+                        ))}
+                      </div>
+                  }
+                </div>
+              )}
             </div>
 
             <div style={{ display:'flex',gap:10 }}>

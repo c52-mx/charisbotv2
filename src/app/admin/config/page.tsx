@@ -227,11 +227,13 @@ export default function ConfigPage() {
                   ? <img src={p.logo_url} alt={p.nombre} style={{ height:32, borderRadius:6, border:'1px solid var(--border)', objectFit:'contain', background:'white', padding:2 }} />
                   : <span style={{ fontSize:22 }}>🚚</span>
                 }
-                <label style={{ cursor:'pointer', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg3)', fontSize:11, fontWeight:600, color:'var(--txt2)', whiteSpace:'nowrap' }}>
+                <label style={{ cursor:'pointer', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg3)', fontSize:11, fontWeight:600, color:'var(--txt2)', whiteSpace:'nowrap' }}
+                  title="Formatos permitidos: PNG, JPG, WEBP, SVG">
                   {uploadingLogo === i ? 'Subiendo…' : 'Subir'}
-                  <input type="file" accept="image/*" style={{ display:'none' }}
+                  <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" style={{ display:'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(i, f) }} />
                 </label>
+                <span style={{ fontSize:10, color:'var(--txt3)', whiteSpace:'nowrap' }}>PNG · JPG · WEBP · SVG</span>
                 {p.logo_url && (
                   <button type="button" onClick={() => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, logo_url:''} : x))}
                     style={{ background:'none', border:'none', color:'var(--err)', cursor:'pointer', fontSize:12, padding:0 }}>✕</button>
