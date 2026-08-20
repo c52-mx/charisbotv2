@@ -958,7 +958,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
           <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>Nuevo Pedido</div>
           <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
         </div>
-        <div style={{ padding:'18px 22px 22px' }}>
+        <div style={{ padding:'18px 22px 22px', maxHeight:'80vh', overflowY:'auto' }}>
           {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
           <form onSubmit={handleSubmit}>
             {/* Cliente / teléfono */}
@@ -1025,10 +1025,11 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
                 {(['pickup','envio'] as const).map(m => (
                   <button key={m} type="button"
                     onClick={() => { setMetodoEntregaC(m); setPuntoPickupC(''); setPaqueteriaC('') }}
-                    style={{ flex:1,padding:'8px 0',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',
-                      border: metodoEntregaC === m ? '2px solid var(--accent)' : '1px solid var(--border)',
-                      background: metodoEntregaC === m ? 'var(--accent)' : 'var(--bg3)',
-                      color: metodoEntregaC === m ? '#fff' : 'var(--txt)' }}>
+                    style={{ flex:1,padding:'9px 0',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                      border: metodoEntregaC === m ? '2px solid var(--accent,#6366f1)' : '1px solid var(--border)',
+                      background: metodoEntregaC === m ? 'transparent' : 'var(--bg3)',
+                      color: metodoEntregaC === m ? 'var(--accent,#6366f1)' : 'var(--txt2)',
+                      boxShadow: metodoEntregaC === m ? 'inset 0 0 0 1px var(--accent,#6366f1)' : 'none' }}>
                     {m === 'pickup' ? '🏪 Pick Up' : '📦 Envío'}
                   </button>
                 ))}

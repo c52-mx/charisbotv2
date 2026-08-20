@@ -27,6 +27,24 @@ const METODO_LABEL: Record<string,string> = {
 const CSS = `
   @keyframes spin { to{transform:rotate(360deg)} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  @media print {
+    body { background: white !important; color: #111 !important; }
+    .no-print { display: none !important; }
+    .print-only { display: block !important; }
+    /* Ocultar topbar, navbar y botones */
+    header, nav, footer, [class*="topbar"], [class*="navbar"], [class*="sidebar-nav"] { display: none !important; }
+    /* Mostrar contenido a full ancho */
+    .order-detail-grid { grid-template-columns: 1fr 280px !important; gap: 16px !important; }
+    /* Quitar animaciones */
+    * { animation: none !important; transition: none !important; }
+    /* Colores para impresión */
+    [style*="background:white"] { border: 1px solid #ddd !important; }
+    a { color: inherit !important; text-decoration: none !important; }
+    /* Asegurar que el contenido no se corte entre páginas */
+    .order-detail-grid > div { break-inside: avoid; }
+  }
+  .print-only { display: none; }
 `
 
 export default function OrderDetailPage() {
@@ -38,6 +56,7 @@ export default function OrderDetailPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [gateways, setGateways] = useState({ stripe: false, mercadopago: false })
   const [config, setConfig] = useState<any>({})
+  const [paqueterias, setPaqueterias] = useState<{nombre:string;dias_estimados:string;logo_url:string}[]>([])
   const [comprobantes, setComprobantes] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
@@ -60,6 +79,7 @@ export default function OrderDetailPage() {
         stripe:      d.pago_stripe_habilitado === 'true',
         mercadopago: d.pago_mercadopago_habilitado === 'true',
       })
+      try { setPaqueterias(JSON.parse(d.paqueterias || '[]')) } catch {}
     }).catch(() => {})
   }, [id])
 
@@ -142,13 +162,22 @@ export default function OrderDetailPage() {
       <style>{CSS}</style>
 
       {/* Breadcrumb + back */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:20, fontSize:13, color:'var(--txt3)' }}>
-        <Link href="/client/orders" style={{ color:'var(--txt3)', textDecoration:'none' }}>Mis pedidos</Link>
-        <span>›</span>
-        <span style={{ color:'var(--txt)', fontWeight:600 }}>#{(order.numero_pedido||id.slice(0,8)).toUpperCase()}</span>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:20 }} className="no-print">
+        <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'var(--txt3)' }}>
+          <Link href="/client/orders" style={{ color:'var(--txt3)', textDecoration:'none' }}>Mis pedidos</Link>
+          <span>›</span>
+          <span style={{ color:'var(--txt)', fontWeight:600 }}>#{(order.numero_pedido||id.slice(0,8)).toUpperCase()}</span>
+        </div>
+        <button
+          onClick={() => window.print()}
+          style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:8,
+            border:'1px solid var(--border)', background:'var(--field-bg)', color:'var(--txt2)',
+            fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+          🖨 Guardar PDF
+        </button>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:20, alignItems:'start', animation:'fadeUp .3s ease-out' }}>
+      <div className="order-detail-grid" style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:20, alignItems:'start', animation:'fadeUp .3s ease-out' }}>
 
         {/* Left */}
         <div>
@@ -358,6 +387,26 @@ export default function OrderDetailPage() {
               )}
             </div>
           )}
+
+          {/* Paquetería (solo envío) */}
+          {order.metodo_entrega === 'envio' && order.paqueteria && (() => {
+            const pk = paqueterias.find(p => p.nombre === order.paqueteria)
+            return (
+              <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', padding:'16px' }}>
+                <p style={{ fontFamily:'Arial Black,sans-serif', fontWeight:900, fontSize:13, color:'var(--txt)', marginBottom:10 }}>📦 Paquetería</p>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  {pk?.logo_url
+                    ? <img src={pk.logo_url} alt={order.paqueteria} style={{ height:28, objectFit:'contain' }} />
+                    : <span style={{ fontSize:22 }}>🚚</span>
+                  }
+                  <div>
+                    <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)' }}>{order.paqueteria}</p>
+                    {pk?.dias_estimados && <p style={{ fontSize:11, color:'var(--txt3)' }}>Entrega en {pk.dias_estimados} días</p>}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Fecha */}
           <div style={{ background:'white', borderRadius:14, border:'1px solid var(--border)', padding:'16px' }}>

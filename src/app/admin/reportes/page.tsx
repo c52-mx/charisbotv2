@@ -216,22 +216,49 @@ function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) 
         )}
       </div>
       <div className="table-wrap">
-        <table className="ctable rtable">
-          <thead><tr><th>Pedido</th><th>Cliente/Tel</th><th>Tipo</th><th>Estado</th><th>Origen</th><th>Vendedor</th><th>Paquetería</th><th>Costo Envío</th><th>Piezas</th><th>Monto</th><th>Fecha</th></tr></thead>
+        <table className="ctable rtable" style={{ fontSize:12 }}>
+          <colgroup>
+            <col style={{ minWidth:140 }} />{/* Pedido */}
+            <col style={{ minWidth:140 }} />{/* Cliente/Tel */}
+            <col style={{ minWidth:80  }} />{/* Tipo */}
+            <col style={{ minWidth:120 }} />{/* Estado */}
+            <col style={{ minWidth:90  }} />{/* Origen */}
+            <col style={{ minWidth:110 }} />{/* Vendedor */}
+            <col style={{ minWidth:110 }} />{/* Paquetería */}
+            <col style={{ minWidth:90  }} />{/* Costo Envío */}
+            <col style={{ minWidth:60  }} />{/* Piezas */}
+            <col style={{ minWidth:80  }} />{/* Monto */}
+            <col style={{ minWidth:90  }} />{/* Fecha */}
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={{ whiteSpace:'nowrap' }}>Pedido</th>
+              <th style={{ whiteSpace:'nowrap' }}>Cliente / Tel</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Origen</th>
+              <th>Vendedor</th>
+              <th>Paquetería</th>
+              <th style={{ whiteSpace:'nowrap', textAlign:'right' }}>Costo Envío</th>
+              <th style={{ textAlign:'right' }}>Piezas</th>
+              <th style={{ textAlign:'right' }}>Monto</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
           <tbody>
             {filteredRows.map((r:any) => (
               <tr key={r.id}>
-                <td style={{ fontFamily:'monospace', fontSize:11 }}>#{(r.numero_pedido||r.id.slice(0,8)).toUpperCase()}</td>
-                <td>{r.cliente_nombre || r.telefono}</td>
-                <td>{r.tipo_case}</td>
-                <td><span className="badge badge-blue">{r.estado.replace(/_/g,' ')}</span></td>
+                <td style={{ fontFamily:'monospace', fontSize:11, whiteSpace:'nowrap' }}>#{(r.numero_pedido||r.id.slice(0,8)).toUpperCase()}</td>
+                <td style={{ maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.cliente_nombre || r.telefono}</td>
+                <td style={{ whiteSpace:'nowrap' }}>{r.tipo_case}</td>
+                <td><span className="badge badge-blue" style={{ fontSize:10, whiteSpace:'nowrap' }}>{r.estado.replace(/_/g,' ')}</span></td>
                 <td>{r.origen}</td>
-                <td style={{ fontSize:12 }}>{r.vendedor_nombre || '—'}</td>
-                <td style={{ fontSize:12 }}>{r.paqueteria || '—'}</td>
-                <td style={{ fontSize:12 }}>{r.envio_costo ? `$${Number(r.envio_costo).toLocaleString('es-MX')}` : '—'}</td>
-                <td>{r.total_piezas}</td>
-                <td>{r.monto_total ? `$${Number(r.monto_total).toLocaleString('es-MX')}` : '—'}</td>
-                <td style={{ fontSize:12, color:'var(--txt2)' }}>{new Date(r.creado_en).toLocaleDateString('es-MX')}</td>
+                <td style={{ maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.vendedor_nombre || '—'}</td>
+                <td style={{ whiteSpace:'nowrap' }}>{r.paqueteria || '—'}</td>
+                <td style={{ textAlign:'right', whiteSpace:'nowrap' }}>{r.envio_costo ? `$${Number(r.envio_costo).toLocaleString('es-MX')}` : '—'}</td>
+                <td style={{ textAlign:'right' }}>{r.total_piezas}</td>
+                <td style={{ textAlign:'right', whiteSpace:'nowrap', fontWeight:600 }}>{r.monto_total ? `$${Number(r.monto_total).toLocaleString('es-MX')}` : '—'}</td>
+                <td style={{ color:'var(--txt2)', whiteSpace:'nowrap' }}>{new Date(r.creado_en).toLocaleDateString('es-MX')}</td>
               </tr>
             ))}
             {!filteredRows.length && <tr><td colSpan={11} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin resultados</td></tr>}

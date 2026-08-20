@@ -236,14 +236,16 @@ export default function ConfigPage() {
                 <span style={{ fontSize:10, color:'var(--txt3)', whiteSpace:'nowrap' }}>PNG · JPG · WEBP · SVG</span>
                 {p.logo_url && (
                   <button type="button" onClick={() => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, logo_url:''} : x))}
-                    style={{ background:'none', border:'none', color:'var(--err)', cursor:'pointer', fontSize:12, padding:0 }}>✕</button>
+                    title="Quitar logo"
+                    style={{ background:'none', border:'none', color:'var(--txt3)', cursor:'pointer', fontSize:10, padding:'2px 4px', borderRadius:4, fontWeight:600 }}>Quitar</button>
                 )}
               </div>
             </div>
             <button type="button"
               onClick={() => setPaqueterias(ps => ps.filter((_, j) => j !== i))}
-              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}>
-              ✕
+              title="Eliminar paquetería"
+              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--err-border,#fca5a5)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:13, marginTop: i===0 ? 22 : 0 }}>
+              🗑
             </button>
           </div>
         ))}

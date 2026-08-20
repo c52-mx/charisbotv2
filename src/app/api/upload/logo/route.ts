@@ -1,5 +1,6 @@
 // POST /api/upload/logo — sube el logo de una paquetería u otro asset genérico.
-// No requiere pedido_id; solo acceso autenticado con rol admin.
+// Guarda en ./uploads/logos/ (fuera de public/) para que persista en runtime.
+// Servido vía GET /api/files/logos/{filename}
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
@@ -23,10 +24,13 @@ export async function POST(req: NextRequest) {
   if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXT.includes(ext)) {
     return NextResponse.json({ error: 'Formato no permitido. Usa PNG, JPG, WEBP o SVG.' }, { status: 400 })
   }
+
   const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-  const dir   = path.join(process.cwd(), 'public', 'uploads', 'logos')
+  // Guardar fuera de public/ para sobrevivir entre builds en contenedor
+  const dir = path.join(process.cwd(), 'uploads', 'logos')
   await mkdir(dir, { recursive: true })
   await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()))
 
-  return NextResponse.json({ url: `/uploads/logos/${fname}` })
+  // URL servida por /api/files/logos/{filename}
+  return NextResponse.json({ url: `/api/files/logos/${fname}` })
 }
