@@ -70,7 +70,7 @@ export default function DashboardPage() {
     {label:'Confirmados',     value:st.pedidos_confirmados??0, icon:'✅', color:'#22c55e'},
     {label:'Clientes únicos', value:st.clientes_unicos??0,     icon:'👥', color:'#f59e0b'},
     {label:'Stock bajo',      value:data?.stockBajo??0,        icon:'⚠️', color:'#ef4444', href:'/admin/catalog'},
-    {label:'Ventas (mes)',    value:`$${Number(data?.ventasMes??0).toLocaleString('es-MX',{minimumFractionDigits:0})}`, icon:'💰', color:'#22c55e', href:'/admin/reportes'},
+    {label:'Ventas (mes)',    value:`$${Number(data?.ventasMes??0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:'💰', color:'#22c55e', href:'/admin/reportes'},
   ]
 
   return (
@@ -98,10 +98,12 @@ export default function DashboardPage() {
           background:var(--bg2); border:1px solid var(--border);
           border-radius:14px; padding:16px 18px;
         }
-        .dash-stat-val { font-family:Syne,sans-serif; font-size:30px; font-weight:800; color:var(--txt); line-height:1; }
+        .dash-stat-val { font-family:Syne,sans-serif; font-size:30px; font-weight:800; color:var(--txt); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        @media(max-width:1400px){ .dash-stat-val { font-size:26px; } }
+        @media(max-width:1100px){ .dash-stat-val { font-size:22px; } }
         @media(max-width:400px){
           .dash-stat { padding:12px 14px; }
-          .dash-stat-val { font-size:24px; }
+          .dash-stat-val { font-size:20px; }
         }
 
         /* ── Periodo tabs ── */

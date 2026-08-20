@@ -154,30 +154,34 @@ export default function ReportesPage() {
 
       {/* ── Auto-filtros por columna (client-side) ── */}
       {!loading && autoFilters.length > 0 && (
-        <div className="ccard" style={{ padding:'12px 16px', marginBottom:12, display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
-          <span style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:10, flexShrink:0 }}>
-            🔍 Filtrar tabla
-          </span>
-          {autoFilters.map(({ col, type, values }) => (
-            <div key={col} style={{ minWidth:140 }}>
-              <label style={lbl}>{col.replace(/_/g,' ')}</label>
-              {type === 'select' ? (
-                <select style={{ ...inp, cursor:'pointer' }}
-                        value={colFilters[col] || ''}
-                        onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))}>
-                  <option value="">Todos</option>
-                  {values.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              ) : (
-                <input style={inp} placeholder="Buscar…"
-                       value={colFilters[col] || ''}
-                       onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))} />
-              )}
-            </div>
-          ))}
-          {Object.values(colFilters).some(v => v) && (
-            <button className="cbtn cbtn-ghost" style={{ paddingBottom:9 }} onClick={() => setColFilters({})}>✕ Limpiar</button>
-          )}
+        <div className="ccard" style={{ padding:'14px 16px', marginBottom:12 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              🔍 Filtrar tabla
+            </span>
+            {Object.values(colFilters).some(v => v) && (
+              <button className="cbtn cbtn-ghost" style={{ fontSize:11, padding:'4px 10px' }} onClick={() => setColFilters({})}>✕ Limpiar</button>
+            )}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px 12px' }}>
+            {autoFilters.map(({ col, type, values }) => (
+              <div key={col}>
+                <label style={lbl}>{col.replace(/_/g,' ')}</label>
+                {type === 'select' ? (
+                  <select style={{ ...inp, cursor:'pointer' }}
+                          value={colFilters[col] || ''}
+                          onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))}>
+                    <option value="">Todos</option>
+                    {values.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                ) : (
+                  <input style={inp} placeholder="Buscar…"
+                         value={colFilters[col] || ''}
+                         onChange={e => setColFilters(f => ({ ...f, [col]: e.target.value }))} />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

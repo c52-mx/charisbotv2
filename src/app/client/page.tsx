@@ -68,7 +68,8 @@ export default function ClientHome() {
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setUser(d.user))
     fetch('/api/descuentos').then(r => r.json()).then(d => setDescuentos(d.items || []))
-    fetch('/api/client/config').then(r => r.json()).then(d => {
+    // Endpoint público: no requiere sesión, solo devuelve paqueterías y puntos
+    fetch('/api/public/config').then(r => r.json()).then(d => {
       try { const ps = JSON.parse(d.paqueterias || '[]'); if (Array.isArray(ps)) setPaqueterias(ps) } catch {}
     }).catch(() => {})
     Promise.all([
@@ -174,7 +175,13 @@ export default function ClientHome() {
       <div className="biz-strip" style={{ borderRadius:16, overflow:'hidden', marginBottom:32, animation:'fadeUp .3s ease-out .08s both' }}>
         <div className="biz-grid">
           {[
-            { ico:'🚚', label:'Envío por paquetería',   sub: paqueterias.length ? paqueterias.map(p => p.nombre).join(', ') : 'Estafeta, FedEx, Paqueteexpress' },
+            { ico:'🚚', label:'Envío por paquetería',   sub: paqueterias.length
+                ? (() => {
+                    const nombres = paqueterias.map(p => p.nombre).join(', ')
+                    const dias = [...new Set(paqueterias.map(p => p.dias_estimados).filter(Boolean))]
+                    return dias.length === 1 ? `${nombres} — entrega en ${dias[0]} hábiles` : `${nombres}${dias.length ? ` — entrega en ${dias[0]} hábiles` : ''}`
+                  })()
+                : 'Estafeta, FedEx, Paqueteexpress — entrega en 2 a 5 días hábiles' },
             { ico:'%',  label:'Descuentos por volumen', sub: descuentoSub },
             { ico:'📦', label:'+800 modelos activos',   sub:'Blindaje, 3 en 1, Escudo y Anillo para todas las marcas' },
             { ico:<WhatsAppIcon size={28} color="#25D366"/>, label:'Pedidos por WhatsApp',   sub:'CharisBot procesa tu pedido al instante' },
