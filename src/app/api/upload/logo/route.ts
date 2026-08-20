@@ -1,7 +1,6 @@
-// POST /api/upload/logo — sube el logo de una paquetería u otro asset genérico.
-// Guarda en public/uploads/logos/ — Next.js standalone lo sirve estáticamente
-// en /uploads/logos/{filename}. El directorio debe ser un volumen persistente
-// en Dokploy (mount path: /app/public/uploads) para sobrevivir redeploys.
+// POST /api/upload/logo — sube el logo de una paquetería.
+// Guarda en ./uploads/logos/ (fuera de public/) y se sirve vía GET /api/files/logos/{filename}.
+// El directorio debe montarse como volumen en Dokploy: /app/uploads → volumen persistente.
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
@@ -27,11 +26,10 @@ export async function POST(req: NextRequest) {
   }
 
   const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-  // public/uploads/logos/ — servido estáticamente por Next.js como /uploads/logos/{fname}
-  // En producción este directorio debe ser un volumen Docker montado en /app/public/uploads
-  const dir = path.join(process.cwd(), 'public', 'uploads', 'logos')
+  const dir   = path.join(process.cwd(), 'uploads', 'logos')
   await mkdir(dir, { recursive: true })
   await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()))
 
-  return NextResponse.json({ url: `/uploads/logos/${fname}` })
+  // Servido por /api/files/logos/{fname} — independiente del static file server de Next.js
+  return NextResponse.json({ url: `/api/files/logos/${fname}` })
 }
