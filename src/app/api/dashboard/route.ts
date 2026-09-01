@@ -28,11 +28,11 @@ export async function GET(req: NextRequest) {
     `),
 
     query(`
-      SELECT pi.modelo, pi.tipo_case, SUM(pi.cantidad) as total
+      SELECT pi.modelo, pi.serie, SUM(pi.cantidad) as total
       FROM public.pedido_items pi
       JOIN public.pedidos p ON p.id = pi.pedido_id
       WHERE p.creado_en >= NOW() - INTERVAL '30 days'
-      GROUP BY pi.modelo, pi.tipo_case
+      GROUP BY pi.modelo, pi.serie
       ORDER BY total DESC
       LIMIT 10
     `),
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     `),
 
     queryOne<{ count: string }>(`
-      SELECT COUNT(*) as count FROM public.catalogo_cases
+      SELECT COUNT(*) as count FROM public.catalogo_productos
       WHERE stock <= COALESCE((SELECT valor::int FROM public.config_portal WHERE clave = 'stock_bajo_umbral'), 10)
     `),
   ])

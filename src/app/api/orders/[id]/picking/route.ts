@@ -19,18 +19,21 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   )
   if (!pedido) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const items = await query<{ modelo: string; tipo_case: string; color: string; cantidad: number }>(
-    `SELECT pi.modelo, pi.tipo_case, pi.color, pi.cantidad
-     FROM public.pedido_items pi WHERE pi.pedido_id = $1 ORDER BY pi.tipo_case, pi.modelo`,
+  const items = await query<{ modelo: string; serie: string; color: string; cantidad: number }>(
+    `SELECT pi.modelo, pi.serie, pi.color, pi.cantidad
+     FROM public.pedido_items pi WHERE pi.pedido_id = $1 ORDER BY pi.serie, pi.modelo`,
     [params.id]
   )
 
-  const ubicaciones = await query<{ tipo_case: string; modelo: string; color: string; ubicacion: string | null }>(
-    `SELECT tipo_case, modelo, color, ubicacion FROM public.catalogo_cases
-     WHERE (tipo_case, modelo, color) IN (${items.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',') || "('','','')"})`,
-    items.flatMap(it => [it.tipo_case, it.modelo, it.color])
-  )
-  const ubicacionMap = new Map(ubicaciones.map(u => [`${u.tipo_case}__${u.modelo}__${u.color}`, u.ubicacion]))
+  let ubicacionMap = new Map<string, string | null>()
+  if (items.length > 0) {
+    const ubicaciones = await query<{ serie: string; modelo: string; color: string; ubicacion: string | null }>(
+      `SELECT serie, modelo, color, ubicacion FROM public.catalogo_productos
+       WHERE (serie, modelo, color) IN (${items.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
+      items.flatMap(it => [it.serie, it.modelo, it.color])
+    )
+    ubicacionMap = new Map(ubicaciones.map(u => [`${u.serie}__${u.modelo}__${u.color}`, u.ubicacion]))
+  }
 
   if (pedido.estado === 'CONFIRMADO') {
     await query(`UPDATE public.pedidos SET estado='EN_PREPARACION', actualizado_en=NOW() WHERE id=$1`, [params.id])
@@ -43,7 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const numero = (pedido.numero_pedido || pedido.id.slice(0, 8)).toUpperCase()
   return excelResponse(`surtido-${numero}.xlsx`, wb => {
-    addSheet(wb, 'Surtido', ['Modelo', 'Tipo', 'Color', 'Cantidad', 'Ubicación'],
-      items.map(it => [it.modelo, it.tipo_case, it.color, it.cantidad, ubicacionMap.get(`${it.tipo_case}__${it.modelo}__${it.color}`) || '']))
+    addSheet(wb, 'Surtido', ['Modelo', 'Serie', 'Color', 'Cantidad', 'Ubicación'],
+      items.map(it => [it.modelo, it.serie, it.color, it.cantidad, ubicacionMap.get(`${it.serie}__${it.modelo}__${it.color}`) || '']))
   })
 }

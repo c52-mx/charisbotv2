@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { notificarConfirmacion } from '@/lib/whatsapp'
-import { resolveCaseId, liberarPedidosVencidos, checkStockBajoYNotificar, registrarMovimiento } from '@/lib/stock'
+import { resolveProductoId, liberarPedidosVencidos, checkStockBajoYNotificar, registrarMovimiento } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
 
 export const dynamic = 'force-dynamic'
@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
   const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'
 
   const totalPiezas = items.reduce((s: number, it: any) => s + (it.cantidad || 0), 0)
-  const tipos = Array.from(new Set(items.map((it: any) => it.tipo_case).filter(Boolean)))
+  // Aceptar serie o tipo_case del body (compat transición)
+  const tipos = Array.from(new Set(items.map((it: any) => (it.serie ?? it.tipo_case)).filter(Boolean)))
   const tipoPred = tipos.length === 1 ? tipos[0] : 'MIXTO'
   const resumen = `${items.length} modelos, ${totalPiezas} piezas${notas ? ` · ${notas}` : ''}`
 
@@ -112,16 +113,16 @@ export async function POST(req: NextRequest) {
   const itemsConModelo = items.filter((it: any) => (it.modelo || '').trim())
   let precioMap = new Map<string, number>()
   if (itemsConModelo.length > 0) {
-    const preciosRows = await query<{ tipo_case: string; modelo: string; color: string; precio: number }>(
-      `SELECT tipo_case, modelo, color, precio FROM public.catalogo_cases
-       WHERE (tipo_case, modelo, color) IN (${itemsConModelo.map((_: any, i: number) => `($${i * 3 + 1},$${i * 3 + 2},$${i * 3 + 3})`).join(',')})`,
+    const preciosRows = await query<{ serie: string; modelo: string; color: string; precio: number }>(
+      `SELECT serie, modelo, color, precio FROM public.catalogo_productos
+       WHERE (serie, modelo, color) IN (${itemsConModelo.map((_: any, i: number) => `($${i * 3 + 1},$${i * 3 + 2},$${i * 3 + 3})`).join(',')})`,
       itemsConModelo.flatMap((it: any) => [
-        (it.tipo_case || tipoPred).toUpperCase(),
+        ((it.serie ?? it.tipo_case) || tipoPred).toUpperCase(),
         it.modelo.toUpperCase().trim(),
         colorNorm(it.color),
       ])
     )
-    precioMap = new Map(preciosRows.map(r => [`${r.tipo_case}__${r.modelo}__${r.color}`, Number(r.precio)]))
+    precioMap = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, Number(r.precio)]))
   }
 
   // Calcular total con descuentos por volumen vigentes
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
     `SELECT piezas_minimas, porcentaje FROM public.descuentos_volumen WHERE activo = true`, []
   )
   const itemsParaTotal = items.map((it: any) => ({
-    precio: precioMap.get(`${(it.tipo_case || tipoPred).toUpperCase()}__${(it.modelo || '').toUpperCase().trim()}__${colorNorm(it.color)}`) ?? 0,
+    precio: precioMap.get(`${((it.serie ?? it.tipo_case) || tipoPred).toUpperCase()}__${(it.modelo || '').toUpperCase().trim()}__${colorNorm(it.color)}`) ?? 0,
     cantidad: it.cantidad || 0,
   }))
   const { total: montoTotal } = calcularTotal(itemsParaTotal, tiers)
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
     [
       conv?.id,
       telefono,
-      tipo_case || tipoPred,
+      tipo_case || tipoPred,   // columna legado en pedidos — no se renombró
       requiere_firma ?? false,
       resumen,
       JSON.stringify({ items }),
@@ -172,35 +173,38 @@ export async function POST(req: NextRequest) {
   )
 
   // Insertar items con precio congelado + descontar stock
-  const stockNotifyCaseIds: string[] = []
+  const stockNotifyProductoIds: string[] = []
   for (const item of items) {
-    const tipoCaseItem = (item.tipo_case || tipoPred).toUpperCase()
+    const serieItem    = ((item.serie ?? item.tipo_case) || tipoPred).toUpperCase()
     const modeloItem   = (item.modelo || '').toUpperCase().trim()
     const colorItem    = colorNorm(item.color)
     const cantidadItem = item.cantidad || 0
-    const precioItem   = precioMap.get(`${tipoCaseItem}__${modeloItem}__${colorItem}`) ?? 0
+    const precioItem   = precioMap.get(`${serieItem}__${modeloItem}__${colorItem}`) ?? 0
 
     await queryOne(
-      `INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad, precio_unitario)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [pedido!.id, modeloItem, tipoCaseItem, colorItem, cantidadItem, precioItem]
+      `INSERT INTO public.pedido_items
+         (pedido_id, modelo, serie, color, cantidad, precio_unitario, categoria, nombre_producto)
+       VALUES ($1, $2, $3, $4, $5, $6,
+         COALESCE((SELECT categoria FROM public.catalogo_productos WHERE serie=$3 AND modelo=$2 AND color=$4 LIMIT 1), 'FUNDA'),
+         COALESCE((SELECT nombre   FROM public.catalogo_productos WHERE serie=$3 AND modelo=$2 AND color=$4 LIMIT 1), $2))`,
+      [pedido!.id, modeloItem, serieItem, colorItem, cantidadItem, precioItem]
     )
 
     // Pedido manual: nace CONFIRMADO, el stock se descuenta directo (sin reserva).
-    const caseId = await resolveCaseId(tipoCaseItem, modeloItem, colorItem)
-    if (caseId && cantidadItem > 0) {
-      const [updatedCase] = await query<{ stock: number }>(
-        `UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2 RETURNING stock`,
-        [cantidadItem, caseId]
+    const productoId = await resolveProductoId(serieItem, modeloItem, colorItem)
+    if (productoId && cantidadItem > 0) {
+      const [updatedProd] = await query<{ stock: number }>(
+        `UPDATE public.catalogo_productos SET stock = GREATEST(0, stock - $1) WHERE producto_id = $2 RETURNING stock`,
+        [cantidadItem, productoId]
       )
       await registrarMovimiento({
-        case_id: caseId, tipo: 'SALIDA', cantidad: cantidadItem, stock_resultante: updatedCase.stock,
+        producto_id: productoId, tipo: 'SALIDA', cantidad: cantidadItem, stock_resultante: updatedProd.stock,
         motivo: 'Pedido manual', pedido_id: pedido!.id, realizado_por: session.sub,
       })
-      stockNotifyCaseIds.push(caseId)
+      stockNotifyProductoIds.push(productoId)
     }
   }
-  await checkStockBajoYNotificar(stockNotifyCaseIds)
+  await checkStockBajoYNotificar(stockNotifyProductoIds)
 
   // Notificar por WhatsApp
   try {

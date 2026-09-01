@@ -9,7 +9,7 @@ export interface RangoFechas {
 export interface FiltrosPedidos extends RangoFechas {
   estado?: string
   telefono?: string
-  tipo_case?: string
+  tipo_case?: string   // campo legado en tabla pedidos (flujo n8n) — se mantiene
   origen?: string
   cliente_nombre?: string
 }
@@ -62,7 +62,8 @@ export async function getReportePedidos(f: FiltrosPedidos) {
 
 // ── Reporte de inventario (stock actual + movimientos) ──────────────────
 export interface FiltrosInventario extends RangoFechas {
-  tipo_case?: string
+  categoria?: string   // agrupación de alto nivel: FUNDA, ACCESORIO, CARGADOR…
+  serie?: string       // línea/tipo: 3 EN 1, ESCUDO, BLINDAJE… (antes tipo_case)
   modelo?: string
   color?: string
   ubicacion?: string
@@ -73,10 +74,11 @@ export async function getReporteInventario(f: FiltrosInventario) {
   const condStock: string[] = []
   const paramsStock: any[] = []
   let idx = 1
-  if (f.tipo_case) { condStock.push(`tipo_case = $${idx++}`); paramsStock.push(f.tipo_case) }
-  if (f.modelo)    { condStock.push(`modelo = $${idx++}`);    paramsStock.push(f.modelo) }
-  if (f.color)     { condStock.push(`color = $${idx++}`);     paramsStock.push(f.color) }
-  if (f.ubicacion) { condStock.push(`ubicacion = $${idx++}`); paramsStock.push(f.ubicacion) }
+  if (f.categoria)  { condStock.push(`categoria = $${idx++}`);  paramsStock.push(f.categoria) }
+  if (f.serie)      { condStock.push(`serie = $${idx++}`);      paramsStock.push(f.serie) }
+  if (f.modelo)     { condStock.push(`modelo = $${idx++}`);     paramsStock.push(f.modelo) }
+  if (f.color)      { condStock.push(`color = $${idx++}`);      paramsStock.push(f.color) }
+  if (f.ubicacion)  { condStock.push(`ubicacion = $${idx++}`);  paramsStock.push(f.ubicacion) }
 
   const umbralRow = await query<{ valor: string }>(`SELECT valor FROM public.config_portal WHERE clave='stock_bajo_umbral'`, [])
   const umbral = parseInt(umbralRow[0]?.valor || '10')
@@ -84,9 +86,9 @@ export async function getReporteInventario(f: FiltrosInventario) {
 
   const whereStock = condStock.length ? `WHERE ${condStock.join(' AND ')}` : ''
   const stock = await query(
-    `SELECT case_id, tipo_case, modelo, color, stock, ubicacion
-     FROM public.catalogo_cases ${whereStock}
-     ORDER BY tipo_case, modelo, color`,
+    `SELECT producto_id, categoria, serie, modelo, color, nombre, stock, ubicacion
+     FROM public.catalogo_productos ${whereStock}
+     ORDER BY categoria, serie, modelo, color`,
     paramsStock
   )
 
@@ -99,10 +101,10 @@ export async function getReporteInventario(f: FiltrosInventario) {
 
   const movimientos = await query(
     `SELECT m.id, m.tipo, m.cantidad, m.stock_resultante, m.motivo, m.creado_en,
-            c.tipo_case, c.modelo, c.color,
+            c.nombre as producto_nombre, c.categoria, c.serie, c.modelo, c.color,
             p.numero_pedido, u.nombre as realizado_por_nombre
      FROM public.movimientos_stock m
-     LEFT JOIN public.catalogo_cases c ON c.case_id = m.case_id
+     LEFT JOIN public.catalogo_productos c ON c.producto_id = m.producto_id
      LEFT JOIN public.pedidos p ON p.id = m.pedido_id
      LEFT JOIN public.usuarios u ON u.id = m.realizado_por
      ${whereMov}
@@ -146,12 +148,16 @@ export async function getReporteVentas(f: RangoFechas) {
     params
   )
 
-  const topModelos = await query(
-    `SELECT pi.modelo, pi.tipo_case, SUM(pi.cantidad) as total_piezas
+  // Agrupa por nombre del producto (snapshot en el item) o por serie+modelo
+  const topProductos = await query(
+    `SELECT
+       COALESCE(pi.nombre_producto, CONCAT_WS(' ', pi.serie, pi.modelo)) AS producto,
+       pi.categoria,
+       SUM(pi.cantidad) as total_piezas
      FROM public.pedido_items pi
      JOIN public.pedidos p ON p.id = pi.pedido_id
      ${where}
-     GROUP BY pi.modelo, pi.tipo_case
+     GROUP BY producto, pi.categoria
      ORDER BY total_piezas DESC LIMIT 10`,
     params
   )
@@ -159,6 +165,7 @@ export async function getReporteVentas(f: RangoFechas) {
   return {
     totalVentas: Number(resumen?.total_ventas || 0),
     totalPedidos: parseInt(resumen?.total_pedidos || '0'),
-    porDia, topClientes, topModelos,
+    porDia, topClientes,
+    topModelos: topProductos,  // alias mantenido para compatibilidad con UI existente
   }
 }

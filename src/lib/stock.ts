@@ -3,8 +3,8 @@ import { sendEmail, emailStockBajo, emailSurtidoTardio } from './email'
 import { notificarVencimientoProximo } from './whatsapp'
 
 export class InsufficientStockError extends Error {
-  faltantes: { case_id: string; disponible: number }[]
-  constructor(faltantes: { case_id: string; disponible: number }[]) {
+  faltantes: { producto_id: string; disponible: number }[]
+  constructor(faltantes: { producto_id: string; disponible: number }[]) {
     super('Stock insuficiente')
     this.faltantes = faltantes
   }
@@ -17,32 +17,32 @@ export async function purgeExpiredReservas(): Promise<void> {
 }
 
 // Disponible = stock físico - reservas activas (CARRITO + PEDIDO) no vencidas.
-export async function getDisponibilidad(caseIds: string[]): Promise<Record<string, number>> {
-  if (!caseIds.length) return {}
+export async function getDisponibilidad(productoIds: string[]): Promise<Record<string, number>> {
+  if (!productoIds.length) return {}
   await purgeExpiredReservas()
 
-  const rows = await query<{ case_id: string; disponible: number }>(
-    `SELECT c.case_id,
+  const rows = await query<{ producto_id: string; disponible: number }>(
+    `SELECT c.producto_id,
             (c.stock - COALESCE(SUM(r.cantidad), 0))::int AS disponible
-     FROM public.catalogo_cases c
+     FROM public.catalogo_productos c
      LEFT JOIN public.stock_reservas r
-       ON r.case_id = c.case_id AND r.expira_en > NOW()
-     WHERE c.case_id = ANY($1::uuid[])
-     GROUP BY c.case_id, c.stock`,
-    [caseIds]
+       ON r.producto_id = c.producto_id AND r.expira_en > NOW()
+     WHERE c.producto_id = ANY($1::uuid[])
+     GROUP BY c.producto_id, c.stock`,
+    [productoIds]
   )
 
   const map: Record<string, number> = {}
-  for (const r of rows) map[r.case_id] = Math.max(0, Number(r.disponible))
+  for (const r of rows) map[r.producto_id] = Math.max(0, Number(r.disponible))
   return map
 }
 
-export async function resolveCaseId(tipo_case: string, modelo: string, color: string): Promise<string | null> {
-  const row = await queryOne<{ case_id: string }>(
-    `SELECT case_id FROM public.catalogo_cases WHERE tipo_case = $1 AND modelo = $2 AND color = $3`,
-    [tipo_case, modelo, color]
+export async function resolveProductoId(serie: string, modelo: string, color: string): Promise<string | null> {
+  const row = await queryOne<{ producto_id: string }>(
+    `SELECT producto_id FROM public.catalogo_productos WHERE serie = $1 AND modelo = $2 AND color = $3`,
+    [serie, modelo, color]
   )
-  return row?.case_id ?? null
+  return row?.producto_id ?? null
 }
 
 export async function getConfigMinutos(clave: string, def: number): Promise<number> {
@@ -54,7 +54,7 @@ export async function getConfigMinutos(clave: string, def: number): Promise<numb
 // ── Reserva de carrito (CARRITO) ────────────────────────────────────────
 // referencia = identificador del cliente (en este portal, su email/sesión).
 export async function reservarCarrito(
-  caseId: string, referencia: string, cantidad: number, ttlMin: number
+  productoId: string, referencia: string, cantidad: number, ttlMin: number
 ): Promise<{ ok: boolean; disponible: number }> {
   await purgeExpiredReservas()
 
@@ -62,29 +62,29 @@ export async function reservarCarrito(
     `SELECT (c.stock - COALESCE(SUM(r.cantidad) FILTER (
               WHERE NOT (r.origen = 'CARRITO' AND r.referencia = $2)
             ), 0))::int AS disponible
-     FROM public.catalogo_cases c
-     LEFT JOIN public.stock_reservas r ON r.case_id = c.case_id AND r.expira_en > NOW()
-     WHERE c.case_id = $1
-     GROUP BY c.case_id, c.stock`,
-    [caseId, referencia]
+     FROM public.catalogo_productos c
+     LEFT JOIN public.stock_reservas r ON r.producto_id = c.producto_id AND r.expira_en > NOW()
+     WHERE c.producto_id = $1
+     GROUP BY c.producto_id, c.stock`,
+    [productoId, referencia]
   )
   const disponible = Math.max(0, Number(row?.disponible ?? 0))
   if (cantidad > disponible) return { ok: false, disponible }
 
   const expiraEn = new Date(Date.now() + ttlMin * 60_000)
   await query(
-    `INSERT INTO public.stock_reservas (case_id, origen, referencia, cantidad, expira_en)
+    `INSERT INTO public.stock_reservas (producto_id, origen, referencia, cantidad, expira_en)
      VALUES ($1, 'CARRITO', $2, $3, $4)
-     ON CONFLICT (case_id, origen, referencia) DO UPDATE SET cantidad = $3, expira_en = $4`,
-    [caseId, referencia, cantidad, expiraEn]
+     ON CONFLICT (producto_id, origen, referencia) DO UPDATE SET cantidad = $3, expira_en = $4`,
+    [productoId, referencia, cantidad, expiraEn]
   )
   return { ok: true, disponible }
 }
 
-export async function liberarCarritoItem(caseId: string, referencia: string): Promise<void> {
+export async function liberarCarritoItem(productoId: string, referencia: string): Promise<void> {
   await query(
-    `DELETE FROM public.stock_reservas WHERE case_id = $1 AND origen = 'CARRITO' AND referencia = $2`,
-    [caseId, referencia]
+    `DELETE FROM public.stock_reservas WHERE producto_id = $1 AND origen = 'CARRITO' AND referencia = $2`,
+    [productoId, referencia]
   )
 }
 
@@ -101,52 +101,52 @@ export async function convertirCarritoAPedidoTx(
   tx: <U = any>(text: string, params?: any[]) => Promise<U[]>,
   referenciaCarrito: string,
   pedidoId: string,
-  items: { case_id: string; cantidad: number }[],
+  items: { producto_id: string; cantidad: number }[],
   ttlMinPago: number
 ): Promise<void> {
   if (!items.length) return
 
   await tx(`DELETE FROM public.stock_reservas WHERE expira_en <= NOW()`, [])
 
-  const faltantes: { case_id: string; disponible: number }[] = []
+  const faltantes: { producto_id: string; disponible: number }[] = []
   for (const it of items) {
     const [row] = await tx<{ disponible: number }>(
       `SELECT (c.stock - COALESCE(SUM(r.cantidad) FILTER (
                 WHERE NOT (r.origen = 'CARRITO' AND r.referencia = $2)
               ), 0))::int AS disponible
-       FROM public.catalogo_cases c
-       LEFT JOIN public.stock_reservas r ON r.case_id = c.case_id AND r.expira_en > NOW()
-       WHERE c.case_id = $1
-       GROUP BY c.case_id, c.stock`,
-      [it.case_id, referenciaCarrito]
+       FROM public.catalogo_productos c
+       LEFT JOIN public.stock_reservas r ON r.producto_id = c.producto_id AND r.expira_en > NOW()
+       WHERE c.producto_id = $1
+       GROUP BY c.producto_id, c.stock`,
+      [it.producto_id, referenciaCarrito]
     )
     const disponible = Math.max(0, Number(row?.disponible ?? 0))
-    if (it.cantidad > disponible) faltantes.push({ case_id: it.case_id, disponible })
+    if (it.cantidad > disponible) faltantes.push({ producto_id: it.producto_id, disponible })
   }
   if (faltantes.length) throw new InsufficientStockError(faltantes)
 
   const expiraEn = new Date(Date.now() + ttlMinPago * 60_000)
   for (const it of items) {
     await tx(
-      `DELETE FROM public.stock_reservas WHERE case_id = $1 AND origen = 'CARRITO' AND referencia = $2`,
-      [it.case_id, referenciaCarrito]
+      `DELETE FROM public.stock_reservas WHERE producto_id = $1 AND origen = 'CARRITO' AND referencia = $2`,
+      [it.producto_id, referenciaCarrito]
     )
     await tx(
-      `INSERT INTO public.stock_reservas (case_id, origen, referencia, cantidad, expira_en)
+      `INSERT INTO public.stock_reservas (producto_id, origen, referencia, cantidad, expira_en)
        VALUES ($1, 'PEDIDO', $2, $3, $4)
-       ON CONFLICT (case_id, origen, referencia) DO UPDATE SET cantidad = $3, expira_en = $4`,
-      [it.case_id, pedidoId, it.cantidad, expiraEn]
+       ON CONFLICT (producto_id, origen, referencia) DO UPDATE SET cantidad = $3, expira_en = $4`,
+      [it.producto_id, pedidoId, it.cantidad, expiraEn]
     )
   }
 }
 
 // Bitácora de movimientos de stock — base del reporte de inventario.
 // Se llena desde ahora hacia adelante en cada punto donde se toca
-// catalogo_cases.stock; acepta el `tx` de una transacción ya abierta o usa
+// catalogo_productos.stock; acepta el `tx` de una transacción ya abierta o usa
 // `query` directo si se llama fuera de una.
 export async function registrarMovimiento(
   params: {
-    case_id: string
+    producto_id: string
     tipo: 'ENTRADA' | 'SALIDA' | 'AJUSTE'
     cantidad: number
     stock_resultante: number
@@ -157,28 +157,37 @@ export async function registrarMovimiento(
   tx: <U = any>(text: string, p?: any[]) => Promise<U[]> = query
 ): Promise<void> {
   await tx(
-    `INSERT INTO public.movimientos_stock (case_id, tipo, cantidad, stock_resultante, motivo, pedido_id, realizado_por)
+    `INSERT INTO public.movimientos_stock (producto_id, tipo, cantidad, stock_resultante, motivo, pedido_id, realizado_por)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [params.case_id, params.tipo, params.cantidad, params.stock_resultante, params.motivo || null, params.pedido_id || null, params.realizado_por || null]
+    [params.producto_id, params.tipo, params.cantidad, params.stock_resultante, params.motivo || null, params.pedido_id || null, params.realizado_por || null]
   )
 }
 
 // Revisa el stock de los productos dados contra el umbral configurado y, si
 // alguno quedó en o por debajo, dispara un email al admin. No bloquea al
 // caller — cualquier falla de envío solo se registra en consola.
-export async function checkStockBajoYNotificar(caseIds: string[]): Promise<void> {
-  if (!caseIds.length) return
+export async function checkStockBajoYNotificar(productoIds: string[]): Promise<void> {
+  if (!productoIds.length) return
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL
   if (!adminEmail) return
 
   try {
     const umbral = await getConfigMinutos('stock_bajo_umbral', 10)
-    const rows = await query<{ modelo: string; color: string; tipo_case: string; stock: number }>(
-      `SELECT modelo, color, tipo_case, stock FROM public.catalogo_cases WHERE case_id = ANY($1::uuid[]) AND stock <= $2`,
-      [caseIds, umbral]
+    const rows = await query<{ nombre: string; serie: string | null; modelo: string | null; color: string | null; stock: number }>(
+      `SELECT nombre, serie, modelo, color, stock
+       FROM public.catalogo_productos
+       WHERE producto_id = ANY($1::uuid[]) AND stock <= $2`,
+      [productoIds, umbral]
     )
     if (rows.length) {
-      await sendEmail({ to: adminEmail, subject: '⚠️ Stock bajo en catálogo', html: emailStockBajo(rows) })
+      // emailStockBajo espera { modelo, color, tipo_case, stock } — adaptamos
+      const adapted = rows.map(r => ({
+        modelo: r.modelo ?? r.nombre,
+        color: r.color ?? '',
+        tipo_case: r.serie ?? '',
+        stock: r.stock,
+      }))
+      await sendEmail({ to: adminEmail, subject: '⚠️ Stock bajo en catálogo', html: emailStockBajo(adapted) })
     }
   } catch (e) {
     console.error('[checkStockBajoYNotificar]', e)
@@ -188,26 +197,26 @@ export async function checkStockBajoYNotificar(caseIds: string[]): Promise<void>
 // ── Cierre del pedido ────────────────────────────────────────────────────
 // Confirmado/pagado: descuenta stock físico definitivamente y libera la reserva.
 export async function finalizarPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
-  const caseIds: string[] = []
+  const productoIds: string[] = []
   await withTransaction(async (tx) => {
-    const rows = await tx<{ case_id: string; cantidad: number }>(
-      `SELECT case_id, cantidad FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`,
+    const rows = await tx<{ producto_id: string; cantidad: number }>(
+      `SELECT producto_id, cantidad FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`,
       [pedidoId]
     )
     for (const r of rows) {
       const [updated] = await tx<{ stock: number }>(
-        `UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2 RETURNING stock`,
-        [r.cantidad, r.case_id]
+        `UPDATE public.catalogo_productos SET stock = GREATEST(0, stock - $1) WHERE producto_id = $2 RETURNING stock`,
+        [r.cantidad, r.producto_id]
       )
       await registrarMovimiento({
-        case_id: r.case_id, tipo: 'SALIDA', cantidad: r.cantidad, stock_resultante: updated.stock,
+        producto_id: r.producto_id, tipo: 'SALIDA', cantidad: r.cantidad, stock_resultante: updated.stock,
         motivo: 'Pedido confirmado/pagado', pedido_id: pedidoId, realizado_por: realizadoPor,
       }, tx)
-      caseIds.push(r.case_id)
+      productoIds.push(r.producto_id)
     }
     await tx(`DELETE FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`, [pedidoId])
   })
-  await checkStockBajoYNotificar(caseIds)
+  await checkStockBajoYNotificar(productoIds)
 }
 
 // Cancelado o vencido sin pago: libera la reserva sin tocar el stock físico.
@@ -218,21 +227,21 @@ export async function liberarPedido(pedidoId: string): Promise<void> {
 // Restaura el stock físico de un pedido cancelado que ya estaba CONFIRMADO.
 // Lee los movimientos SALIDA asociados al pedido y los revierte con un AJUSTE.
 export async function restaurarStockPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
-  const salidas = await query<{ case_id: string; cantidad: number }>(
-    `SELECT case_id, SUM(cantidad)::int as cantidad
+  const salidas = await query<{ producto_id: string; cantidad: number }>(
+    `SELECT producto_id, SUM(cantidad)::int as cantidad
      FROM public.movimientos_stock
      WHERE pedido_id = $1 AND tipo = 'SALIDA'
-     GROUP BY case_id`,
+     GROUP BY producto_id`,
     [pedidoId]
   )
   for (const s of salidas) {
     const [updated] = await query<{ stock: number }>(
-      `UPDATE public.catalogo_cases SET stock = stock + $1 WHERE case_id = $2 RETURNING stock`,
-      [s.cantidad, s.case_id]
+      `UPDATE public.catalogo_productos SET stock = stock + $1 WHERE producto_id = $2 RETURNING stock`,
+      [s.cantidad, s.producto_id]
     )
     if (updated) {
       await registrarMovimiento({
-        case_id: s.case_id,
+        producto_id: s.producto_id,
         tipo: 'AJUSTE',
         cantidad: s.cantidad,
         stock_resultante: updated.stock,
@@ -248,58 +257,66 @@ export async function restaurarStockPedido(pedidoId: string, realizadoPor?: stri
 // nuevo y, si alcanza, descuenta stock y lo regresa a CONFIRMADO. Si no
 // alcanza, lanza InsufficientStockError sin tocar nada (el admin decide).
 export async function reactivarPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
-  const items = await query<{ tipo_case: string; modelo: string; color: string; cantidad: number }>(
-    `SELECT tipo_case, modelo, color, cantidad FROM public.pedido_items WHERE pedido_id = $1`,
+  const items = await query<{ serie: string | null; modelo: string | null; color: string | null; cantidad: number; producto_id: string | null }>(
+    `SELECT serie, modelo, color, cantidad, producto_id FROM public.pedido_items WHERE pedido_id = $1`,
     [pedidoId]
   )
   if (!items.length) return
 
-  let notifyCaseIds: string[] = []
+  let notifyProductoIds: string[] = []
   await withTransaction(async (tx) => {
     await tx(`DELETE FROM public.stock_reservas WHERE expira_en <= NOW()`, [])
 
-    const resolved: { case_id: string; cantidad: number }[] = []
+    const resolved: { producto_id: string; cantidad: number }[] = []
     for (const it of items) {
-      const [row] = await tx<{ case_id: string }>(
-        `SELECT case_id FROM public.catalogo_cases WHERE tipo_case = $1 AND modelo = $2 AND color = $3`,
-        [it.tipo_case, it.modelo, it.color]
-      )
-      if (row) resolved.push({ case_id: row.case_id, cantidad: it.cantidad })
+      // Preferir producto_id directo si está disponible (pedidos nuevos)
+      if (it.producto_id) {
+        resolved.push({ producto_id: it.producto_id, cantidad: it.cantidad })
+        continue
+      }
+      // Fallback: resolver por serie + modelo + color (pedidos históricos)
+      if (it.serie && it.modelo && it.color) {
+        const [row] = await tx<{ producto_id: string }>(
+          `SELECT producto_id FROM public.catalogo_productos WHERE serie = $1 AND modelo = $2 AND color = $3`,
+          [it.serie, it.modelo, it.color]
+        )
+        if (row) resolved.push({ producto_id: row.producto_id, cantidad: it.cantidad })
+      }
     }
 
-    const faltantes: { case_id: string; disponible: number }[] = []
+    const faltantes: { producto_id: string; disponible: number }[] = []
     for (const r of resolved) {
       const [row] = await tx<{ disponible: number }>(
         `SELECT (c.stock - COALESCE(SUM(res.cantidad) FILTER (WHERE res.expira_en > NOW()), 0))::int AS disponible
-         FROM public.catalogo_cases c
-         LEFT JOIN public.stock_reservas res ON res.case_id = c.case_id
-         WHERE c.case_id = $1
-         GROUP BY c.case_id, c.stock`,
-        [r.case_id]
+         FROM public.catalogo_productos c
+         LEFT JOIN public.stock_reservas res ON res.producto_id = c.producto_id
+         WHERE c.producto_id = $1
+         GROUP BY c.producto_id, c.stock`,
+        [r.producto_id]
       )
       const disponible = Math.max(0, Number(row?.disponible ?? 0))
-      if (r.cantidad > disponible) faltantes.push({ case_id: r.case_id, disponible })
+      if (r.cantidad > disponible) faltantes.push({ producto_id: r.producto_id, disponible })
     }
     if (faltantes.length) throw new InsufficientStockError(faltantes)
 
     for (const r of resolved) {
       const [updated] = await tx<{ stock: number }>(
-        `UPDATE public.catalogo_cases SET stock = GREATEST(0, stock - $1) WHERE case_id = $2 RETURNING stock`,
-        [r.cantidad, r.case_id]
+        `UPDATE public.catalogo_productos SET stock = GREATEST(0, stock - $1) WHERE producto_id = $2 RETURNING stock`,
+        [r.cantidad, r.producto_id]
       )
       await registrarMovimiento({
-        case_id: r.case_id, tipo: 'SALIDA', cantidad: r.cantidad, stock_resultante: updated.stock,
+        producto_id: r.producto_id, tipo: 'SALIDA', cantidad: r.cantidad, stock_resultante: updated.stock,
         motivo: 'Pedido reactivado', pedido_id: pedidoId, realizado_por: realizadoPor,
       }, tx)
     }
-    notifyCaseIds = resolved.map(r => r.case_id)
+    notifyProductoIds = resolved.map(r => r.producto_id)
 
     await tx(
       `UPDATE public.pedidos SET estado='CONFIRMADO', motivo_cancelacion=NULL, cancelado_en=NULL, confirmado_en=NOW(), aviso_surtido_enviado=false WHERE id=$1`,
       [pedidoId]
     )
   })
-  await checkStockBajoYNotificar(notifyCaseIds)
+  await checkStockBajoYNotificar(notifyProductoIds)
 }
 
 // Auto-cancela pedidos PENDIENTE_PAGO cuya ventana de pago ya venció.
