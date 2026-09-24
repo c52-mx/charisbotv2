@@ -12,14 +12,22 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
-  // Aceptar tanto los nombres nuevos como los viejos (compat transición frontend)
-  const serie    = body.serie    ?? body.tipo_case
-  const { modelo, color, cantidad } = body
-  if (!serie || !modelo || !color || !cantidad || cantidad <= 0) {
-    return NextResponse.json({ error: 'serie, modelo, color y cantidad son requeridos' }, { status: 400 })
+  const { cantidad } = body
+  if (!cantidad || cantidad <= 0) {
+    return NextResponse.json({ error: 'cantidad requerida y debe ser > 0' }, { status: 400 })
   }
 
-  const productoId = await resolveProductoId(serie.toUpperCase().trim(), modelo.toUpperCase().trim(), (color || '').toUpperCase().trim() || 'NEGRO')
+  // Aceptar producto_id directo (nueva API) o serie+modelo+color (compat)
+  let productoId: string | null = body.producto_id || null
+  if (!productoId) {
+    const serie  = body.serie ?? body.tipo_case
+    const modelo = body.modelo
+    const color  = body.color
+    if (!serie || !modelo || !color) {
+      return NextResponse.json({ error: 'Proporciona producto_id o serie+modelo+color' }, { status: 400 })
+    }
+    productoId = await resolveProductoId(serie.toUpperCase().trim(), modelo.toUpperCase().trim(), (color || '').toUpperCase().trim() || 'NEGRO')
+  }
   if (!productoId) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 })
 
   const [prodRow] = await query<{ precio: number }>(`SELECT precio FROM public.catalogo_productos WHERE producto_id = $1`, [productoId])
@@ -40,13 +48,15 @@ export async function DELETE(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
-  const serie  = body.serie  ?? body.tipo_case
-  const { modelo, color } = body
-  if (!serie || !modelo || !color) {
-    return NextResponse.json({ error: 'serie, modelo y color son requeridos' }, { status: 400 })
+  let productoId: string | null = body.producto_id || null
+  if (!productoId) {
+    const serie  = body.serie ?? body.tipo_case
+    const modelo = body.modelo
+    const color  = body.color
+    if (serie && modelo && color) {
+      productoId = await resolveProductoId(serie.toUpperCase().trim(), modelo.toUpperCase().trim(), (color || '').toUpperCase().trim() || 'NEGRO')
+    }
   }
-
-  const productoId = await resolveProductoId(serie.toUpperCase().trim(), modelo.toUpperCase().trim(), (color || '').toUpperCase().trim() || 'NEGRO')
   if (productoId) await liberarCarritoItem(productoId, session.email)
 
   return NextResponse.json({ ok: true })
