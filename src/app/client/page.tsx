@@ -216,7 +216,7 @@ export default function ClientHome() {
               {series.map(s => {
                 const meta = SERIE_META[s.tipo_case] || DEFAULT_META
                 return (
-                  <Link key={s.tipo_case} href={`/client/catalog/${encodeURIComponent(s.tipo_case)}`} className="cat-pill">
+                  <Link key={s.tipo_case} href={`/client/catalog?serie=${encodeURIComponent(s.tipo_case)}`} className="cat-pill">
                     {meta.emoji} {s.tipo_case}
                     <span style={{ fontSize:11, color:'var(--txt3)', fontWeight:400 }}>({s.total_modelos})</span>
                   </Link>
@@ -237,7 +237,7 @@ export default function ClientHome() {
             const meta = SERIE_META[s.tipo_case] || DEFAULT_META
             const img  = s.foto_url || meta.fallback
             return (
-              <Link key={s.tipo_case} href={`/client/catalog/${encodeURIComponent(s.tipo_case)}`} className="serie-card">
+              <Link key={s.tipo_case} href={`/client/catalog?serie=${encodeURIComponent(s.tipo_case)}`} className="serie-card">
                 <div className="serie-thumb" style={img ? undefined : { background:meta.bg }}>
                   {img
                     ? <img className="serie-thumb-img" src={img} alt={s.tipo_case} />

@@ -8,8 +8,13 @@ import { AddressForm, type AddressFormValues } from '@/components/AddressForm'
 interface Address extends AddressFormValues { id: string; predeterminada: boolean }
 
 interface CartItem {
-  _id?: string; tipo_case: string; marca: string
-  modelo: string; color: string; cantidad: number; precio: number
+  _id?: string
+  // nuevo formato
+  producto_id?: string; nombre?: string; serie?: string; categoria?: string
+  // legado
+  tipo_case?: string; marca?: string; modelo?: string
+  // comunes
+  color?: string; cantidad: number; precio: number
 }
 
 const CSS = `
@@ -216,8 +221,8 @@ export default function CheckoutPage() {
                 {cart.map((item, i) => (
                   <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px', background:'var(--field-bg)', borderRadius:9, fontSize:13 }}>
                     <div>
-                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.modelo}</span>
-                      <span style={{ color:'var(--txt3)', marginLeft:8 }}>{item.tipo_case} · {item.color}</span>
+                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.nombre || item.modelo || item.tipo_case || '—'}</span>
+                      <span style={{ color:'var(--txt3)', marginLeft:8 }}>{[item.serie || item.tipo_case, item.color].filter(Boolean).join(' · ')}</span>
                       <span style={{ color:'var(--txt3)', marginLeft:8 }}>${Number(item.precio||0).toLocaleString('es-MX',{minimumFractionDigits:2})} c/u</span>
                     </div>
                     <span style={{ fontWeight:700, color:'var(--blue)' }}>${(item.cantidad*Number(item.precio||0)).toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
