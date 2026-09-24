@@ -283,8 +283,8 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
           <thead><tr><th>Tipo</th><th>Modelo</th><th>Color</th><th>Stock</th><th>Ubicación</th></tr></thead>
           <tbody>
             {filteredRows.map((r:any) => (
-              <tr key={r.case_id}>
-                <td>{r.tipo_case}</td><td>{r.modelo}</td><td>{r.color}</td>
+              <tr key={r.producto_id}>
+                <td>{r.serie}</td><td>{r.modelo}</td><td>{r.color}</td>
                 <td><span className={`badge ${r.stock===0?'badge-red':r.stock<=umbral?'badge-warn':'badge-ok'}`}>{r.stock}</span></td>
                 <td>{r.ubicacion || '—'}</td>
               </tr>
@@ -342,7 +342,7 @@ function VentasTab({ data }: { data: any }) {
           <h3 style={{ fontSize:13, fontWeight:700, color:'var(--txt)', margin:'0 0 10px' }}>Top modelos</h3>
           {(data.topModelos||[]).map((m:any,i:number) => (
             <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:12, borderTop:i>0?'1px solid var(--border)':'none' }}>
-              <span>{m.modelo} <span style={{ color:'var(--txt2)' }}>({m.tipo_case})</span></span>
+              <span>{m.producto} <span style={{ color:'var(--txt2)' }}>({m.categoria})</span></span>
               <b>{m.total_piezas} pzas</b>
             </div>
           ))}

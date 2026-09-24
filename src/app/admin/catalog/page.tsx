@@ -6,8 +6,8 @@ import { ThemeContext } from '@/lib/theme-context'
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface Product {
-  case_id:      string
-  tipo_case:    string
+  producto_id:  string
+  serie:        string
   modelo:       string
   color:        string
   activo:       boolean
@@ -19,7 +19,7 @@ interface Product {
 }
 
 interface FormState {
-  tipo_case:    string
+  serie:        string
   modelo:       string
   color:        string
   activo:       boolean
@@ -32,7 +32,7 @@ interface FormState {
 // Tipos de case ahora se administran desde /admin/tipos-case — se cargan
 // dinámicamente (ver useEffect más abajo) en vez de venir hardcodeados.
 const EMPTY_FORM: FormState = {
-  tipo_case: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0', precio: '0'
+  serie: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0', precio: '0'
 }
 
 // ── Page ──────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export default function CatalogPage() {
 
   function openEdit(p: Product) {
     setForm({
-      tipo_case:    p.tipo_case,
+      serie:        p.serie,
       modelo:       p.modelo,
       color:        p.color,
       activo:       p.activo,
@@ -127,22 +127,22 @@ export default function CatalogPage() {
       stock:        String(p.stock ?? 0),
       precio:       String(p.precio ?? 0),
     })
-    setEditId(p.case_id)
+    setEditId(p.producto_id)
     setError('')
     setModal('edit')
   }
 
   // ── Save ──────────────────────────────────────────────────────────
   async function save() {
-    if (!form.tipo_case || !form.modelo || !form.color) {
-      setError('Tipo, modelo y color son obligatorios')
+    if (!form.serie || !form.modelo || !form.color) {
+      setError('Serie, modelo y color son obligatorios')
       return
     }
     setSaving(true)
     setError('')
 
     const payload = {
-      tipo_case:    form.tipo_case,
+      serie:        form.serie,
       modelo:       form.modelo,
       color:        form.color,
       activo:       form.activo,
@@ -182,7 +182,7 @@ export default function CatalogPage() {
 
   // ── Toggle active ─────────────────────────────────────────────────
   async function toggleActivo(p: Product) {
-    await fetch(`/api/catalog/${p.case_id}`, {
+    await fetch(`/api/catalog/${p.producto_id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ activo: !p.activo })
@@ -302,12 +302,12 @@ export default function CatalogPage() {
             </thead>
             <tbody>
               {items.map(p => (
-                <tr key={p.case_id}>
+                <tr key={p.producto_id}>
                   <td>
                     <span style={{ fontSize: 11, background: 'rgba(26,143,227,0.1)',
                                    color: 'var(--blue3)', padding: '2px 8px',
                                    borderRadius: 4, fontWeight: 500 }}>
-                      {p.tipo_case}
+                      {p.serie}
                     </span>
                   </td>
                   <td style={{ fontWeight: 500 }}>{p.modelo}</td>
@@ -337,7 +337,7 @@ export default function CatalogPage() {
                                 onClick={() => openEdit(p)}>Editar</button>
                         <button className="cbtn cbtn-ghost"
                                 style={{ color: p.activo ? '#f87171' : '#34d399' }}
-                                onClick={() => toggleActivo(p)}>
+                                onClick={() => toggleActivo(p as Product)}>
                           {p.activo ? 'Desactivar' : 'Activar'}
                         </button>
                       </div>
@@ -375,11 +375,11 @@ export default function CatalogPage() {
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Tipo de case *
+                  Serie / Línea *
                 </label>
                 <Combo
-                  value={form.tipo_case}
-                  onChange={v => setForm(f => ({ ...f, tipo_case: v }))}
+                  value={form.serie}
+                  onChange={v => setForm(f => ({ ...f, serie: v }))}
                   options={tiposOpts}
                   placeholder="Seleccionar tipo..."
                 />
@@ -553,7 +553,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       <div className="modal-box" style={{ maxWidth: 460 }}>
         <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>📥 Importar inventario</h2>
         <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
-          Sube un archivo .xlsx con columnas <code>tipo_case, modelo, color, stock, identificador, ubicacion</code>.
+          Sube un archivo .xlsx con columnas <code>serie, modelo, color, stock, identificador, ubicacion</code>.
           El stock del archivo <strong>remplaza</strong> el stock actual de cada producto.
         </p>
         <a href="/api/admin/catalog/import/template" style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>
