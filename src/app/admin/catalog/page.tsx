@@ -15,6 +15,8 @@ interface Product {
   marca:         string | null
   foto_url:      string | null
   atributos:     Record<string, any> | null
+  descripcion:   string | null
+  precio_compra: number | null
   activo:        boolean
   identificador: string | null
   ubicacion:     string | null
@@ -22,6 +24,8 @@ interface Product {
   precio:        number
   creado_en:     string
 }
+
+interface AtributoRow { key: string; value: string }
 
 interface FormState {
   categoria:     string
@@ -31,20 +35,34 @@ interface FormState {
   nombre:        string
   marca:         string
   foto_url:      string
-  atributos:     string   // JSON string editado en textarea
+  descripcion:   string
   activo:        boolean
   identificador: string
   ubicacion:     string
   stock:         string
+  precio_compra: string
   precio:        string
+  atributos:     AtributoRow[]
 }
 
 const CATS = ['FUNDA', 'ACCESORIO', 'CARGADOR', 'MICA', 'OTRO']
 
 const EMPTY_FORM: FormState = {
   categoria: 'FUNDA', serie: '', modelo: '', color: '', nombre: '',
-  marca: '', foto_url: '', atributos: '', activo: true,
-  identificador: '', ubicacion: '', stock: '0', precio: '0'
+  marca: '', foto_url: '', descripcion: '', activo: true,
+  identificador: '', ubicacion: '', stock: '0',
+  precio_compra: '', precio: '0', atributos: [],
+}
+
+function atributosToRows(obj: Record<string, any> | null): AtributoRow[] {
+  if (!obj) return []
+  return Object.entries(obj).map(([key, value]) => ({ key, value: String(value) }))
+}
+
+function rowsToAtributos(rows: AtributoRow[]): Record<string, string> | null {
+  const filtered = rows.filter(r => r.key.trim())
+  if (!filtered.length) return null
+  return Object.fromEntries(filtered.map(r => [r.key.trim(), r.value]))
 }
 
 // ── Page ──────────────────────────────────────────────────────────────
@@ -72,10 +90,8 @@ export default function CatalogPage() {
   const [uploadingImg, setUploadingImg] = useState(false)
   const [stockBajoUmbral, setStockBajoUmbral] = useState(10)
   const [tiposList, setTiposList] = useState<string[]>([])
+  const [marcasList, setMarcasList] = useState<string[]>([])
   const tiposOpts = tiposList.map(t => ({ value: t, label: t }))
-
-  // ── Init ─────────────────────────────────────────────────────────
-  // theme via ThemeContext (provided by admin layout)
 
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user || { rol:'VENDEDOR' }))
@@ -91,6 +107,15 @@ export default function CatalogPage() {
   useEffect(() => {
     fetch('/api/tipos-case').then(r => r.json()).then(d => {
       setTiposList((d.items || []).map((t: any) => t.nombre))
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/catalog?size=500').then(r => r.json()).then(d => {
+      const ms = [...new Set<string>(
+        (d.items || []).map((p: any) => p.marca).filter(Boolean)
+      )].sort()
+      setMarcasList(ms)
     }).catch(() => {})
   }, [])
 
@@ -138,16 +163,32 @@ export default function CatalogPage() {
       nombre:       p.nombre        || '',
       marca:        p.marca         || '',
       foto_url:     p.foto_url      || '',
-      atributos:    p.atributos ? JSON.stringify(p.atributos, null, 2) : '',
+      descripcion:  p.descripcion   || '',
+      atributos:    atributosToRows(p.atributos),
       activo:       p.activo,
       identificador: p.identificador || '',
       ubicacion:    p.ubicacion || '',
       stock:        String(p.stock ?? 0),
+      precio_compra: p.precio_compra != null ? String(p.precio_compra) : '',
       precio:       String(p.precio ?? 0),
     })
     setEditId(p.producto_id)
     setError('')
     setModal('edit')
+  }
+
+  // ── Price calculator ──────────────────────────────────────────────
+  const costo  = parseFloat(form.precio_compra) || 0
+  const venta  = parseFloat(form.precio)        || 0
+  const margen = costo > 0 && venta > 0 ? ((venta - costo) / costo * 100).toFixed(1) : null
+  const ganancia = costo > 0 && venta > 0 ? (venta - costo).toFixed(2) : null
+
+  function aplicarMargen(pct: string) {
+    const p = parseFloat(pct)
+    if (!isNaN(p) && costo > 0) {
+      const precioCalculado = Math.ceil(costo * (1 + p / 100))
+      setForm(f => ({ ...f, precio: String(precioCalculado) }))
+    }
   }
 
   // ── Save ──────────────────────────────────────────────────────────
@@ -161,12 +202,7 @@ export default function CatalogPage() {
       return
     }
 
-    let atributosObj: Record<string, any> | null = null
-    if (form.atributos.trim()) {
-      try { atributosObj = JSON.parse(form.atributos) }
-      catch { setError('Los atributos deben ser JSON válido. Ej: {"material":"TPU"}'); return }
-    }
-
+    const atributosObj = rowsToAtributos(form.atributos)
     setSaving(true)
     setError('')
 
@@ -178,11 +214,13 @@ export default function CatalogPage() {
       nombre:       form.nombre.trim()  || null,
       marca:        form.marca.trim()   || null,
       foto_url:     form.foto_url.trim()|| null,
+      descripcion:  form.descripcion.trim() || null,
       atributos:    atributosObj,
       activo:       form.activo,
       identificador: form.identificador.trim() || null,
       ubicacion:    form.ubicacion.trim()     || null,
       stock:        Math.max(0, parseInt(form.stock) || 0),
+      precio_compra: form.precio_compra ? Math.max(0, parseFloat(form.precio_compra) || 0) : null,
       precio:       Math.max(0, parseFloat(form.precio) || 0),
     }
 
@@ -229,7 +267,6 @@ export default function CatalogPage() {
   const canEdit    = can(userRol, 'catalogo_editar')
   const canCreate  = can(userRol, 'catalogo_crear')
 
-  // ── Input helper ──────────────────────────────────────────────────
   const inp = (style?: React.CSSProperties): React.CSSProperties => ({
     width: '100%', padding: '8px 10px', borderRadius: 8,
     border: '1px solid var(--border)', background: 'var(--bg)',
@@ -237,7 +274,8 @@ export default function CatalogPage() {
     outline: 'none', boxSizing: 'border-box', ...style
   })
 
-  // ── Render ────────────────────────────────────────────────────────
+  const esFunda = form.categoria === 'FUNDA'
+
   return (
     <div style={{ ...Object.fromEntries(Object.entries(tv)) as any }}>
       <style>{SHARED_CSS + `
@@ -255,13 +293,26 @@ export default function CatalogPage() {
         .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200;
                       display: flex; align-items: center; justify-content: center; padding: 16px; }
         .modal-box  { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
-                      width: 100%; max-width: 520px; max-height: 90dvh; overflow-y: auto; padding: 24px; }
+                      width: 100%; max-width: 560px; max-height: 90dvh; overflow-y: auto; padding: 24px; }
         .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        @media(max-width:500px) { .g2 { grid-template-columns: 1fr; } }
+        .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        @media(max-width:500px) { .g2 { grid-template-columns: 1fr; } .g3 { grid-template-columns: 1fr; } }
         @media(max-width:639px) {
           .modal-mask { align-items: flex-end !important; padding: 0 !important; }
           .modal-box  { border-radius: 18px 18px 0 0 !important; max-width: 100% !important; }
         }
+        .section-label {
+          font-size: 11px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .07em; color: var(--txt3); margin: 16px 0 10px;
+          padding-bottom: 6px; border-bottom: 1px solid var(--border);
+        }
+        .attr-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+        .price-calc { background: var(--bg4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+        .price-calc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .margen-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+        .margen-ok   { background: rgba(34,197,94,.12);  color: #16a34a; }
+        .margen-warn { background: rgba(234,179,8,.12);  color: #ca8a04; }
+        .margen-bad  { background: rgba(239,68,68,.12);  color: #dc2626; }
       `}</style>
 
       {/* ── Header ── */}
@@ -290,14 +341,14 @@ export default function CatalogPage() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           className="inp" style={inp({ maxWidth: 260 })}
-          placeholder="🔍 Buscar modelo, color, identificador..."
+          placeholder="🔍 Buscar nombre, modelo, color, SKU..."
           value={search} onChange={e => setSearch(e.target.value)}
         />
         <div style={{ maxWidth: 160, width: 160 }}>
           <Combo
             value={filterTipo}
             onChange={setFilterTipo}
-            options={[{ value:'', label:'Todos los tipos' }, ...tiposList.map(t => ({ value:t, label:t }))]}
+            options={[{ value:'', label:'Todas las series' }, ...tiposList.map(t => ({ value:t, label:t }))]}
           />
         </div>
         <div style={{ maxWidth: 140, width: 140 }}>
@@ -329,7 +380,7 @@ export default function CatalogPage() {
                 <th>Serie</th>
                 <th>Modelo · Color</th>
                 <th>Stock</th>
-                <th>Precio</th>
+                <th>Precio venta</th>
                 <th>Estado</th>
                 {canEdit && <th>Acciones</th>}
               </tr>
@@ -341,13 +392,14 @@ export default function CatalogPage() {
                     {p.foto_url
                       ? <img src={p.foto_url} alt="" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6, background: 'var(--bg4)', border: '1px solid var(--border)' }} />
                       : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                          {p.categoria === 'FUNDA' ? '📱' : p.categoria === 'CARGADOR' ? '🔌' : '📦'}
+                          {p.categoria === 'FUNDA' ? '📱' : p.categoria === 'CARGADOR' ? '🔌' : p.categoria === 'MICA' ? '🛡️' : '📦'}
                         </div>
                     }
                   </td>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.nombre}</div>
                     {p.marca && <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{p.marca}</div>}
+                    {p.descripcion && <div style={{ fontSize: 11, color: 'var(--txt3)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.descripcion}</div>}
                   </td>
                   <td>
                     <span style={{ fontSize: 11, background: 'rgba(26,143,227,0.1)',
@@ -370,7 +422,19 @@ export default function CatalogPage() {
                       {p.stock ?? 0}
                     </span>
                   </td>
-                  <td>${Number(p.precio ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                  <td>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>${Number(p.precio ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                    {p.precio_compra != null && (
+                      <div style={{ fontSize: 11, color: 'var(--txt3)' }}>
+                        Costo: ${Number(p.precio_compra).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        {p.precio > 0 && p.precio_compra > 0 && (
+                          <span style={{ marginLeft: 4, color: '#16a34a', fontWeight: 600 }}>
+                            ({((p.precio - p.precio_compra) / p.precio_compra * 100).toFixed(0)}%)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className={`badge ${p.activo ? 'badge-ok' : 'badge-red'}`}>
                       {p.activo ? '● Activo' : '○ Inactivo'}
@@ -413,19 +477,20 @@ export default function CatalogPage() {
       {modal && (
         <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div className="modal-box">
-            <h2 style={{ margin: '0 0 18px', fontSize: 17, fontWeight: 700 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>
               {modal === 'create' ? 'Nuevo producto' : 'Editar producto'}
             </h2>
 
-            {/* ── Row 1: categoria + activo ── */}
+            {/* ─── SECCIÓN: Información general ─── */}
+            <div className="section-label">Información general</div>
+
+            {/* Row 1: categoria + activo */}
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Categoría *
-                </label>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Categoría *</label>
                 <Combo
                   value={form.categoria}
-                  onChange={v => setForm(f => ({ ...f, categoria: v }))}
+                  onChange={v => setForm(f => ({ ...f, categoria: v, serie: '' }))}
                   options={CATS.map(c => ({ value: c, label: c }))}
                 />
               </div>
@@ -439,12 +504,12 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 2: nombre ── */}
+            {/* Nombre */}
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Nombre{form.categoria !== 'FUNDA' ? ' *' : ''}
+                Nombre{!esFunda ? ' *' : ''}
                 <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                  {form.categoria === 'FUNDA' ? '(se autogenera de serie+modelo+color si se deja vacío)' : '(nombre visible en tienda)'}
+                  {esFunda ? '(se autogenera de serie+modelo+color si se deja vacío)' : '(nombre visible en tienda)'}
                 </span>
               </label>
               <input className="inp" style={inp()} placeholder="Ej: Cable USB-C 2m negro"
@@ -452,34 +517,61 @@ export default function CatalogPage() {
                      onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
             </div>
 
-            {/* ── Row 3: serie + marca ── */}
-            <div className="g2" style={{ marginBottom: 10 }}>
-              <div>
+            {/* Descripción */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Descripción
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                  (texto que ve el cliente al ver el producto)
+                </span>
+              </label>
+              <textarea
+                className="inp"
+                style={{ ...inp(), minHeight: 56, resize: 'vertical' }}
+                placeholder="Ej: Case de silicona premium con bordes reforzados. Compatible con carga inalámbrica."
+                value={form.descripcion}
+                onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
+              />
+            </div>
+
+            {/* Marca */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Marca</label>
+              <input
+                className="inp" style={inp()}
+                placeholder="Ej: Apple, Samsung, Anker…"
+                list="marcas-list"
+                value={form.marca}
+                onChange={e => setForm(f => ({ ...f, marca: e.target.value }))}
+              />
+              <datalist id="marcas-list">
+                {marcasList.map(m => <option key={m} value={m} />)}
+              </datalist>
+            </div>
+
+            {/* ─── SECCIÓN: Clasificación ─── */}
+            <div className="section-label">Clasificación</div>
+
+            {/* Serie — solo para FUNDA */}
+            {esFunda && (
+              <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Serie{form.categoria === 'FUNDA' ? ' *' : ''}
+                  Serie *
                 </label>
                 <Combo
                   value={form.serie}
                   onChange={v => setForm(f => ({ ...f, serie: v }))}
-                  options={[{ value: '', label: '— ninguna —' }, ...tiposOpts]}
+                  options={[{ value: '', label: '— seleccionar serie —' }, ...tiposOpts]}
                   placeholder="Seleccionar serie..."
                 />
               </div>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Marca
-                </label>
-                <input className="inp" style={inp()} placeholder="Ej: Motorola, Apple…"
-                       value={form.marca}
-                       onChange={e => setForm(f => ({ ...f, marca: e.target.value }))} />
-              </div>
-            </div>
+            )}
 
-            {/* ── Row 4: modelo + color ── */}
+            {/* Modelo + Color */}
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Modelo{form.categoria === 'FUNDA' ? ' *' : ''}
+                  Modelo{esFunda ? ' *' : ''}
                 </label>
                 <input className="inp" style={inp()} placeholder="Ej: SAMSUNG A07"
                        value={form.modelo}
@@ -487,7 +579,7 @@ export default function CatalogPage() {
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Color{form.categoria === 'FUNDA' ? ' *' : ''}
+                  Color{esFunda ? ' *' : ''}
                 </label>
                 <input className="inp" style={inp()} placeholder="Ej: NEGRO"
                        value={form.color}
@@ -495,11 +587,60 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 5: foto ── */}
+            {/* ─── SECCIÓN: Precios ─── */}
+            <div className="section-label">Control de precios</div>
+
+            <div className="g2" style={{ marginBottom: 8 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Precio de compra / costo (MXN)
+                </label>
+                <input type="number" min={0} step="0.01" className="inp" style={inp()}
+                       placeholder="0.00" value={form.precio_compra}
+                       onChange={e => setForm(f => ({ ...f, precio_compra: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Precio de venta (MXN) *
+                </label>
+                <input type="number" min={0} step="0.01" className="inp" style={inp()}
+                       placeholder="0.00" value={form.precio}
+                       onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Calculadora de margen */}
+            {costo > 0 && (
+              <div className="price-calc">
+                {margen !== null ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--txt2)' }}>Margen actual: </span>
+                    <span className={`margen-badge ${parseFloat(margen) >= 30 ? 'margen-ok' : parseFloat(margen) >= 15 ? 'margen-warn' : 'margen-bad'}`}>
+                      {margen}% — ganancia ${ganancia} MXN
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>Ingresa el precio de venta para ver el margen</div>
+                )}
+                <div className="price-calc-row">
+                  <span style={{ fontSize: 12, color: 'var(--txt2)', flexShrink: 0 }}>Calcular precio con margen:</span>
+                  {[10, 20, 30, 40, 50].map(pct => (
+                    <button key={pct} type="button" className="cbtn cbtn-ghost"
+                            style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                            onClick={() => aplicarMargen(String(pct))}>
+                      +{pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ─── SECCIÓN: Inventario ─── */}
+            <div className="section-label">Inventario</div>
+
+            {/* Foto */}
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Foto del producto
-              </label>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Foto del producto</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {form.foto_url && (
                   <img src={form.foto_url} alt="" style={{ width: 48, height: 48, objectFit: 'contain',
@@ -532,86 +673,67 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 6: identificador ── */}
+            {/* SKU + ubicacion + stock */}
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Identificador
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                  (código de barras, SKU…)
-                </span>
+                SKU / Código de barras
               </label>
-              <input
-                className="inp"
-                style={inp({ fontFamily: 'monospace', letterSpacing: '0.03em' })}
-                placeholder="Ej: 7501234567890"
-                value={form.identificador}
-                onChange={e => setForm(f => ({ ...f, identificador: e.target.value }))}
-              />
+              <input className="inp" style={inp({ fontFamily: 'monospace', letterSpacing: '0.03em' })}
+                     placeholder="Ej: 7501234567890"
+                     value={form.identificador}
+                     onChange={e => setForm(f => ({ ...f, identificador: e.target.value }))} />
             </div>
 
-            {/* ── Row 7: ubicacion + stock ── */}
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Ubicación
-                  <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                    (estante, anaquel…)
-                  </span>
-                </label>
-                <input
-                  className="inp"
-                  style={inp()}
-                  placeholder="Ej: Estante 62, Anaquel 3"
-                  value={form.ubicacion}
-                  onChange={e => setForm(f => ({ ...f, ubicacion: e.target.value }))}
-                />
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Ubicación en bodega</label>
+                <input className="inp" style={inp()} placeholder="Ej: Estante 6, Anaquel 3"
+                       value={form.ubicacion}
+                       onChange={e => setForm(f => ({ ...f, ubicacion: e.target.value }))} />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Stock disponible
-                </label>
-                <input
-                  type="number" min={0}
-                  className="inp"
-                  style={inp()}
-                  placeholder="0"
-                  value={form.stock}
-                  onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
-                />
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Stock disponible</label>
+                <input type="number" min={0} className="inp" style={inp()} placeholder="0"
+                       value={form.stock}
+                       onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
               </div>
             </div>
 
-            {/* ── Row 8: precio ── */}
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Precio por unidad (MXN)
-              </label>
-              <input
-                type="number" min={0} step="0.01"
-                className="inp"
-                style={inp()}
-                placeholder="0.00"
-                value={form.precio}
-                onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
-              />
-            </div>
+            {/* ─── SECCIÓN: Características adicionales ─── */}
+            <div className="section-label">Características adicionales</div>
+            <p style={{ fontSize: 12, color: 'var(--txt3)', marginBottom: 10 }}>
+              Agrega propiedades del producto como "Material", "Grosor", "Compatibilidad", etc.
+            </p>
 
-            {/* ── Row 9: atributos ── */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                Atributos adicionales
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                  (JSON opcional — ej: {`{"material":"TPU","grosor":"1.5mm"}`})
-                </span>
-              </label>
-              <textarea
-                className="inp"
-                style={{ ...inp(), minHeight: 68, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
-                placeholder={`{\n  "material": "TPU",\n  "grosor": "1.5mm"\n}`}
-                value={form.atributos}
-                onChange={e => setForm(f => ({ ...f, atributos: e.target.value }))}
-              />
-            </div>
+            {form.atributos.map((row, i) => (
+              <div key={i} className="attr-row">
+                <input className="inp" style={inp()} placeholder="Característica (ej: Material)"
+                       value={row.key}
+                       onChange={e => {
+                         const a = [...form.atributos]
+                         a[i] = { ...a[i], key: e.target.value }
+                         setForm(f => ({ ...f, atributos: a }))
+                       }} />
+                <input className="inp" style={inp()} placeholder="Valor (ej: TPU)"
+                       value={row.value}
+                       onChange={e => {
+                         const a = [...form.atributos]
+                         a[i] = { ...a[i], value: e.target.value }
+                         setForm(f => ({ ...f, atributos: a }))
+                       }} />
+                <button type="button" className="cbtn cbtn-ghost"
+                        style={{ color: '#f87171', padding: '5px 8px', flexShrink: 0 }}
+                        onClick={() => {
+                          const a = form.atributos.filter((_, j) => j !== i)
+                          setForm(f => ({ ...f, atributos: a }))
+                        }}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="cbtn cbtn-secondary"
+                    style={{ marginBottom: 18, fontSize: 12 }}
+                    onClick={() => setForm(f => ({ ...f, atributos: [...f.atributos, { key: '', value: '' }] }))}>
+              + Agregar característica
+            </button>
 
             {error && (
               <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>
@@ -619,9 +741,7 @@ export default function CatalogPage() {
 
             {/* ── Actions ── */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="cbtn cbtn-secondary" onClick={() => setModal(null)}>
-                Cancelar
-              </button>
+              <button className="cbtn cbtn-secondary" onClick={() => setModal(null)}>Cancelar</button>
               <button className="cbtn cbtn-primary" onClick={save} disabled={saving}>
                 {saving ? 'Guardando…' : modal === 'create' ? 'Crear producto' : 'Guardar cambios'}
               </button>
@@ -646,7 +766,6 @@ export default function CatalogPage() {
               <p style={{ fontSize:13, color:'var(--txt2)', marginBottom:16 }}>
                 Esto eliminará <strong style={{ color:'var(--txt)' }}>todos</strong> los productos del catálogo.
                 Esta acción <strong style={{ color:'#f87171' }}>no se puede deshacer</strong>.
-                Usa esta opción para hacer una carga limpia desde cero.
               </p>
               <div style={{ display:'flex', gap:10 }}>
                 <button className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={() => setShowDeleteAll(false)}>Cancelar</button>
@@ -688,19 +807,17 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       <div className="modal-box" style={{ maxWidth: 460 }}>
         <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>📥 Importar inventario</h2>
         <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
-          Sube un archivo .xlsx con columnas <code>categoria, serie, nombre, marca, modelo, color, stock, precio, identificador, ubicacion</code>.
+          Sube un archivo .xlsx con columnas: <code>categoria, serie, nombre, marca, modelo, color, stock, precio, identificador, ubicacion</code>.
           Para fundas: <code>serie + modelo + color</code> obligatorios.
           Para accesorios/cargadores: <code>nombre</code> obligatorio.
-          El stock del archivo <strong>remplaza</strong> el stock actual de cada producto.
         </p>
-        <a href="/api/admin/catalog/import/template" style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>
-          ⬇ Descargar plantilla
+        <a href="/api/admin/catalog/import/template"
+           style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>
+          ⬇ Descargar plantilla Excel
         </a>
         <input type="file" accept=".xlsx" className="inp" style={{ width: '100%', marginBottom: 14 }}
           onChange={e => { setFile(e.target.files?.[0] || null); setResultado(null) }} />
-
         {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>}
-
         {resultado && (
           <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'var(--bg4)', fontSize: 13 }}>
             <p>✅ {resultado.creados} creados · {resultado.actualizados} actualizados</p>
@@ -712,7 +829,6 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
             )}
           </div>
         )}
-
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button className="cbtn cbtn-secondary" onClick={onClose}>Cerrar</button>
           <button className="cbtn cbtn-primary" onClick={handleImport} disabled={!file || loading}>

@@ -18,7 +18,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Aceptar tanto los nombres nuevos como los viejos (compat transición)
   const serie        = body.serie        ?? body.tipo_case
   const { modelo, color, activo, identificador, ubicacion, stock, precio,
-          categoria, nombre, marca, foto_url, atributos } = body
+          categoria, nombre, marca, foto_url, atributos,
+          descripcion, precio_compra } = body
 
   if (serie !== undefined) {
     const tipoValido = await query(
@@ -45,8 +46,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (categoria    !== undefined) { sets.push(`categoria     = $${idx++}`); vals.push(categoria) }
   if (nombre       !== undefined) { sets.push(`nombre        = $${idx++}`); vals.push(nombre) }
   if (marca        !== undefined) { sets.push(`marca         = $${idx++}`); vals.push(marca?.trim() || null) }
-  if (foto_url     !== undefined) { sets.push(`foto_url      = $${idx++}`); vals.push(foto_url?.trim() || null) }
-  if (atributos    !== undefined) { sets.push(`atributos     = $${idx++}`); vals.push(JSON.stringify(atributos)) }
+  if (foto_url      !== undefined) { sets.push(`foto_url      = $${idx++}`); vals.push(foto_url?.trim() || null) }
+  if (atributos     !== undefined) { sets.push(`atributos     = $${idx++}`); vals.push(JSON.stringify(atributos)) }
+  if (descripcion   !== undefined) { sets.push(`descripcion   = $${idx++}`); vals.push(descripcion?.trim() || null) }
+  if (precio_compra !== undefined) { sets.push(`precio_compra = $${idx++}`); vals.push(precio_compra !== null ? Math.max(0, parseFloat(precio_compra) || 0) : null) }
 
   if (!sets.length) {
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
