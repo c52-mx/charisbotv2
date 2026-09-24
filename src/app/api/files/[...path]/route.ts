@@ -1,6 +1,7 @@
-// GET /api/files/[...path] — sirve archivos subidos en runtime (logos, etc.)
+// GET /api/files/[...path] — sirve archivos subidos en runtime (logos, evidencias, etc.)
 // Next.js standalone NO sirve archivos escritos en public/ después del build,
 // así que este route los lee del filesystem y los devuelve con el Content-Type correcto.
+// Base: public/uploads/ — cubierto por el volumen Dokploy /app/public/uploads.
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -24,7 +25,7 @@ export async function GET(
   const segments = (params.path || []).map(s => s.replace(/\.\./g, ''))
   if (segments.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const filePath = path.join(process.cwd(), 'uploads', ...segments)
+  const filePath = path.join(process.cwd(), 'public', 'uploads', ...segments)
 
   try {
     const buf = await readFile(filePath)
