@@ -6,33 +6,45 @@ import { ThemeContext } from '@/lib/theme-context'
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface Product {
-  producto_id:  string
-  serie:        string
-  modelo:       string
-  color:        string
-  activo:       boolean
+  producto_id:   string
+  categoria:     string
+  serie:         string | null
+  modelo:        string | null
+  color:         string | null
+  nombre:        string
+  marca:         string | null
+  foto_url:      string | null
+  atributos:     Record<string, any> | null
+  activo:        boolean
   identificador: string | null
-  ubicacion:    string | null
-  stock:        number
-  precio:       number
-  creado_en:    string
+  ubicacion:     string | null
+  stock:         number
+  precio:        number
+  creado_en:     string
 }
 
 interface FormState {
-  serie:        string
-  modelo:       string
-  color:        string
-  activo:       boolean
+  categoria:     string
+  serie:         string
+  modelo:        string
+  color:         string
+  nombre:        string
+  marca:         string
+  foto_url:      string
+  atributos:     string   // JSON string editado en textarea
+  activo:        boolean
   identificador: string
-  ubicacion:    string
-  stock:        string
-  precio:       string
+  ubicacion:     string
+  stock:         string
+  precio:        string
 }
 
-// Tipos de case ahora se administran desde /admin/tipos-case — se cargan
-// dinámicamente (ver useEffect más abajo) en vez de venir hardcodeados.
+const CATS = ['FUNDA', 'ACCESORIO', 'CARGADOR', 'MICA', 'OTRO']
+
 const EMPTY_FORM: FormState = {
-  serie: '', modelo: '', color: '', activo: true, identificador: '', ubicacion: '', stock: '0', precio: '0'
+  categoria: 'FUNDA', serie: '', modelo: '', color: '', nombre: '',
+  marca: '', foto_url: '', atributos: '', activo: true,
+  identificador: '', ubicacion: '', stock: '0', precio: '0'
 }
 
 // ── Page ──────────────────────────────────────────────────────────────
@@ -55,8 +67,9 @@ export default function CatalogPage() {
   const [deletingAll, setDeletingAll] = useState(false)
   const [form,      setForm]      = useState<FormState>(EMPTY_FORM)
   const [editId,    setEditId]    = useState<string | null>(null)
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [error,        setError]        = useState('')
+  const [uploadingImg, setUploadingImg] = useState(false)
   const [stockBajoUmbral, setStockBajoUmbral] = useState(10)
   const [tiposList, setTiposList] = useState<string[]>([])
   const tiposOpts = tiposList.map(t => ({ value: t, label: t }))
@@ -118,9 +131,14 @@ export default function CatalogPage() {
 
   function openEdit(p: Product) {
     setForm({
-      serie:        p.serie,
-      modelo:       p.modelo,
-      color:        p.color,
+      categoria:    p.categoria || 'FUNDA',
+      serie:        p.serie         || '',
+      modelo:       p.modelo        || '',
+      color:        p.color         || '',
+      nombre:       p.nombre        || '',
+      marca:        p.marca         || '',
+      foto_url:     p.foto_url      || '',
+      atributos:    p.atributos ? JSON.stringify(p.atributos, null, 2) : '',
       activo:       p.activo,
       identificador: p.identificador || '',
       ubicacion:    p.ubicacion || '',
@@ -134,17 +152,33 @@ export default function CatalogPage() {
 
   // ── Save ──────────────────────────────────────────────────────────
   async function save() {
-    if (!form.serie || !form.modelo || !form.color) {
-      setError('Serie, modelo y color son obligatorios')
+    if (form.categoria === 'FUNDA' && (!form.serie || !form.modelo || !form.color)) {
+      setError('Para fundas, serie, modelo y color son obligatorios')
       return
     }
+    if (form.categoria !== 'FUNDA' && !form.nombre.trim()) {
+      setError('El nombre es obligatorio para accesorios/cargadores')
+      return
+    }
+
+    let atributosObj: Record<string, any> | null = null
+    if (form.atributos.trim()) {
+      try { atributosObj = JSON.parse(form.atributos) }
+      catch { setError('Los atributos deben ser JSON válido. Ej: {"material":"TPU"}'); return }
+    }
+
     setSaving(true)
     setError('')
 
     const payload = {
-      serie:        form.serie,
-      modelo:       form.modelo,
-      color:        form.color,
+      categoria:    form.categoria,
+      serie:        form.serie.trim()   || null,
+      modelo:       form.modelo.trim()  || null,
+      color:        form.color.trim()   || null,
+      nombre:       form.nombre.trim()  || null,
+      marca:        form.marca.trim()   || null,
+      foto_url:     form.foto_url.trim()|| null,
+      atributos:    atributosObj,
       activo:       form.activo,
       identificador: form.identificador.trim() || null,
       ubicacion:    form.ubicacion.trim()     || null,
@@ -289,11 +323,11 @@ export default function CatalogPage() {
           <table className="rtable">
             <thead>
               <tr>
-                <th>Tipo</th>
-                <th>Modelo</th>
-                <th>Color</th>
-                <th>Identificador</th>
-                <th>Ubicación</th>
+                <th style={{ width: 48 }}></th>
+                <th>Nombre / Producto</th>
+                <th>Categoría</th>
+                <th>Serie</th>
+                <th>Modelo · Color</th>
                 <th>Stock</th>
                 <th>Precio</th>
                 <th>Estado</th>
@@ -303,21 +337,33 @@ export default function CatalogPage() {
             <tbody>
               {items.map(p => (
                 <tr key={p.producto_id}>
+                  <td style={{ padding: '6px 8px' }}>
+                    {p.foto_url
+                      ? <img src={p.foto_url} alt="" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6, background: 'var(--bg4)', border: '1px solid var(--border)' }} />
+                      : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                          {p.categoria === 'FUNDA' ? '📱' : p.categoria === 'CARGADOR' ? '🔌' : '📦'}
+                        </div>
+                    }
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.nombre}</div>
+                    {p.marca && <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{p.marca}</div>}
+                  </td>
                   <td>
                     <span style={{ fontSize: 11, background: 'rgba(26,143,227,0.1)',
                                    color: 'var(--blue3)', padding: '2px 8px',
-                                   borderRadius: 4, fontWeight: 500 }}>
-                      {p.serie}
+                                   borderRadius: 4, fontWeight: 600 }}>
+                      {p.categoria}
                     </span>
                   </td>
-                  <td style={{ fontWeight: 500 }}>{p.modelo}</td>
-                  <td>{p.color}</td>
-                  <td style={{ fontSize: 12, color: p.identificador ? 'var(--txt)' : 'var(--txt3)',
-                               fontFamily: p.identificador ? 'monospace' : 'inherit' }}>
-                    {p.identificador || '—'}
+                  <td>
+                    {p.serie
+                      ? <span style={{ fontSize: 12, background: 'var(--bg4)', padding: '2px 7px', borderRadius: 4 }}>{p.serie}</span>
+                      : <span style={{ color: 'var(--txt3)', fontSize: 12 }}>—</span>
+                    }
                   </td>
-                  <td style={{ fontSize: 12, color: p.ubicacion ? 'var(--txt)' : 'var(--txt3)' }}>
-                    {p.ubicacion || '—'}
+                  <td style={{ fontSize: 12 }}>
+                    {[p.modelo, p.color].filter(Boolean).join(' · ') || '—'}
                   </td>
                   <td>
                     <span className={`badge ${p.stock === 0 ? 'badge-red' : p.stock <= stockBajoUmbral ? 'badge-warn' : 'badge-ok'}`}>
@@ -371,17 +417,16 @@ export default function CatalogPage() {
               {modal === 'create' ? 'Nuevo producto' : 'Editar producto'}
             </h2>
 
-            {/* ── Row 1: tipo + activo ── */}
+            {/* ── Row 1: categoria + activo ── */}
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Serie / Línea *
+                  Categoría *
                 </label>
                 <Combo
-                  value={form.serie}
-                  onChange={v => setForm(f => ({ ...f, serie: v }))}
-                  options={tiposOpts}
-                  placeholder="Seleccionar tipo..."
+                  value={form.categoria}
+                  onChange={v => setForm(f => ({ ...f, categoria: v }))}
+                  options={CATS.map(c => ({ value: c, label: c }))}
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
@@ -394,11 +439,47 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 2: modelo + color ── */}
+            {/* ── Row 2: nombre ── */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Nombre{form.categoria !== 'FUNDA' ? ' *' : ''}
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                  {form.categoria === 'FUNDA' ? '(se autogenera de serie+modelo+color si se deja vacío)' : '(nombre visible en tienda)'}
+                </span>
+              </label>
+              <input className="inp" style={inp()} placeholder="Ej: Cable USB-C 2m negro"
+                     value={form.nombre}
+                     onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+            </div>
+
+            {/* ── Row 3: serie + marca ── */}
             <div className="g2" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Modelo *
+                  Serie{form.categoria === 'FUNDA' ? ' *' : ''}
+                </label>
+                <Combo
+                  value={form.serie}
+                  onChange={v => setForm(f => ({ ...f, serie: v }))}
+                  options={[{ value: '', label: '— ninguna —' }, ...tiposOpts]}
+                  placeholder="Seleccionar serie..."
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Marca
+                </label>
+                <input className="inp" style={inp()} placeholder="Ej: Motorola, Apple…"
+                       value={form.marca}
+                       onChange={e => setForm(f => ({ ...f, marca: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* ── Row 4: modelo + color ── */}
+            <div className="g2" style={{ marginBottom: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                  Modelo{form.categoria === 'FUNDA' ? ' *' : ''}
                 </label>
                 <input className="inp" style={inp()} placeholder="Ej: SAMSUNG A07"
                        value={form.modelo}
@@ -406,7 +487,7 @@ export default function CatalogPage() {
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
-                  Color *
+                  Color{form.categoria === 'FUNDA' ? ' *' : ''}
                 </label>
                 <input className="inp" style={inp()} placeholder="Ej: NEGRO"
                        value={form.color}
@@ -414,12 +495,49 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 3: identificador (full width) ── */}
+            {/* ── Row 5: foto ── */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Foto del producto
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {form.foto_url && (
+                  <img src={form.foto_url} alt="" style={{ width: 48, height: 48, objectFit: 'contain',
+                    borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg4)', flexShrink: 0 }} />
+                )}
+                <input className="inp" style={inp({ flex: 1 })} placeholder="/api/files/catalog/foto.jpg"
+                       value={form.foto_url}
+                       onChange={e => setForm(f => ({ ...f, foto_url: e.target.value }))} />
+                <label style={{ cursor: uploadingImg ? 'default' : 'pointer', flexShrink: 0 }}>
+                  <span className="cbtn cbtn-secondary" style={{ pointerEvents: 'none', opacity: uploadingImg ? .5 : 1 }}>
+                    {uploadingImg ? '…' : '📷 Subir'}
+                  </span>
+                  <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImg}
+                    onChange={async e => {
+                      const f = e.target.files?.[0]; if (!f) return
+                      setUploadingImg(true)
+                      try {
+                        const fd = new FormData(); fd.append('file', f)
+                        const res = await fetch('/api/upload/catalog-photo', { method: 'POST', body: fd })
+                        const d = await res.json()
+                        if (!res.ok) throw new Error(d.error)
+                        setForm(frm => ({ ...frm, foto_url: d.url }))
+                      } catch (err: any) {
+                        setError(err.message)
+                      } finally {
+                        setUploadingImg(false)
+                      }
+                    }} />
+                </label>
+              </div>
+            </div>
+
+            {/* ── Row 6: identificador ── */}
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                 Identificador
                 <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
-                  (código de barras, SKU, referencia interna…)
+                  (código de barras, SKU…)
                 </span>
               </label>
               <input
@@ -431,8 +549,8 @@ export default function CatalogPage() {
               />
             </div>
 
-            {/* ── Row 4: ubicacion + stock ── */}
-            <div className="g2" style={{ marginBottom: 18 }}>
+            {/* ── Row 7: ubicacion + stock ── */}
+            <div className="g2" style={{ marginBottom: 10 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                   Ubicación
@@ -463,8 +581,8 @@ export default function CatalogPage() {
               </div>
             </div>
 
-            {/* ── Row 5: precio ── */}
-            <div style={{ marginBottom: 18 }}>
+            {/* ── Row 8: precio ── */}
+            <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                 Precio por unidad (MXN)
               </label>
@@ -475,6 +593,23 @@ export default function CatalogPage() {
                 placeholder="0.00"
                 value={form.precio}
                 onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
+              />
+            </div>
+
+            {/* ── Row 9: atributos ── */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Atributos adicionales
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                  (JSON opcional — ej: {`{"material":"TPU","grosor":"1.5mm"}`})
+                </span>
+              </label>
+              <textarea
+                className="inp"
+                style={{ ...inp(), minHeight: 68, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+                placeholder={`{\n  "material": "TPU",\n  "grosor": "1.5mm"\n}`}
+                value={form.atributos}
+                onChange={e => setForm(f => ({ ...f, atributos: e.target.value }))}
               />
             </div>
 

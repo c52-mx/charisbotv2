@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const [rows, countRow] = await Promise.all([
     query(
-      `SELECT producto_id, categoria, serie, modelo, color, nombre, atributos,
+      `SELECT producto_id, categoria, serie, modelo, color, nombre, marca, foto_url, atributos,
               activo, identificador, ubicacion, stock, precio, creado_en
        FROM public.catalogo_productos ${where}
        ORDER BY categoria, serie, modelo, color
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
   // Aceptar tanto los nombres nuevos como los viejos (compat transición)
   const serie        = (body.serie ?? body.tipo_case)
   const { modelo, color, activo = true, identificador, ubicacion, stock = 0, precio = 0,
-          categoria = 'FUNDA', nombre, atributos } = body
+          categoria = 'FUNDA', nombre, marca, foto_url, atributos } = body
 
   // Para fundas clásicas (categoria FUNDA), serie+modelo+color siguen siendo el key natural.
   // Para accesorios/cargadores, al menos nombre es suficiente.
@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
 
   const rows = await query(
     `INSERT INTO public.catalogo_productos
-       (categoria, serie, modelo, color, nombre, atributos, activo, identificador, ubicacion, stock, precio)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (categoria, serie, modelo, color, nombre, marca, foto_url, atributos, activo, identificador, ubicacion, stock, precio)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT DO NOTHING
      RETURNING *`,
     [
@@ -108,6 +108,8 @@ export async function POST(req: NextRequest) {
       modeloNorm,
       colorNorm,
       nombreFinal,
+      marca?.trim()         || null,
+      foto_url?.trim()      || null,
       atributos ? JSON.stringify(atributos) : null,
       activo,
       identificador?.trim() || null,

@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // Aceptar tanto los nombres nuevos como los viejos (compat transición)
   const serie        = body.serie        ?? body.tipo_case
   const { modelo, color, activo, identificador, ubicacion, stock, precio,
-          categoria, nombre, atributos } = body
+          categoria, nombre, marca, foto_url, atributos } = body
 
   if (serie !== undefined) {
     const tipoValido = await query(
@@ -44,6 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (precio       !== undefined) { sets.push(`precio        = $${idx++}`); vals.push(Math.max(0, parseFloat(precio) || 0)) }
   if (categoria    !== undefined) { sets.push(`categoria     = $${idx++}`); vals.push(categoria) }
   if (nombre       !== undefined) { sets.push(`nombre        = $${idx++}`); vals.push(nombre) }
+  if (marca        !== undefined) { sets.push(`marca         = $${idx++}`); vals.push(marca?.trim() || null) }
+  if (foto_url     !== undefined) { sets.push(`foto_url      = $${idx++}`); vals.push(foto_url?.trim() || null) }
   if (atributos    !== undefined) { sets.push(`atributos     = $${idx++}`); vals.push(JSON.stringify(atributos)) }
 
   if (!sets.length) {
@@ -76,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Bitácora de catálogo: un registro por cada campo que cambió
   if (current) {
-    const camposAudit = ['serie', 'modelo', 'color', 'activo', 'identificador', 'ubicacion', 'stock', 'precio', 'categoria', 'nombre'] as const
+    const camposAudit = ['serie', 'modelo', 'color', 'activo', 'identificador', 'ubicacion', 'stock', 'precio', 'categoria', 'nombre', 'marca', 'foto_url'] as const
     for (const campo of camposAudit) {
       const bodyVal = campo === 'serie' ? serie : body[campo]
       if (bodyVal === undefined) continue
