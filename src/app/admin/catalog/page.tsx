@@ -688,7 +688,9 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
       <div className="modal-box" style={{ maxWidth: 460 }}>
         <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>📥 Importar inventario</h2>
         <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
-          Sube un archivo .xlsx con columnas <code>serie, modelo, color, stock, identificador, ubicacion</code>.
+          Sube un archivo .xlsx con columnas <code>categoria, serie, nombre, marca, modelo, color, stock, precio, identificador, ubicacion</code>.
+          Para fundas: <code>serie + modelo + color</code> obligatorios.
+          Para accesorios/cargadores: <code>nombre</code> obligatorio.
           El stock del archivo <strong>remplaza</strong> el stock actual de cada producto.
         </p>
         <a href="/api/admin/catalog/import/template" style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>

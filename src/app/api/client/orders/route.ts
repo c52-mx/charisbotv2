@@ -90,27 +90,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ese método de pago no está disponible' }, { status: 400 })
     }
 
-    // Aceptar serie o tipo_case del body (compat transición frontend)
+    // Aceptar serie o tipo_case del body (compat transición frontend).
+    // Para accesorios sin modelo, usar nombre como fallback de modelo.
     const normItem = (it: any) => ({
       ...it,
-      serie: (it.serie ?? it.tipo_case ?? '').toUpperCase().trim(),
-      modelo: (it.modelo || '').toUpperCase().trim(),
-      color: colorNorm(it.color),
+      serie:     (it.serie ?? it.tipo_case ?? '').toUpperCase().trim(),
+      modelo:    (it.modelo || it.nombre || '').toUpperCase().trim(),
+      color:     colorNorm(it.color),
+      categoria: it.categoria || null,
+      nombre:    it.nombre || it.modelo || null,
     })
     const itemsNorm = items.map(normItem)
 
-    // Resolver precio vigente desde catálogo
-    const preciosRows = await query<{ producto_id: string; serie: string; modelo: string; color: string; precio: number }>(
-      `SELECT producto_id, serie, modelo, color, precio FROM public.catalogo_productos
-       WHERE (serie, modelo, color) IN (${itemsNorm.map((_: any, i: number) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
-      itemsNorm.flatMap((it: any) => [it.serie, it.modelo, it.color])
-    )
-    const precioMap  = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, Number(r.precio)]))
+    // Resolver precio vigente desde catálogo:
+    // (1) por (serie, modelo, color) para fundas
+    // (2) por producto_id directo para accesorios y otros
+    const preciosRows = itemsNorm.length
+      ? await query<{ producto_id: string; serie: string; modelo: string; color: string; precio: number }>(
+          `SELECT producto_id, serie, modelo, color, precio FROM public.catalogo_productos
+           WHERE (serie, modelo, color) IN (${itemsNorm.map((_: any, i: number) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
+          itemsNorm.flatMap((it: any) => [it.serie, it.modelo, it.color])
+        )
+      : []
+
+    const precioMap     = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, Number(r.precio)]))
     const productoIdMap = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, r.producto_id]))
+
+    // Lookup adicional por producto_id para items que no matchearon por (serie,modelo,color)
+    const idsDirectos = itemsNorm
+      .filter((it: any) => it.producto_id && !precioMap.has(`${it.serie}__${it.modelo}__${it.color}`))
+      .map((it: any) => it.producto_id)
+    const precioPorId = new Map<string, number>()
+    if (idsDirectos.length) {
+      const rows = await query<{ producto_id: string; precio: number }>(
+        `SELECT producto_id, precio FROM public.catalogo_productos WHERE producto_id = ANY($1)`,
+        [idsDirectos]
+      )
+      rows.forEach(r => precioPorId.set(r.producto_id, Number(r.precio)))
+    }
 
     const itemsConPrecio = itemsNorm.map((it: any) => ({
       ...it,
-      precio: precioMap.get(`${it.serie}__${it.modelo}__${it.color}`) ?? 0,
+      precio: precioMap.get(`${it.serie}__${it.modelo}__${it.color}`)
+           ?? (it.producto_id ? precioPorId.get(it.producto_id) : undefined)
+           ?? 0,
     }))
 
     const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
@@ -132,10 +155,12 @@ export async function POST(req: NextRequest) {
 
     const pedidoJson = { items: itemsConPrecio, direccion_entrega }
 
-    // Resolver producto_id para cada item (para reservas de carrito)
+    // Resolver producto_id para cada item (para reservas de carrito).
+    // Usar producto_id del item directamente si ya está presente.
     const itemsConProductoId = (await Promise.all(
       itemsNorm.map(async (i: any) => {
-        const productoId = productoIdMap.get(`${i.serie}__${i.modelo}__${i.color}`)
+        const productoId = i.producto_id
+          ?? productoIdMap.get(`${i.serie}__${i.modelo}__${i.color}`)
           ?? await resolveProductoId(i.serie, i.modelo, i.color)
         return productoId ? { producto_id: productoId, cantidad: i.cantidad } : null
       })
@@ -165,27 +190,31 @@ export async function POST(req: NextRequest) {
         ])
 
         if (itemsConPrecio.length > 0) {
-          // Insertar items con serie (nuevo nombre de columna)
+          // Insertar items. Pasa categoria y nombre en el JSON para cubrir
+          // accesorios que no tienen serie/modelo en el catálogo.
           await tx(`
             INSERT INTO public.pedido_items
               (pedido_id, modelo, serie, color, cantidad, precio_unitario, categoria, nombre_producto)
             SELECT
               $1::uuid,
-              x.modelo,
-              x.serie,
+              COALESCE(NULLIF(x.modelo,''), NULLIF(x.nombre,''), '—'),
+              NULLIF(x.serie,''),
               COALESCE(NULLIF(x.color,''),'NEGRO'),
               x.cantidad,
               x.precio,
               COALESCE(
+                NULLIF(x.categoria,''),
                 (SELECT categoria FROM public.catalogo_productos cp WHERE cp.serie = x.serie AND cp.modelo = x.modelo AND cp.color = COALESCE(NULLIF(x.color,''),'NEGRO') LIMIT 1),
                 'FUNDA'
               ),
               COALESCE(
+                NULLIF(x.nombre,''),
                 (SELECT nombre FROM public.catalogo_productos cp WHERE cp.serie = x.serie AND cp.modelo = x.modelo AND cp.color = COALESCE(NULLIF(x.color,''),'NEGRO') LIMIT 1),
-                x.modelo
+                NULLIF(x.modelo,''),
+                '—'
               )
-            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, serie text, color text, cantidad int, precio numeric)
-            WHERE COALESCE(x.modelo,'') <> '' AND COALESCE(x.cantidad,0) > 0
+            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, serie text, color text, cantidad int, precio numeric, categoria text, nombre text)
+            WHERE COALESCE(x.cantidad,0) > 0
           `, [p.id, JSON.stringify(itemsConPrecio)])
         }
 

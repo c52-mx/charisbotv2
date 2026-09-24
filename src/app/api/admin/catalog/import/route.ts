@@ -51,19 +51,34 @@ export async function POST(req: NextRequest) {
     const row = sheet.getRow(i)
     const get = (col: string) => colIndex[col] ? row.getCell(colIndex[col]).value : null
 
+    const categoriaRaw  = String(get('categoria') || '').toUpperCase().trim()
+    const categoria     = categoriaRaw || 'FUNDA'
     const serie        = String(get(serieCol) || '').toUpperCase().trim()
     const modelo       = String(get('modelo') || '').toUpperCase().trim()
-    const color        = String(get('color')  || '').toUpperCase().trim()
+    const color        = String(get('color')  || '').toUpperCase().trim() || 'NEGRO'
     const stockRaw     = get('stock')
+    const precioRaw    = get('precio')
     const identificador = String(get('identificador') || '').trim() || null
     const ubicacion     = String(get('ubicacion') || '').trim() || null
     const nombreRaw     = String(get('nombre') || '').trim() || null
+    const marcaRaw      = String(get('marca') || '').trim() || null
 
-    if (!serie && !modelo && !color) continue // fila vacía
-    if (!modelo || !color) { errores.push({ fila: i, motivo: 'modelo y color son requeridos' }); continue }
-    if (serie && !tiposSet.has(serie)) { errores.push({ fila: i, motivo: `Serie "${serie}" inválida o inactiva` }); continue }
+    // Fila vacía: ignorar
+    if (!serie && !modelo && !nombreRaw) continue
+
+    // Validaciones
+    if (categoria === 'FUNDA' && (!modelo || !color)) {
+      errores.push({ fila: i, motivo: 'Para fundas, modelo y color son requeridos' }); continue
+    }
+    if (categoria !== 'FUNDA' && !nombreRaw) {
+      errores.push({ fila: i, motivo: 'Para accesorios/cargadores, el nombre es requerido' }); continue
+    }
+    if (serie && !tiposSet.has(serie)) {
+      errores.push({ fila: i, motivo: `Serie "${serie}" inválida o inactiva` }); continue
+    }
 
     const stockVal = Math.max(0, parseInt(String(stockRaw ?? '0')) || 0)
+    const precioVal = Math.max(0, parseFloat(String(precioRaw ?? '0')) || 0)
     const nombre   = nombreRaw || [serie, modelo, color].filter(Boolean).join(' ')
 
     // Buscar por serie+modelo+color (fundas) o por nombre (accesorios sin serie)
@@ -77,9 +92,13 @@ export async function POST(req: NextRequest) {
     if (existing) {
       await query(
         `UPDATE public.catalogo_productos
-         SET stock=$1, identificador=COALESCE($2,identificador), ubicacion=COALESCE($3,ubicacion)
-         WHERE producto_id=$4`,
-        [stockVal, identificador, ubicacion, existing.producto_id]
+         SET stock=$1,
+             identificador=COALESCE($2,identificador),
+             ubicacion=COALESCE($3,ubicacion),
+             precio=CASE WHEN $4::numeric > 0 THEN $4::numeric ELSE precio END,
+             marca=COALESCE($5,marca)
+         WHERE producto_id=$6`,
+        [stockVal, identificador, ubicacion, precioVal, marcaRaw, existing.producto_id]
       )
       if (stockVal !== existing.stock) {
         await registrarMovimiento({
@@ -91,10 +110,10 @@ export async function POST(req: NextRequest) {
     } else {
       const [created] = await query<{ producto_id: string }>(
         `INSERT INTO public.catalogo_productos
-           (categoria, serie, modelo, color, nombre, activo, identificador, ubicacion, stock)
-         VALUES ('FUNDA', $1, $2, $3, $4, true, $5, $6, $7)
+           (categoria, serie, modelo, color, nombre, marca, activo, identificador, ubicacion, stock, precio)
+         VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10)
          RETURNING producto_id`,
-        [serie || null, modelo, color, nombre, identificador, ubicacion, stockVal]
+        [categoria, serie || null, modelo || null, color, nombre, marcaRaw, identificador, ubicacion, stockVal, precioVal]
       )
       if (stockVal > 0) {
         await registrarMovimiento({

@@ -7,7 +7,19 @@ import { calcularTotal, type DescuentoTier } from '@/lib/pricing'
 
 interface CartItem {
   _id?: string
-  tipo_case: string; marca: string; modelo: string; color: string; cantidad: number; precio: number
+  // nuevo formato (catálogo genérico)
+  producto_id?: string
+  nombre?: string
+  serie?: string
+  categoria?: string
+  // formato legado (fundas legacy)
+  tipo_case?: string
+  marca?: string
+  modelo?: string
+  // campos comunes
+  color?: string
+  cantidad: number
+  precio: number
 }
 
 interface Address {
@@ -137,20 +149,24 @@ export default function CartPage() {
       const eliminados: string[] = []
       const next: CartItem[] = []
       for (const item of initial) {
+        const reserveBody = item.producto_id
+          ? { producto_id: item.producto_id, cantidad: item.cantidad }
+          : { tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad: item.cantidad }
         const res = await fetch('/api/client/cart/reserve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad: item.cantidad }),
+          body: JSON.stringify(reserveBody),
         }).catch(() => null)
         if (!res) { next.push(item); continue }
         const data = await res.json().catch(() => ({}))
         if (res.ok) { next.push({ ...item, precio: data.precio ?? item.precio }); continue }
         const disponible = Math.max(0, data.disponible ?? 0)
+        const label = item.nombre || item.modelo || item.tipo_case || '—'
         if (disponible > 0) {
           next.push({ ...item, cantidad: disponible, precio: data.precio ?? item.precio })
-          ajustados.push(`${item.modelo} (${item.color})`)
+          ajustados.push(`${label} (${item.color})`)
         } else {
-          eliminados.push(`${item.modelo} (${item.color})`)
+          eliminados.push(`${label} (${item.color})`)
         }
       }
       // Siempre se refresca el precio vigente, aunque no haya cambiado la cantidad.
@@ -183,10 +199,13 @@ export default function CartPage() {
   }
 
   function releaseReserve(it: CartItem) {
+    const body = it.producto_id
+      ? { producto_id: it.producto_id }
+      : { tipo_case: it.tipo_case, modelo: it.modelo, color: it.color }
     fetch('/api/client/cart/reserve', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color }),
+      body: JSON.stringify(body),
     }).catch(() => {})
   }
 
@@ -201,10 +220,13 @@ export default function CartPage() {
     if (!item) return
     const cantidad = Math.max(1, qty)
 
+    const reserveBody = item.producto_id
+      ? { producto_id: item.producto_id, cantidad }
+      : { tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad }
     const res = await fetch('/api/client/cart/reserve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo_case: item.tipo_case, modelo: item.modelo, color: item.color, cantidad }),
+      body: JSON.stringify(reserveBody),
     })
     const data = await res.json()
     if (!res.ok) {
@@ -263,8 +285,9 @@ export default function CartPage() {
   const volPct      = ultimaTier ? Math.min(100, (totalPiezas / ultimaTier.piezas_minimas) * 100) : 0
 
   const groups = cart.reduce<Record<string, CartItem[]>>((acc, item) => {
-    if (!acc[item.tipo_case]) acc[item.tipo_case] = []
-    acc[item.tipo_case].push(item)
+    const key = item.serie || item.tipo_case || item.categoria || 'OTRO'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(item)
     return acc
   }, {})
 
@@ -341,10 +364,10 @@ export default function CartPage() {
                   <div key={item._id} className="cart-row">
                     <div style={{ flex:1, minWidth:0 }}>
                       <p style={{ fontSize:14, fontWeight:700, color:'var(--txt)', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {item.modelo}
+                        {item.nombre || item.modelo || item.tipo_case || '—'}
                       </p>
                       <p style={{ fontSize:11, color:'var(--txt3)' }}>
-                        {item.marca} · <span style={{ background:'var(--bg)', borderRadius:4, padding:'1px 6px', fontSize:10, fontWeight:600, color:'var(--txt2)' }}>{item.color}</span>
+                        {[item.serie || item.tipo_case, item.marca, item.color].filter(Boolean).join(' · ')}
                         <span style={{ marginLeft:6 }}>${Number(item.precio||0).toLocaleString('es-MX',{minimumFractionDigits:2})} c/u</span>
                       </p>
                     </div>
