@@ -6,8 +6,9 @@ import { getSession } from '@/lib/auth'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const session = await getSession(req)
-  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  // El catálogo es público — no requiere sesión (el cliente ve precios/stock
+  // al navegar; la autenticación se exige sólo al agregar al carrito / comprar).
+  await getSession(req) // sin bloquear — sólo para context futuro si se necesita
 
   const { searchParams } = new URL(req.url)
   const search       = searchParams.get('search')          || ''
@@ -82,16 +83,34 @@ export async function GET(req: NextRequest) {
     ])
 
     // Opciones de filtro (sobre TODO el catálogo activo)
-    const filterRows = await query(`
-      SELECT
-        ARRAY_AGG(DISTINCT categoria ORDER BY categoria) FILTER (WHERE categoria IS NOT NULL) AS categorias,
-        ARRAY_AGG(DISTINCT serie     ORDER BY serie)     FILTER (WHERE serie     IS NOT NULL) AS series,
-        ARRAY_AGG(DISTINCT color     ORDER BY color)     FILTER (WHERE color     IS NOT NULL) AS colores,
-        MIN(precio)::float AS precio_min,
-        MAX(precio)::float AS precio_max
-      FROM public.catalogo_productos
-      WHERE activo = true
-    `, [])
+    const [filterRows, seriesRows] = await Promise.all([
+      query(`
+        SELECT
+          ARRAY_AGG(DISTINCT categoria ORDER BY categoria) FILTER (WHERE categoria IS NOT NULL) AS categorias,
+          ARRAY_AGG(DISTINCT serie     ORDER BY serie)     FILTER (WHERE serie     IS NOT NULL) AS series,
+          ARRAY_AGG(DISTINCT color     ORDER BY color)     FILTER (WHERE color     IS NOT NULL) AS colores,
+          MIN(precio)::float AS precio_min,
+          MAX(precio)::float AS precio_max
+        FROM public.catalogo_productos
+        WHERE activo = true
+      `, []),
+
+      // Series estructuradas para landing y home del portal
+      query(`
+        SELECT
+          serie                                 AS tipo_case,
+          COUNT(DISTINCT modelo)::int           AS total_modelos,
+          COUNT(DISTINCT color)::int            AS total_colores,
+          COUNT(DISTINCT marca)::int            AS total_marcas,
+          MIN(foto_url)                         AS foto_url,
+          NULL::text                            AS descripcion,
+          0                                     AS orden
+        FROM public.catalogo_productos
+        WHERE activo = true AND serie IS NOT NULL
+        GROUP BY serie
+        ORDER BY COUNT(DISTINCT modelo) DESC
+      `, []),
+    ])
 
     return NextResponse.json({
       items,
@@ -99,6 +118,7 @@ export async function GET(req: NextRequest) {
       page,
       pageSize,
       filters:  filterRows[0] || { categorias: [], series: [], colores: [], precio_min: 0, precio_max: 0 },
+      series:   seriesRows,
     })
   } catch (e: any) {
     console.error('[GET /api/client/catalog]', e)

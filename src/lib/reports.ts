@@ -148,24 +148,44 @@ export async function getReporteVentas(f: RangoFechas) {
     params
   )
 
-  // Agrupa por nombre del producto (snapshot en el item) o por serie+modelo
+  // Top productos con costo y ganancia
   const topProductos = await query(
     `SELECT
        COALESCE(pi.nombre_producto, CONCAT_WS(' ', pi.serie, pi.modelo)) AS producto,
        pi.categoria,
-       SUM(pi.cantidad) as total_piezas
+       SUM(pi.cantidad)                                         AS total_piezas,
+       SUM(pi.cantidad * pi.precio_unitario)                   AS ingresos,
+       SUM(pi.cantidad * COALESCE(cp.precio_compra, 0))        AS costo_total,
+       SUM(pi.cantidad * (pi.precio_unitario - COALESCE(cp.precio_compra, 0))) AS ganancia
      FROM public.pedido_items pi
      JOIN public.pedidos p ON p.id = pi.pedido_id
+     LEFT JOIN public.catalogo_productos cp ON cp.producto_id = pi.producto_id
      ${where}
      GROUP BY producto, pi.categoria
      ORDER BY total_piezas DESC LIMIT 10`,
     params
   )
 
+  // Resumen de costos y ganancias del período
+  const resumenCostos = await query(
+    `SELECT
+       COALESCE(SUM(pi.cantidad * pi.precio_unitario), 0)                            AS total_ingresos,
+       COALESCE(SUM(pi.cantidad * COALESCE(cp.precio_compra, 0)), 0)                AS total_costos,
+       COALESCE(SUM(pi.cantidad * (pi.precio_unitario - COALESCE(cp.precio_compra, 0))), 0) AS total_ganancia
+     FROM public.pedido_items pi
+     JOIN public.pedidos p ON p.id = pi.pedido_id
+     LEFT JOIN public.catalogo_productos cp ON cp.producto_id = pi.producto_id
+     ${where}`,
+    params
+  )
+
   return {
-    totalVentas: Number(resumen?.total_ventas || 0),
-    totalPedidos: parseInt(resumen?.total_pedidos || '0'),
+    totalVentas:   Number(resumen?.total_ventas || 0),
+    totalPedidos:  parseInt(resumen?.total_pedidos || '0'),
+    totalIngresos: Number(resumenCostos[0]?.total_ingresos || 0),
+    totalCostos:   Number(resumenCostos[0]?.total_costos || 0),
+    totalGanancia: Number(resumenCostos[0]?.total_ganancia || 0),
     porDia, topClientes,
-    topModelos: topProductos,  // alias mantenido para compatibilidad con UI existente
+    topModelos: topProductos,
   }
 }

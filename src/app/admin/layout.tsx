@@ -11,7 +11,6 @@ const NAV_ITEMS: { href:string; label:string; icon:string; exact:boolean; perm:P
   { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  perm:'dashboard' },
   { href:'/admin/orders',  label:'Pedidos',   icon:'📦', exact:false, perm:'pedidos_ver' },
   { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, perm:'catalogo_ver' },
-  { href:'/admin/tipos-case', label:'Tipos de case', icon:'🏷️', exact:false, perm:'catalogo_editar' },
   { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, perm:'clientes_ver' },
   { href:'/admin/reportes', label:'Reportes', icon:'📈', exact:false, perm:'reportes_ver' },
   { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, perm:'usuarios' },

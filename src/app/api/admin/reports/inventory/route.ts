@@ -13,20 +13,21 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const filtros = {
-    desde:        searchParams.get('desde')        || undefined,
-    hasta:        searchParams.get('hasta')         || undefined,
-    tipo_case:    searchParams.get('tipo_case')     || undefined,
-    modelo:       searchParams.get('modelo')        || undefined,
-    color:        searchParams.get('color')         || undefined,
-    ubicacion:    searchParams.get('ubicacion')     || undefined,
+    desde:        searchParams.get('desde')                            || undefined,
+    hasta:        searchParams.get('hasta')                            || undefined,
+    serie:        searchParams.get('serie') || searchParams.get('tipo_case') || undefined,
+    categoria:    searchParams.get('categoria')                        || undefined,
+    modelo:       searchParams.get('modelo')                           || undefined,
+    color:        searchParams.get('color')                            || undefined,
+    ubicacion:    searchParams.get('ubicacion')                        || undefined,
     soloStockBajo: searchParams.get('soloStockBajo') === 'true',
   }
   const { stock, movimientos, umbral } = await getReporteInventario(filtros)
 
   if (searchParams.get('format') === 'xlsx') {
     return excelResponse('reporte-inventario.xlsx', wb => {
-      addSheet(wb, 'Stock actual', ['Tipo', 'Modelo', 'Color', 'Stock', 'Ubicación'],
-        stock.map((r: any) => [r.tipo_case, r.modelo, r.color, Number(r.stock), r.ubicacion || '']))
+      addSheet(wb, 'Stock actual', ['Categoría', 'Serie', 'Nombre', 'Modelo', 'Color', 'Stock', 'Ubicación'],
+        stock.map((r: any) => [r.categoria || '', r.serie || '', r.nombre || '', r.modelo || '', r.color || '', Number(r.stock), r.ubicacion || '']))
       addSheet(wb, 'Movimientos', ['Fecha', 'Tipo', 'Modelo', 'Color', 'Cantidad', 'Stock resultante', 'Motivo', 'Pedido', 'Realizado por'],
         movimientos.map((m: any) => [
           new Date(m.creado_en).toLocaleString('es-MX'), m.tipo, m.modelo || '', m.color || '',
