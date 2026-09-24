@@ -1,74 +1,86 @@
 import { query } from './db'
 
-export async function logSesion(params: {
-  usuario_id: string
-  email: string
-  ip?: string | null
-  user_agent?: string | null
-}): Promise<void> {
+// ── Auditoría de sesión (login/logout) ─────────────────────────────────
+export async function logSesion(
+  usuarioId: string,
+  accion: 'LOGIN' | 'LOGOUT',
+  ip?: string,
+  userAgent?: string
+): Promise<void> {
   await query(
-    `INSERT INTO public.sesiones (usuario_id, email, ip, user_agent) VALUES ($1, $2, $3, $4)`,
-    [params.usuario_id, params.email, params.ip ?? null, params.user_agent ?? null]
-  ).catch(() => {}) // nunca bloquear el login
+    `INSERT INTO public.audit_sesiones (usuario_id, accion, ip, user_agent)
+     VALUES ($1, $2, $3, $4)`,
+    [usuarioId, accion, ip || null, userAgent || null]
+  ).catch((e: any) => {
+    console.error('[audit.logSesion]', e?.message)
+  })
 }
 
+// ── Auditoría de catálogo (altas/bajas/modificaciones de productos) ────
+export async function logCatalogo(
+  producto_id: string,   // UUID de catalogo_productos
+  accion: string,
+  detalle?: Record<string, unknown>,
+  realizadoPor?: string
+): Promise<void> {
+  await query(
+    `INSERT INTO public.catalogo_cambios (producto_id, accion, detalle, realizado_por)
+     VALUES ($1, $2, $3, $4)`,
+    [producto_id, accion, detalle ? JSON.stringify(detalle) : null, realizadoPor || null]
+  ).catch((e: any) => {
+    // catalogo_cambios no existe aún en la DB — falla silenciosa hasta que se cree
+    console.error('[audit.logCatalogo]', e?.message)
+  })
+}
+
+// ── Auditoría de clientes ─────────────────────────────────────────────
+export async function logCliente(params: {
+  cliente_id?: string
+  telefono?: string
+  accion: string
+  detalle?: Record<string, unknown>
+  campos_antes?: Record<string, unknown> | null
+  campos_despues?: Record<string, unknown> | null
+  realizado_por?: string
+}): Promise<void> {
+  await query(
+    `INSERT INTO public.audit_clientes (cliente_id, telefono, accion, detalle, realizado_por)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [params.cliente_id || null, params.telefono || null, params.accion,
+     params.detalle ? JSON.stringify(params.detalle) : null, params.realizado_por || null]
+  ).catch((e: any) => {
+    console.error('[audit.logCliente]', e?.message)
+  })
+}
+
+// ── Auditoría de acciones de administrador ────────────────────────────
 export async function logAdmin(params: {
   accion: string
-  entidad?: string | null
-  detalle?: Record<string, any> | null
-  realizado_por?: string | null
+  entidad?: string
+  detalle?: Record<string, unknown>
+  realizado_por?: string
 }): Promise<void> {
   await query(
-    `INSERT INTO public.admin_log (accion, entidad, detalle, realizado_por) VALUES ($1, $2, $3, $4)`,
-    [
-      params.accion,
-      params.entidad ?? null,
-      params.detalle ? JSON.stringify(params.detalle) : null,
-      params.realizado_por ?? null,
-    ]
-  ).catch(e => console.error('[audit admin_log]', e))
+    `INSERT INTO public.audit_admin (accion, detalle, realizado_por)
+     VALUES ($1, $2, $3)`,
+    [params.accion, params.detalle ? JSON.stringify(params.detalle) : null, params.realizado_por || null]
+  ).catch((e: any) => {
+    console.error('[audit.logAdmin]', e?.message)
+  })
 }
 
-export async function logCatalogo(params: {
-  case_id: string   // UUID de catalogo_cases
-  accion: string
-  campo?: string | null
-  valor_anterior?: string | number | boolean | null
-  valor_nuevo?: string | number | boolean | null
-  realizado_por?: string | null
-}): Promise<void> {
+// ── Auditoría de pedidos (cambios de estado) ──────────────────────────
+export async function logPedido(
+  pedidoId: string,
+  accion: string,
+  detalle?: Record<string, unknown>,
+  realizadoPor?: string
+): Promise<void> {
   await query(
-    `INSERT INTO public.catalogo_cambios (case_id, accion, campo, valor_anterior, valor_nuevo, realizado_por)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      params.case_id,
-      params.accion,
-      params.campo ?? null,
-      params.valor_anterior != null ? String(params.valor_anterior) : null,
-      params.valor_nuevo != null ? String(params.valor_nuevo) : null,
-      params.realizado_por ?? null,
-    ]
-  ).catch(e => console.error('[audit catalogo_cambios]', e))
-}
-
-export async function logCliente(params: {
-  cliente_id?: string | null
-  telefono: string
-  accion: string
-  campos_antes?: Record<string, any> | null
-  campos_despues?: Record<string, any> | null
-  realizado_por?: string | null
-}): Promise<void> {
-  await query(
-    `INSERT INTO public.clientes_log (cliente_id, telefono, accion, campos_antes, campos_despues, realizado_por)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      params.cliente_id ?? null,
-      params.telefono,
-      params.accion,
-      params.campos_antes ? JSON.stringify(params.campos_antes) : null,
-      params.campos_despues ? JSON.stringify(params.campos_despues) : null,
-      params.realizado_por ?? null,
-    ]
-  ).catch(e => console.error('[audit clientes_log]', e))
+    `INSERT INTO public.pedido_timeline (pedido_id, tipo_evento, detalle, realizado_por)
+     VALUES ($1, $2, $3, $4)`,
+    [pedidoId, accion, detalle ? JSON.stringify(detalle) : null, realizadoPor || null]
+  ).catch((e: any) => {
+    console.error('[audit.logPedido]', e?.message)
+  })
 }

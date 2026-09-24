@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, withTransaction } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { sendEmail, emailNuevoPedido, emailOrdenCompra } from '@/lib/email'
-import { resolveCaseId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
+import { resolveProductoId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
 import { generarOrdenCompraPdf } from '@/lib/purchaseOrderPdf'
 
@@ -57,8 +57,7 @@ export async function POST(req: NextRequest) {
 
     if (!items?.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
 
-    // Resolver la dirección elegida (o pickup) — la dirección guardada se
-    // copia como foto fija al pedido, no se referencia en vivo.
+    // Resolver la dirección elegida (o pickup)
     const entrega = metodo_entrega === 'pickup' ? 'pickup' : 'envio'
     let direccion_entrega: any = { tipo: 'pickup', nombre: punto_pickup || undefined }
     if (entrega === 'envio') {
@@ -71,6 +70,7 @@ export async function POST(req: NextRequest) {
       direccion_entrega = { tipo: 'envio', ...addr }
     }
 
+    const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'
     const totalPiezas = items.reduce((s: number, i: any) => s + (i.cantidad || 0), 0)
 
     // Verificar mínimo de pedido
@@ -90,17 +90,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ese método de pago no está disponible' }, { status: 400 })
     }
 
-    // Resolver precio vigente por artículo (catálogo, no lo que mande el cliente)
-    const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'
-    const preciosRows = await query<{ case_id: string; tipo_case: string; modelo: string; color: string; precio: number }>(
-      `SELECT case_id, tipo_case, modelo, color, precio FROM public.catalogo_cases
-       WHERE (tipo_case, modelo, color) IN (${items.map((_: any, i: number) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
-      items.flatMap((it: any) => [it.tipo_case, it.modelo, colorNorm(it.color)])
-    )
-    const precioMap = new Map(preciosRows.map(r => [`${r.tipo_case}__${r.modelo}__${r.color}`, Number(r.precio)]))
-    const itemsConPrecio = items.map((it: any) => ({
+    // Aceptar serie o tipo_case del body (compat transición frontend).
+    // Para accesorios sin modelo, usar nombre como fallback de modelo.
+    const normItem = (it: any) => ({
       ...it,
-      precio: precioMap.get(`${it.tipo_case}__${it.modelo}__${colorNorm(it.color)}`) ?? 0,
+      serie:     (it.serie ?? it.tipo_case ?? '').toUpperCase().trim(),
+      modelo:    (it.modelo || it.nombre || '').toUpperCase().trim(),
+      color:     colorNorm(it.color),
+      categoria: it.categoria || null,
+      nombre:    it.nombre || it.modelo || null,
+    })
+    const itemsNorm = items.map(normItem)
+
+    // Resolver precio vigente desde catálogo:
+    // (1) por (serie, modelo, color) para fundas
+    // (2) por producto_id directo para accesorios y otros
+    const preciosRows = itemsNorm.length
+      ? await query<{ producto_id: string; serie: string; modelo: string; color: string; precio: number }>(
+          `SELECT producto_id, serie, modelo, color, precio FROM public.catalogo_productos
+           WHERE (serie, modelo, color) IN (${itemsNorm.map((_: any, i: number) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
+          itemsNorm.flatMap((it: any) => [it.serie, it.modelo, it.color])
+        )
+      : []
+
+    const precioMap     = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, Number(r.precio)]))
+    const productoIdMap = new Map(preciosRows.map(r => [`${r.serie}__${r.modelo}__${r.color}`, r.producto_id]))
+
+    // Lookup adicional por producto_id para items que no matchearon por (serie,modelo,color)
+    const idsDirectos = itemsNorm
+      .filter((it: any) => it.producto_id && !precioMap.has(`${it.serie}__${it.modelo}__${it.color}`))
+      .map((it: any) => it.producto_id)
+    const precioPorId = new Map<string, number>()
+    if (idsDirectos.length) {
+      const rows = await query<{ producto_id: string; precio: number }>(
+        `SELECT producto_id, precio FROM public.catalogo_productos WHERE producto_id = ANY($1)`,
+        [idsDirectos]
+      )
+      rows.forEach(r => precioPorId.set(r.producto_id, Number(r.precio)))
+    }
+
+    const itemsConPrecio = itemsNorm.map((it: any) => ({
+      ...it,
+      precio: precioMap.get(`${it.serie}__${it.modelo}__${it.color}`)
+           ?? (it.producto_id ? precioPorId.get(it.producto_id) : undefined)
+           ?? 0,
     }))
 
     const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
@@ -116,18 +149,22 @@ export async function POST(req: NextRequest) {
       RETURNING id
     `, [session.email])
 
-    const tipos = [...new Set(items.map((i: any) => i.tipo_case))]
+    const tipos = [...new Set(itemsNorm.map((i: any) => i.serie))]
     const tipo  = tipos.length === 1 ? tipos[0] : 'MIXTO'
     const resumen = `${items.length} modelos, ${totalPiezas} piezas`
 
     const pedidoJson = { items: itemsConPrecio, direccion_entrega }
 
-    const itemsConCaseId = (await Promise.all(
-      items.map(async (i: any) => {
-        const caseId = await resolveCaseId(i.tipo_case, i.modelo, i.color)
-        return caseId ? { case_id: caseId, cantidad: i.cantidad } : null
+    // Resolver producto_id para cada item (para reservas de carrito).
+    // Usar producto_id del item directamente si ya está presente.
+    const itemsConProductoId = (await Promise.all(
+      itemsNorm.map(async (i: any) => {
+        const productoId = i.producto_id
+          ?? productoIdMap.get(`${i.serie}__${i.modelo}__${i.color}`)
+          ?? await resolveProductoId(i.serie, i.modelo, i.color)
+        return productoId ? { producto_id: productoId, cantidad: i.cantidad } : null
       })
-    )).filter(Boolean) as { case_id: string; cantidad: number }[]
+    )).filter(Boolean) as { producto_id: string; cantidad: number }[]
 
     const ttlPago = await getConfigMinutos('tiempo_reserva_pago_min', 1440)
 
@@ -153,11 +190,31 @@ export async function POST(req: NextRequest) {
         ])
 
         if (itemsConPrecio.length > 0) {
+          // Insertar items. Pasa categoria y nombre en el JSON para cubrir
+          // accesorios que no tienen serie/modelo en el catálogo.
           await tx(`
-            INSERT INTO public.pedido_items (pedido_id, modelo, tipo_case, color, cantidad, precio_unitario)
-            SELECT $1::uuid, x.modelo, x.tipo_case, COALESCE(NULLIF(x.color,''),'NEGRO'), x.cantidad, x.precio
-            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, tipo_case text, color text, cantidad int, precio numeric)
-            WHERE COALESCE(x.modelo,'') <> '' AND COALESCE(x.cantidad,0) > 0
+            INSERT INTO public.pedido_items
+              (pedido_id, modelo, serie, color, cantidad, precio_unitario, categoria, nombre_producto)
+            SELECT
+              $1::uuid,
+              COALESCE(NULLIF(x.modelo,''), NULLIF(x.nombre,''), '—'),
+              NULLIF(x.serie,''),
+              COALESCE(NULLIF(x.color,''),'NEGRO'),
+              x.cantidad,
+              x.precio,
+              COALESCE(
+                NULLIF(x.categoria,''),
+                (SELECT categoria FROM public.catalogo_productos cp WHERE cp.serie = x.serie AND cp.modelo = x.modelo AND cp.color = COALESCE(NULLIF(x.color,''),'NEGRO') LIMIT 1),
+                'FUNDA'
+              ),
+              COALESCE(
+                NULLIF(x.nombre,''),
+                (SELECT nombre FROM public.catalogo_productos cp WHERE cp.serie = x.serie AND cp.modelo = x.modelo AND cp.color = COALESCE(NULLIF(x.color,''),'NEGRO') LIMIT 1),
+                NULLIF(x.modelo,''),
+                '—'
+              )
+            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, serie text, color text, cantidad int, precio numeric, categoria text, nombre text)
+            WHERE COALESCE(x.cantidad,0) > 0
           `, [p.id, JSON.stringify(itemsConPrecio)])
         }
 
@@ -166,7 +223,7 @@ export async function POST(req: NextRequest) {
           VALUES ($1, 'PENDIENTE_PAGO', 'Pedido creado por el cliente', $2)
         `, [p.id, session.sub])
 
-        await convertirCarritoAPedidoTx(tx, session.email, p.id, itemsConCaseId, ttlPago)
+        await convertirCarritoAPedidoTx(tx, session.email, p.id, itemsConProductoId, ttlPago)
 
         await tx(
           `UPDATE public.pedidos SET reserva_expira_en = NOW() + ($1::int * INTERVAL '1 minute') WHERE id = $2`,
@@ -204,7 +261,7 @@ export async function POST(req: NextRequest) {
           to:      adminEmail,
           subject: `🔥 Venta importante — #${(pedido.numero_pedido||pedido.id.slice(0,8)).toUpperCase()}`,
           html:    emailNuevoPedido(
-            pedido.numero_pedido || pedido.id.slice(0,8),
+            pedido.numero_pedido || pedido.id.slice(0, 8),
             session.nombre || session.email,
             totalPiezas
           ),
@@ -228,7 +285,14 @@ export async function POST(req: NextRequest) {
           direccion: entrega === 'envio' ? direccion_entrega : undefined,
           negocioNombre: negocio.negocio_nombre,
           negocioDireccion: negocio.negocio_direccion,
-          items: itemsConPrecio.map((it: any) => ({ modelo: it.modelo, tipo_case: it.tipo_case, color: colorNorm(it.color), cantidad: it.cantidad, precio: it.precio })),
+          // purchaseOrderPdf aún usa tipo_case en su interfaz; pasamos serie como tipo_case
+          items: itemsConPrecio.map((it: any) => ({
+            modelo: it.modelo,
+            tipo_case: it.serie,
+            color: it.color,
+            cantidad: it.cantidad,
+            precio: it.precio,
+          })),
           subtotal: montoSubtotal,
           descuentoPct: montoDescuentoPct,
           total: montoTotal,

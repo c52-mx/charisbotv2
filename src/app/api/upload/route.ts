@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const fname  = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
     const fpath  = path.join(uploadDir, fname)
     await writeFile(fpath, buffer)
-    const url = `/uploads/orders/${pedidoId}/${fname}`
+    const url = `/api/files/orders/${pedidoId}/${fname}`
     savedUrls.push(url)
   }
 

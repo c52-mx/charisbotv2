@@ -26,7 +26,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 
     const items = await query(`
-      SELECT modelo, tipo_case, color, cantidad FROM public.pedido_items WHERE pedido_id = $1
+      SELECT modelo, serie, color, cantidad, categoria, nombre_producto, atributos
+      FROM public.pedido_items WHERE pedido_id = $1
     `, [params.id])
 
     const timeline = await query(`

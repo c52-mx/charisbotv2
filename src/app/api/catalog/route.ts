@@ -13,78 +13,49 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const search   = searchParams.get('search')   || ''
-  const tipo     = searchParams.get('tipo')      || ''
-  const activo   = searchParams.get('activo')    || ''
-  const page     = parseInt(searchParams.get('page')  || '1')
-  const pageSize = parseInt(searchParams.get('size')  || '50')
-  const offset   = (page - 1) * pageSize
+  const search    = searchParams.get('search')    || ''
+  const serie     = searchParams.get('serie')     || searchParams.get('tipo') || ''
+  const categoria = searchParams.get('categoria') || ''
+  const activo    = searchParams.get('activo')    || ''
+  const page      = parseInt(searchParams.get('page') || '1')
+  const pageSize  = parseInt(searchParams.get('size') || '50')
+  const offset    = (page - 1) * pageSize
 
   const conditions: string[] = []
   const params: any[]        = []
   let   idx = 1
 
   if (search) {
-    conditions.push(`(modelo ILIKE $${idx} OR color ILIKE $${idx} OR identificador ILIKE $${idx} OR ubicacion ILIKE $${idx})`)
+    conditions.push(`(nombre ILIKE $${idx} OR modelo ILIKE $${idx} OR color ILIKE $${idx} OR identificador ILIKE $${idx} OR ubicacion ILIKE $${idx})`)
     params.push(`%${search}%`); idx++
   }
-  if (tipo)   { conditions.push(`tipo_case = $${idx}`);    params.push(tipo);   idx++ }
-  if (activo !== '') { conditions.push(`activo = $${idx}`); params.push(activo === 'true'); idx++ }
+  if (serie)     { conditions.push(`serie     = $${idx++}`);    params.push(serie.toUpperCase()) }
+  if (categoria) { conditions.push(`categoria = $${idx++}`);    params.push(categoria) }
+  if (activo !== '') { conditions.push(`activo = $${idx++}`);   params.push(activo === 'true') }
 
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
 
-  // Detectar si las columnas nuevas ya existen (migración 006)
-  let hasNewCols = true
-  try {
-    await query(`SELECT identificador FROM public.catalogo_cases LIMIT 0`, [])
-  } catch {
-    hasNewCols = false
-  }
-
-  const selectCols = hasNewCols
-    ? 'case_id, tipo_case, modelo, color, activo, identificador, ubicacion, stock, precio, creado_en'
-    : 'case_id, tipo_case, modelo, color, activo, stock, precio, creado_en'
-
   const [rows, countRow] = await Promise.all([
     query(
-      `SELECT ${selectCols}
-       FROM public.catalogo_cases ${where}
-       ORDER BY tipo_case, modelo, color
+      `SELECT producto_id, categoria, serie, modelo, color, nombre, marca, foto_url, atributos,
+              activo, identificador, ubicacion, stock, precio, creado_en
+       FROM public.catalogo_productos ${where}
+       ORDER BY categoria, serie, modelo, color
        LIMIT $${idx} OFFSET $${idx + 1}`,
       [...params, pageSize, offset]
     ),
     query(
-      `SELECT COUNT(*) as total FROM public.catalogo_cases ${where}`,
+      `SELECT COUNT(*) as total FROM public.catalogo_productos ${where}`,
       params
     )
   ])
 
-  // Normalizar filas para que siempre tengan los campos (aunque no existan en DB aún)
-  const normalizedRows = rows.map((r: any) => ({
-    ...r,
-    identificador: r.identificador ?? null,
-    ubicacion:     r.ubicacion     ?? null,
-  }))
-
   return NextResponse.json({
-    items: normalizedRows,
+    items: rows,
     total: parseInt(countRow[0]?.total || '0'),
     page,
     pageSize
   })
-}
-
-// Cache para no hacer el check de columnas en cada request
-let _colsChecked: boolean | null = null
-async function hasNewColumns(): Promise<boolean> {
-  if (_colsChecked !== null) return _colsChecked
-  try {
-    await query(`SELECT identificador FROM public.catalogo_cases LIMIT 0`, [])
-    _colsChecked = true
-  } catch {
-    _colsChecked = false
-  }
-  return _colsChecked
 }
 
 // ── POST /api/catalog ─────────────────────────────────────────────────
@@ -94,82 +65,74 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { tipo_case, modelo, color, activo = true, identificador, ubicacion, stock = 0, precio = 0 } = await req.json()
+  const body = await req.json()
+  // Aceptar tanto los nombres nuevos como los viejos (compat transición)
+  const serie        = (body.serie ?? body.tipo_case)
+  const { modelo, color, activo = true, identificador, ubicacion, stock = 0, precio = 0,
+          categoria = 'FUNDA', nombre, marca, foto_url, atributos } = body
 
-  if (!tipo_case || !modelo || !color) {
-    return NextResponse.json({ error: 'tipo_case, modelo y color son requeridos' }, { status: 400 })
+  // Para fundas clásicas (categoria FUNDA), serie+modelo+color siguen siendo el key natural.
+  // Para accesorios/cargadores, al menos nombre es suficiente.
+  if (categoria === 'FUNDA' && (!serie || !modelo || !color)) {
+    return NextResponse.json({ error: 'Para fundas, serie, modelo y color son requeridos' }, { status: 400 })
   }
 
-  const tipoValido = await query(
-    `SELECT 1 FROM public.tipos_case WHERE nombre = $1 AND activo = true`,
-    [tipo_case.toUpperCase().trim()]
-  )
-  if (!tipoValido.length) {
-    return NextResponse.json({ error: 'Tipo de case inválido o inactivo' }, { status: 400 })
+  // Validar serie si se proporciona
+  if (serie) {
+    const tipoValido = await query(
+      `SELECT 1 FROM public.tipos_case WHERE nombre = $1 AND activo = true`,
+      [serie.toUpperCase().trim()]
+    )
+    if (!tipoValido.length) {
+      return NextResponse.json({ error: 'Serie/tipo inválido o inactivo' }, { status: 400 })
+    }
   }
 
-  const newCols = await hasNewColumns()
-  const stockVal = Math.max(0, parseInt(stock) || 0)
+  const stockVal  = Math.max(0, parseInt(stock)  || 0)
   const precioVal = Math.max(0, parseFloat(precio) || 0)
+  const serieNorm = serie ? serie.toUpperCase().trim() : null
+  const modeloNorm = modelo ? modelo.toUpperCase().trim() : null
+  const colorNorm  = color  ? color.toUpperCase().trim()  : null
+  // nombre: explícito o generado a partir de serie+modelo+color
+  const nombreFinal = (nombre ?? [serieNorm, modeloNorm, colorNorm].filter(Boolean).join(' ')).trim()
 
-  let rows: any[]
-  if (newCols) {
-    rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, identificador, ubicacion, stock, precio)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (tipo_case, modelo, color) DO NOTHING
-       RETURNING *`,
-      [
-        tipo_case.toUpperCase().trim(),
-        modelo.toUpperCase().trim(),
-        color.toUpperCase().trim(),
-        activo,
-        identificador?.trim() || null,
-        ubicacion?.trim()     || null,
-        stockVal,
-        precioVal,
-      ]
-    )
-  } else {
-    rows = await query(
-      `INSERT INTO public.catalogo_cases (tipo_case, modelo, color, activo, stock, precio)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (tipo_case, modelo, color) DO NOTHING
-       RETURNING *`,
-      [
-        tipo_case.toUpperCase().trim(),
-        modelo.toUpperCase().trim(),
-        color.toUpperCase().trim(),
-        activo,
-        stockVal,
-        precioVal,
-      ]
-    )
-  }
+  const rows = await query(
+    `INSERT INTO public.catalogo_productos
+       (categoria, serie, modelo, color, nombre, marca, foto_url, atributos, activo, identificador, ubicacion, stock, precio)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     ON CONFLICT DO NOTHING
+     RETURNING *`,
+    [
+      categoria,
+      serieNorm,
+      modeloNorm,
+      colorNorm,
+      nombreFinal,
+      marca?.trim()         || null,
+      foto_url?.trim()      || null,
+      atributos ? JSON.stringify(atributos) : null,
+      activo,
+      identificador?.trim() || null,
+      ubicacion?.trim()     || null,
+      stockVal,
+      precioVal,
+    ]
+  )
 
   if (!rows.length) {
-    return NextResponse.json({ error: 'Ya existe un producto con ese tipo, modelo y color' }, { status: 409 })
+    return NextResponse.json({ error: 'Ya existe un producto con esa combinación' }, { status: 409 })
   }
 
   if (stockVal > 0) {
     await registrarMovimiento({
-      case_id: rows[0].case_id, tipo: 'ENTRADA', cantidad: stockVal, stock_resultante: stockVal,
+      producto_id: rows[0].producto_id, tipo: 'ENTRADA', cantidad: stockVal, stock_resultante: stockVal,
       motivo: 'Alta de producto', realizado_por: session.sub,
     })
   }
 
-  await logCatalogo({
-    case_id: rows[0].case_id,
-    accion: 'CREAR',
-    valor_nuevo: JSON.stringify({ precio: precioVal, stock: stockVal }),
-    realizado_por: session.sub,
-  })
+  await logCatalogo(rows[0].producto_id, 'CREAR', { precio: precioVal, stock: stockVal, categoria }, session.sub)
 
-  return NextResponse.json({
-    ...rows[0],
-    identificador: rows[0].identificador ?? null,
-    ubicacion:     rows[0].ubicacion     ?? null,
-  }, { status: 201 })
+  return NextResponse.json(rows[0], { status: 201 })
 }
 
 // ── DELETE /api/catalog — borra TODOS los items del catálogo ──────────
@@ -185,10 +148,10 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Confirmación requerida' }, { status: 400 })
   }
 
-  const rows = await query(`SELECT COUNT(*) as total FROM public.catalogo_cases`, [])
+  const rows = await query(`SELECT COUNT(*) as total FROM public.catalogo_productos`, [])
   const total = parseInt(rows[0]?.total || '0')
 
-  await query(`DELETE FROM public.catalogo_cases`, [])
+  await query(`DELETE FROM public.catalogo_productos`, [])
 
   await logAdmin({
     accion: 'CATALOGO_BORRAR_TODO',

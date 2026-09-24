@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 interface Pedido {
-  id: string; numero_pedido: string; estado: string; tipo_case: string
-  resumen: string; creado_en: string; total_piezas: number
+  id: string; numero_pedido: string; estado: string
+  tipo_case: string; resumen: string
+  creado_en: string; total_piezas: number
   metodo_pago: string; referencia_pago: string; metodo_entrega?: string; pedido_json?: any
 }
 
@@ -117,28 +118,36 @@ export default function OrdersPage() {
       const cart: any[] = []
       const sinStock: string[] = []
       for (const it of items) {
+        // Acepta producto_id (nuevo formato) o tipo_case+modelo+color (legado)
+        const reserveBody = it.producto_id
+          ? { producto_id: it.producto_id, cantidad: it.cantidad }
+          : { tipo_case: it.tipo_case ?? it.serie, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: it.cantidad }
+        const label = it.nombre || it.modelo || it.tipo_case || '—'
+
         const res = await fetch('/api/client/cart/reserve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: it.cantidad }),
+          body: JSON.stringify(reserveBody),
         })
         const data = await res.json()
         if (!res.ok) {
-          // Reintenta con la cantidad disponible si quedó algo, si no se omite el artículo.
           if (data.disponible > 0) {
+            const retryBody = it.producto_id
+              ? { producto_id: it.producto_id, cantidad: data.disponible }
+              : { tipo_case: it.tipo_case ?? it.serie, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: data.disponible }
             const retry = await fetch('/api/client/cart/reserve', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tipo_case: it.tipo_case, modelo: it.modelo, color: it.color || 'NEGRO', cantidad: data.disponible }),
+              body: JSON.stringify(retryBody),
             })
             if (retry.ok) {
-              cart.push({ tipo_case: it.tipo_case, marca: it.marca || '', modelo: it.modelo, color: it.color || '', cantidad: data.disponible })
+              cart.push({ ...it, cantidad: data.disponible })
             }
           }
-          sinStock.push(`${it.modelo} (${it.color || 'NEGRO'})`)
+          sinStock.push(`${label} (${it.color || 'NEGRO'})`)
           continue
         }
-        cart.push({ tipo_case: it.tipo_case, marca: it.marca || '', modelo: it.modelo, color: it.color || '', cantidad: it.cantidad })
+        cart.push({ ...it })
       }
 
       if (!cart.length) {
@@ -240,7 +249,7 @@ export default function OrdersPage() {
                       </span>
                     </div>
                     <p style={{ fontSize:12, color:'var(--txt3)' }}>
-                      {order.tipo_case} · {order.total_piezas || '?'} pzas · {formatDate(order.creado_en)}
+                      {order.tipo_case || order.resumen || '—'} · {order.total_piezas || '?'} pzas · {formatDate(order.creado_en)}
                     </p>
                   </div>
                   <span style={{ fontSize:13, color:'var(--txt3)', flexShrink:0 }}>{isOpen ? '▲' : '▼'}</span>
@@ -298,18 +307,22 @@ export default function OrdersPage() {
                       <div style={{ marginBottom:14 }}>
                         <div style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', marginBottom:8, letterSpacing:'.04em', textTransform:'uppercase' }}>Artículos</div>
                         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                          {items.slice(0,5).map((it: any, idx: number) => (
-                            <div key={idx} style={{ display:'flex', alignItems:'center', gap:10, background:'white', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px' }}>
-                              <span style={{ fontSize:16 }}>
-                                {it.tipo_case==='BLINDAJE'?'🔐':it.tipo_case==='3 EN 1'?'🎯':it.tipo_case==='ESCUDO'?'🛡️':'💍'}
-                              </span>
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ fontSize:12, fontWeight:700, color:'var(--txt)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.modelo}</div>
-                                <div style={{ fontSize:10, color:'var(--txt3)' }}>{it.marca} · {it.color}</div>
+                          {items.slice(0,5).map((it: any, idx: number) => {
+                            const tipoKey = it.serie ?? it.tipo_case ?? ''
+                            const emoji = tipoKey==='BLINDAJE'?'🔐':tipoKey==='3 EN 1'?'🎯':tipoKey==='ESCUDO'?'🛡️':
+                                          it.categoria==='CARGADOR'?'🔌':it.categoria==='MICA'?'🪟':'📦'
+                            const subtitle = [tipoKey, it.marca, it.color].filter(Boolean).join(' · ')
+                            return (
+                              <div key={idx} style={{ display:'flex', alignItems:'center', gap:10, background:'white', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px' }}>
+                                <span style={{ fontSize:16 }}>{emoji}</span>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:12, fontWeight:700, color:'var(--txt)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.nombre || it.modelo || '—'}</div>
+                                  <div style={{ fontSize:10, color:'var(--txt3)' }}>{subtitle}</div>
+                                </div>
+                                <div style={{ fontSize:12, fontWeight:700, color:'var(--blue)', flexShrink:0 }}>{it.cantidad} pzas</div>
                               </div>
-                              <div style={{ fontSize:12, fontWeight:700, color:'var(--blue)', flexShrink:0 }}>{it.cantidad} pzas</div>
-                            </div>
-                          ))}
+                            )
+                          })}
                           {items.length > 5 && (
                             <div style={{ fontSize:12, color:'var(--txt3)', textAlign:'center', padding:'4px 0' }}>
                               +{items.length - 5} artículo{items.length - 5 !== 1 ? 's' : ''} más

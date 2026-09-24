@@ -13,8 +13,15 @@ export async function GET(req: NextRequest) {
   }
 
   return excelResponse('plantilla-inventario.xlsx', wb => {
-    addSheet(wb, 'Inventario', ['tipo_case', 'modelo', 'color', 'stock', 'identificador', 'ubicacion'], [
-      ['3 EN 1', 'IPHONE 15', 'NEGRO', 50, 'SKU-001', 'A1-03'],
-    ])
+    addSheet(wb, 'Inventario',
+      ['categoria', 'serie', 'nombre', 'marca', 'modelo', 'color', 'stock', 'precio', 'identificador', 'ubicacion'],
+      [
+        // Funda clásica — serie+modelo+color obligatorios
+        ['FUNDA',     '3 EN 1',  'Funda 3 en 1 iPhone 15', 'Genérica', 'IPHONE 15',    'NEGRO',  50, 89.00, 'SKU-001', 'A1-03'],
+        // Accesorio sin modelo — nombre obligatorio
+        ['ACCESORIO', '',        'Cable USB-C 2m negro',    'Anker',    '',             'NEGRO',  20, 59.00, 'SKU-100', 'B2-01'],
+        ['CARGADOR',  '',        'Cargador 65W GaN blanco', 'Baseus',   '',             'BLANCO', 15, 149.00,'SKU-200', 'B3-02'],
+      ]
+    )
   })
 }

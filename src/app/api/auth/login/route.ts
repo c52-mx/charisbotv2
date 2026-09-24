@@ -37,12 +37,12 @@ export async function POST(req: NextRequest) {
 
     // Actualizar último acceso y registrar sesión
     await queryOne('UPDATE public.usuarios SET ultimo_acceso = NOW() WHERE id = $1', [user.id])
-    await logSesion({
-      usuario_id: user.id,
-      email: user.email || user.telefono,
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
-      user_agent: req.headers.get('user-agent'),
-    })
+    await logSesion(
+      user.id,
+      'LOGIN',
+      req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
+      req.headers.get('user-agent') || undefined,
+    )
 
     const { tipo: rolTipo, permisos } = await resolverPermisos(user.rol)
 

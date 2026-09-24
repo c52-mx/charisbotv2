@@ -438,7 +438,7 @@ export default function OrdersPage() {
               <div style={{ borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', marginBottom:16 }}>
                 {(selected.items||[]).map((it:any,i:number)=>(
                   <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',fontSize:12,borderTop:i>0?'1px solid var(--border)':'none' }}>
-                    <div><span style={{ fontWeight:600 }}>{it.modelo}</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.tipo_case}</span></div>
+                    <div><span style={{ fontWeight:600 }}>{it.modelo}</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.serie ?? it.tipo_case}</span></div>
                     <div style={{ textAlign:'right' }}><span style={{ fontWeight:600 }}>{it.cantidad} pzas</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.color}</span></div>
                   </div>
                 ))}
@@ -819,7 +819,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
   const [clienteOpts, setClienteOpts] = useState<{value:string,label:string}[]>([])
   const [catalogFull, setCatalogFull] = useState<{tipo:string,modelo:string,color:string}[]>([])
   const [catalogOpts, setCatalogOpts] = useState<{value:string,label:string,tipo:string}[]>([])
-  const [items,    setItems]   = useState([{ tipo_case:'', modelo:'', color:'', cantidad:1 }])
+  const [items,    setItems]   = useState([{ serie:'', modelo:'', color:'', cantidad:1 }])
   const [notas,    setNotas]   = useState('')
   const [pedidoId, setPedidoId]= useState<string|null>(null)
   const [loading,  setLoading] = useState(false)
@@ -836,17 +836,17 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
     fetch('/api/tipos-case').then(r=>r.json()).then(d=>{
       const tipos = (d.items||[]).map((t:any)=>t.nombre)
       setTiposList(tipos)
-      setItems(p => p.map(it => it.tipo_case ? it : { ...it, tipo_case: tipos[0] || '' }))
+      setItems(p => p.map(it => it.serie ? it : { ...it, serie: tipos[0] || '' }))
     })
     fetch('/api/clients?limit=200').then(r=>r.json()).then(d=>{
       setClienteOpts((d.data||[]).map((c:any)=>({ value: c.telefono, label: `${c.nombre||'Sin nombre'} — ${c.telefono}` })))
     })
     fetch('/api/catalog?limit=2000&activo=true').then(r=>r.json()).then(d=>{
-      setCatalogFull((d.items||[]).map((c:any)=>({ tipo:c.tipo_case, modelo:c.modelo, color:c.color })))
+      setCatalogFull((d.items||[]).map((c:any)=>({ tipo:c.serie, modelo:c.modelo, color:c.color })))
       const uniq = new Map<string,{value:string,label:string,tipo:string}>()
       for (const c of (d.items||[])) {
-        const key = `${c.tipo_case}__${c.modelo}`
-        if (!uniq.has(key)) uniq.set(key, { value:c.modelo, label:`${c.modelo}`, tipo:c.tipo_case })
+        const key = `${c.serie}__${c.modelo}`
+        if (!uniq.has(key)) uniq.set(key, { value:c.modelo, label:`${c.modelo}`, tipo:c.serie })
       }
       setCatalogOpts(Array.from(uniq.values()))
     })
@@ -875,12 +875,12 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
       if (idx!==i) return it
       const updated = { ...it, [f]: v }
       // When tipo changes → reset modelo and color
-      if (f==='tipo_case') { updated.modelo = ''; updated.color = '' }
-      // When modelo changes → auto-set tipo if found, reset color
+      if (f==='serie') { updated.modelo = ''; updated.color = '' }
+      // When modelo changes → auto-set serie if found, reset color
       if (f==='modelo') {
-        const match = catalogOpts.find(o=>o.value===v && o.tipo===it.tipo_case)
+        const match = catalogOpts.find(o=>o.value===v && o.tipo===it.serie)
              || catalogOpts.find(o=>o.value===v)
-        if (match) updated.tipo_case = match.tipo
+        if (match) updated.serie = match.tipo
         updated.color = '' // reset color when model changes
       }
       return updated
@@ -977,7 +977,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
                 <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em' }}>Items del pedido</label>
-                <button type="button" className="cbtn cbtn-ghost" onClick={() => setItems(p=>[...p,{tipo_case:tiposList[0]||'',modelo:'',color:'NEGRO',cantidad:1}])}>+ Fila</button>
+                <button type="button" className="cbtn cbtn-ghost" onClick={() => setItems(p=>[...p,{serie:tiposList[0]||'',modelo:'',color:'NEGRO',cantidad:1}])}>+ Fila</button>
               </div>
               {/* Header — hidden on mobile */}
               <div className="item-hdr-row" style={{ display:'grid',gridTemplateColumns:'120px 1fr 100px 70px 28px',gap:8,marginBottom:5 }}>
@@ -986,21 +986,21 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
               <div style={{ display:'flex',flexDirection:'column',gap:7 }}>
                 {items.map((item,i)=>(
                   <div key={i} className="item-row-grid" style={{ display:'grid', gridTemplateColumns:'120px 1fr 100px 70px 28px', gap:8, alignItems:'center' }}>
-                    <select className="cinput" style={{ fontSize:12 }} value={item.tipo_case}
-                            onChange={e=>updateItem(i,'tipo_case',e.target.value)}>
+                    <select className="cinput" style={{ fontSize:12 }} value={item.serie}
+                            onChange={e=>updateItem(i,'serie',e.target.value)}>
                       {tiposList.map(t=><option key={t}>{t}</option>)}
                     </select>
                     <Combo
                       value={item.modelo}
                       onChange={v=>updateItem(i,'modelo',v)}
-                      options={catalogOpts.filter(o=>!item.tipo_case||o.tipo===item.tipo_case)}
+                      options={catalogOpts.filter(o=>!item.serie||o.tipo===item.serie)}
                       placeholder="Modelo..."
                       allowNew
                     />
                     <Combo
                       value={item.color}
                       onChange={v=>updateItem(i,'color',v)}
-                      options={colorsForItem(item.tipo_case, item.modelo)}
+                      options={colorsForItem(item.serie, item.modelo)}
                       placeholder="Color..."
                       allowNew
                     />

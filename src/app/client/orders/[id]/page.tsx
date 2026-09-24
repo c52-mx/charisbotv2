@@ -257,8 +257,8 @@ export default function OrderDetailPage() {
             ) : items.map((item: any, i: number) => (
               <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 18px', borderBottom: i<items.length-1?'1px solid var(--bg)':'none', fontSize:13 }}>
                 <div>
-                  <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.modelo}</span>
-                  <span style={{ color:'var(--txt3)', marginLeft:8 }}>{item.tipo_case} · {item.color}</span>
+                  <span style={{ fontWeight:700, color:'var(--txt)' }}>{item.nombre_producto || item.modelo || '—'}</span>
+                  <span style={{ color:'var(--txt3)', marginLeft:8 }}>{item.serie ?? item.tipo_case ?? ''}{item.color ? ` · ${item.color}` : ''}</span>
                 </div>
                 <span style={{ fontWeight:700, color:'var(--blue)' }}>{item.cantidad} pzas</span>
               </div>
