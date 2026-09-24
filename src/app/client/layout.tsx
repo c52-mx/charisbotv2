@@ -750,11 +750,26 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                     Explorar catálogo →
                   </Link>
                 </div>
-              ) : cartItems.map((item: any, i: number) => (
+              ) : cartItems.map((item: any, i: number) => {
+                // Soporta formato nuevo {producto_id, nombre, serie, categoria, color}
+                // y formato legacy {tipo_case, marca, modelo, color}
+                const title    = item.nombre || item.modelo || item.tipo_case || '—'
+                const subtitle = [
+                  item.serie || item.tipo_case,
+                  item.marca,
+                  item.color,
+                ].filter(Boolean).join(' · ')
+                const subtotal = item.precio ? item.precio * item.cantidad : null
+                return (
                 <div key={i} className="c-drawer-item">
                   <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)', marginBottom:2 }}>{item.modelo}</p>
-                    <p style={{ fontSize:11, color:'var(--txt3)' }}>{item.tipo_case} · {item.marca} · {item.color}</p>
+                    <p style={{ fontSize:13, fontWeight:700, color:'var(--txt)', marginBottom:2 }}>{title}</p>
+                    <p style={{ fontSize:11, color:'var(--txt3)', marginBottom: subtotal ? 2 : 0 }}>{subtitle}</p>
+                    {subtotal !== null && (
+                      <p style={{ fontSize:12, fontWeight:700, color:'var(--blue)' }}>
+                        ${subtotal.toLocaleString('es-MX', { minimumFractionDigits:2 })}
+                      </p>
+                    )}
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                     <div className="c-qty-ctrl">
@@ -776,7 +791,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                     >✕</button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Footer */}
@@ -786,6 +802,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                   <span style={{ color:'var(--txt2)', fontWeight:600 }}>Total piezas:</span>
                   <span style={{ fontWeight:900, color:'var(--blue-bright)', fontSize:15 }}>{cartCount}</span>
                 </div>
+                {(() => {
+                  const total = cartItems.reduce((s: number, it: any) => s + (it.precio ? it.precio * it.cantidad : 0), 0)
+                  return total > 0 ? (
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:13 }}>
+                      <span style={{ color:'var(--txt2)', fontWeight:600 }}>Subtotal:</span>
+                      <span style={{ fontWeight:900, color:'var(--navy-deep)', fontSize:15 }}>
+                        ${total.toLocaleString('es-MX', { minimumFractionDigits:2 })} MXN
+                      </span>
+                    </div>
+                  ) : null
+                })()}
                 {cartCount >= 50 && (
                   <div style={{ background:'#e8f5e9', border:'1px solid #c8e6c9', borderRadius:6, padding:'6px 10px', fontSize:11, color:'#1b5e20', fontWeight:600, marginBottom:10 }}>
                     % {cartCount >= 200 ? '15%' : cartCount >= 100 ? '10%' : '5%'} de descuento mayorista aplicado
