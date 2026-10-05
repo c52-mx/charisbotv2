@@ -55,9 +55,21 @@ const CSS = `
   .ml-main { flex: 1; min-width: 0; }
 
   /* ── SIDEBAR SECTIONS ── */
-  .sb-section { border-bottom: 1px solid var(--border); padding: 14px 16px; }
+  .sb-section { border-bottom: 1px solid var(--border); }
   .sb-section:last-child { border-bottom: none; }
-  .sb-title { font-size: 12px; font-weight: 800; color: var(--txt3); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 10px; }
+  .sb-section-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; cursor: pointer; user-select: none;
+    transition: background .12s;
+  }
+  .sb-section-hd:hover { background: var(--bg); }
+  .sb-title { font-size: 12px; font-weight: 800; color: var(--txt3); letter-spacing: .07em; text-transform: uppercase; margin: 0; }
+  .sb-chevron { font-size: 11px; color: var(--txt3); transition: transform .2s; line-height: 1; }
+  .sb-chevron.open { transform: rotate(180deg); }
+  .sb-body { overflow: hidden; transition: max-height .22s ease, opacity .2s ease; }
+  .sb-body.open { opacity: 1; }
+  .sb-body.closed { max-height: 0 !important; opacity: 0; }
+  .sb-body-inner { padding: 0 16px 14px; }
   .sb-item {
     display: flex; align-items: center; gap: 8px;
     padding: 5px 0; font-size: 13.5px; color: var(--txt);
@@ -300,7 +312,13 @@ export default function CatalogPage() {
   const [soloDisp,   setSoloDisp]   = useState(false)
   const [sortBy,     setSortBy]     = useState('relevance')
   const [sideOpen,   setSideOpen]   = useState(false)
+  const [collapsed,  setCollapsed]  = useState<Record<string, boolean>>({})
   const [addMsg,     setAddMsg]     = useState('')
+
+  function toggleSection(key: string) {
+    setCollapsed(c => ({ ...c, [key]: !c[key] }))
+  }
+  function isOpen(key: string) { return collapsed[key] !== true }
   const addMsgTimer = useRef<any>(null)
 
   const fetchProducts = useCallback(async (p = 1) => {
@@ -447,73 +465,109 @@ export default function CatalogPage() {
 
           {/* Categorías */}
           <div className="sb-section">
-            <div className="sb-title">Categoría</div>
-            {['FUNDA','ACCESORIO','CARGADOR','MICA'].map(cat => (
-              <div key={cat} className={`sb-item${categoria === cat ? ' act' : ''}`} onClick={() => setCategoria(c => c === cat ? '' : cat)}>
-                <span>{cat === 'FUNDA' ? '📱' : cat === 'ACCESORIO' ? '🔗' : cat === 'CARGADOR' ? '🔌' : '🛡️'}</span>
-                {cat}
+            <div className="sb-section-hd" onClick={() => toggleSection('cat')}>
+              <span className="sb-title">Categoría</span>
+              <span className={`sb-chevron${isOpen('cat') ? ' open' : ''}`}>▼</span>
+            </div>
+            <div className={`sb-body${isOpen('cat') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('cat') ? 300 : 0 }}>
+              <div className="sb-body-inner">
+                {['FUNDA','ACCESORIO','CARGADOR','MICA'].map(cat => (
+                  <div key={cat} className={`sb-item${categoria === cat ? ' act' : ''}`} onClick={() => setCategoria(c => c === cat ? '' : cat)}>
+                    <span>{cat === 'FUNDA' ? '📱' : cat === 'ACCESORIO' ? '🔗' : cat === 'CARGADOR' ? '🔌' : '🛡️'}</span>
+                    {cat}
+                  </div>
+                ))}
+                {filters.categorias.filter(c => !['FUNDA','ACCESORIO','CARGADOR','MICA'].includes(c)).map(cat => (
+                  <div key={cat} className={`sb-item${categoria === cat ? ' act' : ''}`} onClick={() => setCategoria(c => c === cat ? '' : cat)}>
+                    <span>📦</span>{cat}
+                  </div>
+                ))}
               </div>
-            ))}
-            {filters.categorias.filter(c => !['FUNDA','ACCESORIO','CARGADOR','MICA'].includes(c)).map(cat => (
-              <div key={cat} className={`sb-item${categoria === cat ? ' act' : ''}`} onClick={() => setCategoria(c => c === cat ? '' : cat)}>
-                <span>📦</span>{cat}
-              </div>
-            ))}
+            </div>
           </div>
 
           {/* Serie / Línea */}
           {filters.series.length > 0 && (
             <div className="sb-section">
-              <div className="sb-title">Línea</div>
-              {filters.series.slice(0, 8).map(s => (
-                <label key={s} className={`sb-item${serie === s ? ' act' : ''}`} style={{ cursor:'pointer' }}>
-                  <input type="checkbox" className="sb-checkbox" checked={serie === s} onChange={() => setSerie(v => v === s ? '' : s)} />
-                  {s}
-                </label>
-              ))}
+              <div className="sb-section-hd" onClick={() => toggleSection('serie')}>
+                <span className="sb-title">Línea</span>
+                <span className={`sb-chevron${isOpen('serie') ? ' open' : ''}`}>▼</span>
+              </div>
+              <div className={`sb-body${isOpen('serie') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('serie') ? 300 : 0 }}>
+                <div className="sb-body-inner">
+                  {filters.series.slice(0, 8).map(s => (
+                    <label key={s} className={`sb-item${serie === s ? ' act' : ''}`} style={{ cursor:'pointer' }}>
+                      <input type="checkbox" className="sb-checkbox" checked={serie === s} onChange={() => setSerie(v => v === s ? '' : s)} />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
           {/* Colores */}
           {filters.colores.length > 0 && (
             <div className="sb-section">
-              <div className="sb-title">Color</div>
-              <div className="sb-color-wrap">
-                {filters.colores.map(c => (
-                  <button
-                    key={c}
-                    className={`sb-color${color === c ? ' act' : ''}`}
-                    style={{ background: COLOR_DOT[c] || '#94a3b8' }}
-                    title={c}
-                    onClick={() => setColor(v => v === c ? '' : c)}
-                  />
-                ))}
+              <div className="sb-section-hd" onClick={() => toggleSection('color')}>
+                <span className="sb-title">Color</span>
+                <span className={`sb-chevron${isOpen('color') ? ' open' : ''}`}>▼</span>
               </div>
-              {color && <div style={{ marginTop:6, fontSize:11, color:'var(--txt3)' }}>Seleccionado: <b>{color}</b></div>}
+              <div className={`sb-body${isOpen('color') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('color') ? 200 : 0 }}>
+                <div className="sb-body-inner">
+                  <div className="sb-color-wrap">
+                    {filters.colores.map(c => (
+                      <button
+                        key={c}
+                        className={`sb-color${color === c ? ' act' : ''}`}
+                        style={{ background: COLOR_DOT[c] || '#94a3b8' }}
+                        title={c}
+                        onClick={() => setColor(v => v === c ? '' : c)}
+                      />
+                    ))}
+                  </div>
+                  {color && <div style={{ marginTop:6, fontSize:11, color:'var(--txt3)' }}>Seleccionado: <b>{color}</b></div>}
+                </div>
+              </div>
             </div>
           )}
 
           {/* Precio */}
           <div className="sb-section">
-            <div className="sb-title">Precio (MXN)</div>
-            <div className="sb-price-row">
-              <input className="sb-price-input" placeholder="Mín" type="number" value={minPrecio} onChange={e => setMinPrecio(e.target.value)} />
-              <span style={{ color:'var(--txt3)', fontSize:12 }}>—</span>
-              <input className="sb-price-input" placeholder="Máx" type="number" value={maxPrecio} onChange={e => setMaxPrecio(e.target.value)} />
+            <div className="sb-section-hd" onClick={() => toggleSection('precio')}>
+              <span className="sb-title">Precio (MXN)</span>
+              <span className={`sb-chevron${isOpen('precio') ? ' open' : ''}`}>▼</span>
             </div>
-            {filters.precio_min > 0 && (
-              <div style={{ fontSize:11, color:'var(--txt3)', marginTop:5 }}>
-                Rango: ${filters.precio_min.toLocaleString('es-MX')} – ${filters.precio_max.toLocaleString('es-MX')}
+            <div className={`sb-body${isOpen('precio') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('precio') ? 160 : 0 }}>
+              <div className="sb-body-inner">
+                <div className="sb-price-row">
+                  <input className="sb-price-input" placeholder="Mín" type="number" value={minPrecio} onChange={e => setMinPrecio(e.target.value)} />
+                  <span style={{ color:'var(--txt3)', fontSize:12 }}>—</span>
+                  <input className="sb-price-input" placeholder="Máx" type="number" value={maxPrecio} onChange={e => setMaxPrecio(e.target.value)} />
+                </div>
+                {filters.precio_min > 0 && (
+                  <div style={{ fontSize:11, color:'var(--txt3)', marginTop:5 }}>
+                    Rango: ${filters.precio_min.toLocaleString('es-MX')} – ${filters.precio_max.toLocaleString('es-MX')}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Stock */}
           <div className="sb-section">
-            <label className="sb-item" style={{ cursor:'pointer' }}>
-              <input type="checkbox" className="sb-checkbox" checked={soloDisp} onChange={e => setSoloDisp(e.target.checked)} />
-              Solo con stock disponible
-            </label>
+            <div className="sb-section-hd" onClick={() => toggleSection('stock')}>
+              <span className="sb-title">Disponibilidad</span>
+              <span className={`sb-chevron${isOpen('stock') ? ' open' : ''}`}>▼</span>
+            </div>
+            <div className={`sb-body${isOpen('stock') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('stock') ? 80 : 0 }}>
+              <div className="sb-body-inner">
+                <label className="sb-item" style={{ cursor:'pointer' }}>
+                  <input type="checkbox" className="sb-checkbox" checked={soloDisp} onChange={e => setSoloDisp(e.target.checked)} />
+                  Solo con stock disponible
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Apply (mobile) */}
