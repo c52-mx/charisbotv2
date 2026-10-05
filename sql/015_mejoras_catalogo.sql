@@ -25,9 +25,11 @@ ALTER TABLE public.catalogo_productos
 -- ───────────────────────────────────────────────────────────────────────────
 -- PASO 3 — Recrear v_dashboard_stats apuntando a catalogo_productos
 --          La vista original referenciaba catalogo_cases (tabla renombrada
---          en migración 014). Se recrea aquí de forma idempotente.
+--          en migración 014). Se hace DROP primero porque CREATE OR REPLACE
+--          falla si cambian los nombres de columnas.
 -- ───────────────────────────────────────────────────────────────────────────
-CREATE OR REPLACE VIEW public.v_dashboard_stats AS
+DROP VIEW IF EXISTS public.v_dashboard_stats;
+CREATE VIEW public.v_dashboard_stats AS
 SELECT
   (SELECT COUNT(*)::int
      FROM public.pedidos)                                                 AS total_pedidos,
