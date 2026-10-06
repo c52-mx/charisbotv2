@@ -288,7 +288,7 @@ export default function ProductDetailPage() {
       <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--txt3)' }}>
         <div style={{ fontSize:52 }}>🔍</div>
         <p style={{ fontSize:16, fontWeight:700, margin:'12px 0 8px' }}>Producto no encontrado</p>
-        <Link href="/client/catalog" style={{ color:'var(--blue)', fontSize:14 }}>← Volver al catálogo</Link>
+        <button onClick={() => router.back()} style={{ background:'none', border:'none', color:'var(--blue)', fontSize:14, cursor:'pointer', fontFamily:'inherit', padding:0 }}>← Volver al catálogo</button>
       </div>
     </>
   )

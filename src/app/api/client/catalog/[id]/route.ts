@@ -10,8 +10,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const session = await getSession(req)
-  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  // El detalle de producto es público — igual que el listado del catálogo.
+  // Auth solo se exige al agregar al carrito / checkout.
+  await getSession(req)
 
   const productoId = params.id
 

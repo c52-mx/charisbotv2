@@ -92,8 +92,9 @@ const CSS = `
   .sb-color.act { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); transform: scale(1.1); }
   .sb-price-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
   .sb-price-input {
-    flex: 1; padding: 6px 8px; border: 1.5px solid var(--field-border); border-radius: 7px;
+    flex: 1; min-width: 0; padding: 6px 8px; border: 1.5px solid var(--field-border); border-radius: 7px;
     font-size: 12px; color: var(--txt); font-family: inherit; outline: none; background: var(--field-bg);
+    box-sizing: border-box;
   }
   .sb-price-input:focus { border-color: var(--blue); }
 
