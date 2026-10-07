@@ -14,6 +14,7 @@ interface Product {
   nombre:        string
   marca:         string | null
   foto_url:      string | null
+  fotos:         string[] | null
   atributos:     Record<string, any> | null
   descripcion:   string | null
   precio_compra: number | null
@@ -35,6 +36,7 @@ interface FormState {
   nombre:        string
   marca:         string
   foto_url:      string
+  fotos:         string[]
   descripcion:   string
   activo:        boolean
   identificador: string
@@ -49,7 +51,7 @@ const CATS = ['FUNDA', 'ACCESORIO', 'CARGADOR', 'MICA', 'OTRO']
 
 const EMPTY_FORM: FormState = {
   categoria: 'FUNDA', serie: '', modelo: '', color: '', nombre: '',
-  marca: '', foto_url: '', descripcion: '', activo: true,
+  marca: '', foto_url: '', fotos: [], descripcion: '', activo: true,
   identificador: '', ubicacion: '', stock: '0',
   precio_compra: '', precio: '0', atributos: [],
 }
@@ -163,6 +165,7 @@ export default function CatalogPage() {
       nombre:       p.nombre        || '',
       marca:        p.marca         || '',
       foto_url:     p.foto_url      || '',
+      fotos:        p.fotos         || [],
       descripcion:  p.descripcion   || '',
       atributos:    atributosToRows(p.atributos),
       activo:       p.activo,
@@ -214,6 +217,7 @@ export default function CatalogPage() {
       nombre:       form.nombre.trim()  || null,
       marca:        form.marca.trim()   || null,
       foto_url:     form.foto_url.trim()|| null,
+      fotos:        form.fotos.map(u => u.trim()).filter(Boolean),
       descripcion:  form.descripcion.trim() || null,
       atributos:    atributosObj,
       activo:       form.activo,
@@ -671,6 +675,55 @@ export default function CatalogPage() {
                     }} />
                 </label>
               </div>
+            </div>
+
+            {/* ── Galería adicional ── */}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
+                Galería — imágenes adicionales del carrusel
+              </label>
+              {form.fotos.map((url, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                  {url && (
+                    <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6,
+                      border: '1px solid var(--border)', background: 'var(--bg4)', flexShrink: 0 }} />
+                  )}
+                  <input className="inp" style={inp({ flex: 1 })} placeholder="/api/files/catalog/foto.jpg"
+                         value={url}
+                         onChange={e => {
+                           const arr = [...form.fotos]; arr[i] = e.target.value
+                           setForm(f => ({ ...f, fotos: arr }))
+                         }} />
+                  <label style={{ cursor: uploadingImg ? 'default' : 'pointer', flexShrink: 0 }}>
+                    <span className="cbtn cbtn-secondary" style={{ pointerEvents: 'none', opacity: uploadingImg ? .5 : 1, padding: '6px 8px' }}>
+                      📷
+                    </span>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImg}
+                      onChange={async e => {
+                        const file = e.target.files?.[0]; if (!file) return
+                        setUploadingImg(true)
+                        try {
+                          const fd = new FormData(); fd.append('file', file)
+                          const res = await fetch('/api/upload/catalog-photo', { method: 'POST', body: fd })
+                          const d = await res.json()
+                          if (!res.ok) throw new Error(d.error)
+                          const arr = [...form.fotos]; arr[i] = d.url
+                          setForm(f => ({ ...f, fotos: arr }))
+                        } catch (err: any) { setError(err.message) } finally { setUploadingImg(false) }
+                      }} />
+                  </label>
+                  <button type="button" className="cbtn cbtn-ghost"
+                          style={{ color: '#f87171', padding: '5px 8px', flexShrink: 0 }}
+                          onClick={() => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))}>
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="cbtn cbtn-secondary"
+                      style={{ fontSize: 12, marginTop: form.fotos.length ? 0 : 2 }}
+                      onClick={() => setForm(f => ({ ...f, fotos: [...f.fotos, ''] }))}>
+                + Agregar imagen al carrusel
+              </button>
             </div>
 
             {/* SKU + ubicacion + stock */}
