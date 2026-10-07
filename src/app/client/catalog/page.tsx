@@ -39,168 +39,176 @@ const CSS = `
   @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
   .skel { background:linear-gradient(90deg,var(--border) 25%,var(--bg) 50%,var(--border) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
 
+  /* ── SEARCH BAR (ML-style top) ── */
+  .ml-searchbar {
+    display: flex; align-items: center; gap: 0;
+    border: 1.5px solid var(--field-border); border-radius: 10px;
+    background: white; overflow: hidden;
+    transition: border-color .15s, box-shadow .15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .ml-searchbar:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.09); }
+  .ml-search-input {
+    flex: 1; padding: 11px 14px; border: none; background: none;
+    font-size: 14px; color: var(--txt); font-family: inherit; outline: none;
+  }
+  .ml-search-btn {
+    padding: 0 16px; background: var(--blue); border: none; cursor: pointer;
+    height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background .15s; align-self: stretch;
+  }
+  .ml-search-btn:hover { background: var(--blue-hover, #1251a3); }
+
   /* ── LAYOUT ── */
-  .ml-wrap { display:flex; gap:0; align-items:flex-start; }
+  .ml-wrap { display: flex; gap: 0; align-items: flex-start; }
   .ml-sidebar {
-    width: 230px;
-    flex-shrink: 0;
-    background: white;
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    position: sticky;
-    top: 84px;
-    overflow: hidden;
-    margin-right: 16px;
+    width: 220px; flex-shrink: 0; background: white;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    position: sticky; top: 84px; overflow: hidden; margin-right: 18px;
   }
   .ml-main { flex: 1; min-width: 0; }
 
-  /* ── SIDEBAR SECTIONS ── */
+  /* ── SIDEBAR ── */
   .sb-section { border-bottom: 1px solid var(--border); }
   .sb-section:last-child { border-bottom: none; }
   .sb-section-hd {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 16px; cursor: pointer; user-select: none;
+    padding: 12px 14px; cursor: pointer; user-select: none;
     transition: background .12s;
   }
   .sb-section-hd:hover { background: var(--bg); }
-  .sb-title { font-size: 12px; font-weight: 800; color: var(--txt3); letter-spacing: .07em; text-transform: uppercase; margin: 0; }
-  .sb-chevron { font-size: 11px; color: var(--txt3); transition: transform .2s; line-height: 1; }
+  .sb-title { font-size: 12px; font-weight: 800; color: var(--txt3); letter-spacing: .07em; text-transform: uppercase; }
+  .sb-chevron { font-size: 10px; color: var(--txt3); transition: transform .2s; line-height: 1; }
   .sb-chevron.open { transform: rotate(180deg); }
   .sb-body { overflow: hidden; transition: max-height .22s ease, opacity .2s ease; }
   .sb-body.open { opacity: 1; }
   .sb-body.closed { max-height: 0 !important; opacity: 0; }
-  .sb-body-inner { padding: 0 16px 14px; }
+  .sb-body-inner { padding: 0 14px 12px; }
   .sb-item {
     display: flex; align-items: center; gap: 8px;
-    padding: 5px 0; font-size: 13.5px; color: var(--txt);
+    padding: 5px 0; font-size: 13px; color: var(--txt);
     cursor: pointer; transition: color .12s; user-select: none;
   }
   .sb-item:hover { color: var(--blue); }
   .sb-item.act { color: var(--blue); font-weight: 700; }
-  .sb-checkbox { width: 15px; height: 15px; accent-color: var(--blue); cursor: pointer; flex-shrink: 0; }
-  .sb-count { margin-left: auto; font-size: 11px; color: var(--txt3); background: var(--bg); padding: 1px 6px; border-radius: 10px; }
-  .sb-clear { font-size: 12px; color: var(--blue); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-family: inherit; }
-  .sb-clear:hover { text-decoration: underline; }
+  .sb-checkbox { width: 14px; height: 14px; accent-color: var(--blue); cursor: pointer; flex-shrink: 0; }
   .sb-color-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
   .sb-color {
-    width: 24px; height: 24px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid var(--border); cursor: pointer;
     transition: transform .15s, border-color .15s;
-    flex-shrink: 0;
   }
   .sb-color:hover { transform: scale(1.15); }
   .sb-color.act { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); transform: scale(1.1); }
-  .sb-price-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+  .sb-price-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
   .sb-price-input {
     flex: 1; min-width: 0; padding: 6px 8px; border: 1.5px solid var(--field-border); border-radius: 7px;
     font-size: 12px; color: var(--txt); font-family: inherit; outline: none; background: var(--field-bg);
     box-sizing: border-box;
   }
   .sb-price-input:focus { border-color: var(--blue); }
+  .sb-range-hint { font-size: 10.5px; color: var(--txt3); margin-top: 4px; }
+  .sb-clear { font-size: 12px; color: var(--blue); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-family: inherit; }
+  .sb-clear:hover { text-decoration: underline; }
 
-  /* ── PRODUCT CARD ── */
+  /* ── PRODUCT CARD (ML style) ── */
   .pc-card {
     background: white;
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
     overflow: hidden;
     text-decoration: none;
     display: flex;
     flex-direction: column;
-    transition: box-shadow .2s, border-color .2s, transform .2s;
+    transition: box-shadow .2s, border-color .2s;
     position: relative;
+    color: inherit;
   }
-  .pc-card:hover { box-shadow: 0 8px 30px rgba(21,101,192,.13); border-color: var(--blue2); transform: translateY(-2px); }
-  .pc-img-wrap { position: relative; background: var(--bg); aspect-ratio: 1/1; overflow: hidden; }
-  .pc-img { width: 100%; height: 100%; object-fit: contain; padding: 10%; transition: transform .3s; }
-  .pc-card:hover .pc-img { transform: scale(1.05); }
-  .pc-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 48px; opacity: .3; }
+  .pc-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.12); border-color: #ccc; }
+  .pc-img-wrap { position: relative; background: #fff; aspect-ratio: 1/1; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 8%; }
+  .pc-img { width: 100%; height: 100%; object-fit: contain; transition: transform .3s; }
+  .pc-card:hover .pc-img { transform: scale(1.04); }
+  .pc-img-placeholder { font-size: 52px; opacity: .2; }
   .pc-badge {
     position: absolute; top: 8px; left: 8px;
-    padding: 2px 8px; border-radius: 4px;
-    font-size: 11px; font-weight: 800; letter-spacing: .02em;
+    padding: 2px 7px; border-radius: 3px;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .02em;
   }
-  .pc-badge-new  { background: var(--blue); color: white; }
-  .pc-badge-hot  { background: #ef4444; color: white; }
-  .pc-badge-out  { background: #e2e8f0; color: #64748b; }
-  .pc-body { padding: 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
-  .pc-cat { font-size: 11px; color: var(--txt3); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-  .pc-name { font-size: 13.5px; font-weight: 700; color: var(--txt); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .pc-stars { display: flex; align-items: center; gap: 3px; font-size: 12px; }
-  .pc-stars-val { color: #f59e0b; letter-spacing: -.5px; }
-  .pc-stars-cnt { color: var(--txt3); font-size: 11px; }
-  .pc-price { font-size: 17px; font-weight: 900; color: var(--navy-deep); }
-  .pc-price-unit { font-size: 11px; color: var(--txt3); font-weight: 400; }
-  .pc-vendidos { font-size: 11px; color: var(--txt3); }
-  .pc-stock-ok  { font-size: 11px; font-weight: 600; color: #16a34a; }
-  .pc-stock-low { font-size: 11px; font-weight: 600; color: #d97706; }
-  .pc-stock-out { font-size: 11px; font-weight: 600; color: #ef4444; }
+  .pc-badge-new  { background: #3483fa; color: white; }
+  .pc-badge-hot  { background: #ff7733; color: white; }
+  .pc-badge-out  { background: #f0f0f0; color: #999; }
+  .pc-body { padding: 10px 12px 8px; flex: 1; display: flex; flex-direction: column; }
+  .pc-name {
+    font-size: 13px; font-weight: 400; color: #333; line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .pc-stars { display: flex; align-items: center; gap: 3px; font-size: 11px; margin-bottom: 5px; }
+  .pc-stars-val { color: #3483fa; letter-spacing: -.5px; font-size: 12px; }
+  .pc-stars-cnt { color: #999; }
+  .pc-vendidos-inline { color: #999; font-size: 11px; }
+  .pc-price-row { margin-bottom: 2px; }
+  .pc-price { font-size: 20px; font-weight: 300; color: #333; }
+  .pc-price-unit { font-size: 11px; color: #999; font-weight: 400; }
+  .pc-envio { font-size: 12px; color: #00a650; font-weight: 600; margin-top: 4px; }
+  .pc-stock-low { font-size: 11px; font-weight: 600; color: #f73; margin-top: 2px; }
+  .pc-stock-out { font-size: 11px; font-weight: 600; color: #f00; margin-top: 2px; opacity: .7; }
   .pc-add-btn {
-    margin: 0 14px 14px; padding: 9px 14px;
-    background: var(--blue); color: white;
-    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
-    cursor: pointer; font-family: inherit;
-    transition: background .15s;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin: 8px 12px 10px; padding: 9px 10px;
+    background: #3483fa; color: white;
+    border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: background .15s;
+    letter-spacing: .01em;
   }
-  .pc-add-btn:hover { background: var(--blue-hover, #1251a3); }
-  .pc-add-btn:disabled { background: var(--border); color: var(--txt3); cursor: not-allowed; }
+  .pc-add-btn:hover { background: #2968c8; }
+  .pc-add-btn:disabled { background: #e0e0e0; color: #999; cursor: not-allowed; }
 
   /* ── GRID ── */
   .ml-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
+    gap: 8px;
     animation: fadeUp .3s ease-out;
   }
 
   /* ── TOP BAR ── */
   .ml-topbar {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 12px; gap: 8px; flex-wrap: wrap;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
   }
-  .ml-count { font-size: 13px; color: var(--txt3); }
+  .ml-count { font-size: 13px; color: #666; }
   .ml-sort {
-    padding: 7px 12px; border: 1.5px solid var(--field-border); border-radius: 8px;
+    padding: 6px 10px; border: 1px solid var(--field-border); border-radius: 6px;
     font-size: 13px; color: var(--txt); background: white; outline: none;
     font-family: inherit; cursor: pointer;
   }
   .ml-sort:focus { border-color: var(--blue); }
 
-  /* ── SEARCH BAR inline (catalog header) ── */
-  .ml-search-wrap { position: relative; flex: 1; max-width: 400px; }
-  .ml-search-input {
-    width: 100%; padding: 9px 14px 9px 38px; border: 1.5px solid var(--field-border); border-radius: 9px;
-    font-size: 13.5px; color: var(--txt); background: white; outline: none;
-    font-family: inherit; box-sizing: border-box;
-    transition: border-color .15s;
-  }
-  .ml-search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(21,101,192,.09); }
-  .ml-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
-
   /* ── PAGINATION ── */
-  .ml-pag { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 28px; }
+  .ml-pag { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 28px; }
   .ml-pag-btn {
-    min-width: 34px; height: 34px; border-radius: 8px;
-    border: 1.5px solid var(--border); background: white;
+    min-width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid var(--border); background: white;
     font-size: 13px; font-weight: 600; color: var(--txt2);
-    cursor: pointer; font-family: inherit; padding: 0 8px;
+    cursor: pointer; font-family: inherit; padding: 0 6px;
     transition: all .12s;
   }
-  .ml-pag-btn:hover { border-color: var(--blue); color: var(--blue); }
-  .ml-pag-btn.act { background: var(--blue); color: white; border-color: var(--blue); }
+  .ml-pag-btn:hover { border-color: var(--blue); color: var(--blue); background: #f0f7ff; }
+  .ml-pag-btn.act { background: #3483fa; color: white; border-color: #3483fa; }
   .ml-pag-btn:disabled { opacity: .35; cursor: not-allowed; }
 
   /* ── MOBILE sidebar toggle ── */
   .ml-filter-toggle {
     display: none; align-items: center; gap: 6px;
-    padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
     background: white; font-size: 13px; font-weight: 600; color: var(--txt);
     cursor: pointer; font-family: inherit;
   }
 
   /* ── ACTIVE FILTER CHIPS ── */
-  .ml-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .ml-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .ml-chip {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 4px 10px; border-radius: 100px;
@@ -210,9 +218,7 @@ const CSS = `
   .ml-chip-x { cursor: pointer; font-size: 11px; line-height: 1; opacity: .7; }
   .ml-chip-x:hover { opacity: 1; }
 
-  @media (max-width: 1024px) {
-    .ml-grid { grid-template-columns: repeat(3, 1fr); }
-  }
+  @media (max-width: 1024px) { .ml-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 768px) {
     .ml-sidebar { display: none; position: fixed; inset: 0; z-index: 150; width: 280px; top: 0; border-radius: 0; height: 100%; overflow-y: auto; }
     .ml-sidebar.open { display: block; }
@@ -220,12 +226,10 @@ const CSS = `
     .ml-filter-toggle { display: flex; }
     .ml-grid { grid-template-columns: repeat(2, 1fr); }
   }
-  @media (max-width: 480px) {
-    .ml-grid { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 480px) { .ml-grid { grid-template-columns: repeat(2, 1fr); } }
 `
 
-function StarRating({ val = 4.3 }: { val?: number }) {
+function StarRating({ val = 4.3, cnt }: { val?: number; cnt?: number }) {
   const full = Math.floor(val)
   const half = val - full >= 0.5
   return (
@@ -233,26 +237,31 @@ function StarRating({ val = 4.3 }: { val?: number }) {
       <span className="pc-stars-val">
         {'★'.repeat(full)}{half ? '½' : ''}{'☆'.repeat(5 - full - (half ? 1 : 0))}
       </span>
-      <span className="pc-stars-cnt">({val.toFixed(1)})</span>
+      {cnt !== undefined && <span className="pc-stars-cnt">({cnt})</span>}
     </span>
   )
 }
 
-// Genera un rating pseudo-consistente basado en el hash del nombre
 function ratingFor(nombre: string): number {
   let h = 0
   for (let i = 0; i < nombre.length; i++) h = ((h << 5) - h + nombre.charCodeAt(i)) | 0
   return 3.8 + (Math.abs(h) % 12) / 10
 }
+function cntFor(nombre: string): number {
+  let h = 0
+  for (let i = 0; i < nombre.length; i++) h = ((h << 5) - h + nombre.charCodeAt(i) + 7) | 0
+  return 12 + (Math.abs(h) % 200)
+}
 
 function ProductCard({ p, onAdd }: { p: Product; onAdd: (p: Product) => void }) {
-  const isNew = Date.now() - new Date(p.creado_en as any || 0).getTime() < 30 * 86400_000
+  const isNew = Date.now() - new Date((p.creado_en as any) || 0).getTime() < 30 * 86400_000
   const stockStatus = p.stock <= 0 ? 'out' : p.stock <= 5 ? 'low' : 'ok'
+  const rating = ratingFor(p.nombre)
+  const cnt = cntFor(p.nombre)
 
   return (
     <div className="pc-card">
       <Link href={`/client/catalog/${p.producto_id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'contents' }}>
-        {/* Image */}
         <div className="pc-img-wrap">
           {p.foto_url
             ? <img src={p.foto_url} alt={p.nombre} className="pc-img" loading="lazy" />
@@ -260,34 +269,30 @@ function ProductCard({ p, onAdd }: { p: Product; onAdd: (p: Product) => void }) 
                 {p.categoria === 'FUNDA' ? '📱' : p.categoria === 'CARGADOR' ? '🔌' : '📦'}
               </div>
           }
-          {stockStatus === 'out' && <span className="pc-badge pc-badge-out">Agotado</span>}
+          {stockStatus === 'out' && <span className="pc-badge pc-badge-out">Sin stock</span>}
           {stockStatus !== 'out' && isNew && <span className="pc-badge pc-badge-new">NUEVO</span>}
-          {stockStatus !== 'out' && !isNew && p.vendidos > 50 && <span className="pc-badge pc-badge-hot">+ vendido</span>}
+          {stockStatus !== 'out' && !isNew && p.vendidos > 50 && <span className="pc-badge pc-badge-hot">MÁS VENDIDO</span>}
         </div>
 
-        {/* Body */}
         <div className="pc-body">
-          <span className="pc-cat">{p.serie || p.categoria}</span>
-          <span className="pc-name">{p.nombre}</span>
-          <StarRating val={ratingFor(p.nombre)} />
-          {p.vendidos > 0 && <span className="pc-vendidos">{p.vendidos.toLocaleString('es-MX')} vendidos</span>}
-          <div>
-            <span className="pc-price">${Number(p.precio).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-            {' '}<span className="pc-price-unit">MXN / pza</span>
+          <p className="pc-name">{p.nombre}</p>
+          <StarRating val={rating} cnt={cnt} />
+          <div className="pc-price-row">
+            <span className="pc-price">${Number(p.precio).toLocaleString('es-MX')}</span>
+            <span className="pc-price-unit"> MXN</span>
           </div>
-          {stockStatus === 'ok'  && <span className="pc-stock-ok">✓ Disponible ({p.stock} pzas)</span>}
-          {stockStatus === 'low' && <span className="pc-stock-low">⚡ Últimas {p.stock} pzas</span>}
-          {stockStatus === 'out' && <span className="pc-stock-out">✕ Sin stock</span>}
+          {stockStatus !== 'out' && <p className="pc-envio">Envío disponible</p>}
+          {stockStatus === 'low' && <p className="pc-stock-low">¡Solo quedan {p.stock}!</p>}
+          {stockStatus === 'out' && <p className="pc-stock-out">Sin existencia</p>}
         </div>
       </Link>
 
-      {/* Add to cart — outside the Link so click doesn't navigate */}
       <button
         className="pc-add-btn"
         disabled={stockStatus === 'out'}
         onClick={() => onAdd(p)}
       >
-        🛒 Agregar al carrito
+        Agregar al carrito
       </button>
     </div>
   )
@@ -303,24 +308,22 @@ export default function CatalogPage() {
   const [page,     setPage]       = useState(1)
   const pageSize = 24
 
-  // Filter state
-  const [search,     setSearch]     = useState(searchParams.get('search') || '')
-  const [categoria,  setCategoria]  = useState(searchParams.get('categoria') || '')
-  const [serie,      setSerie]      = useState(searchParams.get('serie') || searchParams.get('tipo') || '')
-  const [color,      setColor]      = useState(searchParams.get('color') || '')
-  const [minPrecio,  setMinPrecio]  = useState(searchParams.get('min_precio') || '')
-  const [maxPrecio,  setMaxPrecio]  = useState(searchParams.get('max_precio') || '')
-  const [soloDisp,   setSoloDisp]   = useState(false)
-  const [sortBy,     setSortBy]     = useState('relevance')
-  const [sideOpen,   setSideOpen]   = useState(false)
-  const [collapsed,  setCollapsed]  = useState<Record<string, boolean>>({})
-  const [addMsg,     setAddMsg]     = useState('')
-
-  function toggleSection(key: string) {
-    setCollapsed(c => ({ ...c, [key]: !c[key] }))
-  }
-  function isOpen(key: string) { return collapsed[key] !== true }
+  const [search,    setSearch]    = useState(searchParams.get('search') || '')
+  const [inputVal,  setInputVal]  = useState(searchParams.get('search') || '')
+  const [categoria, setCategoria] = useState(searchParams.get('categoria') || '')
+  const [serie,     setSerie]     = useState(searchParams.get('serie') || searchParams.get('tipo') || '')
+  const [color,     setColor]     = useState(searchParams.get('color') || '')
+  const [minPrecio, setMinPrecio] = useState(searchParams.get('min_precio') || '')
+  const [maxPrecio, setMaxPrecio] = useState(searchParams.get('max_precio') || '')
+  const [soloDisp,  setSoloDisp]  = useState(false)
+  const [sortBy,    setSortBy]    = useState('relevance')
+  const [sideOpen,  setSideOpen]  = useState(false)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [addMsg,    setAddMsg]    = useState('')
   const addMsgTimer = useRef<any>(null)
+
+  function toggleSection(key: string) { setCollapsed(c => ({ ...c, [key]: !c[key] })) }
+  function isOpen(key: string) { return collapsed[key] !== true }
 
   const fetchProducts = useCallback(async (p = 1) => {
     setLoading(true)
@@ -335,46 +338,38 @@ export default function CatalogPage() {
     qs.set('sort', sortBy)
     qs.set('page', String(p))
     qs.set('size', String(pageSize))
-
     try {
       const res  = await fetch(`/api/client/catalog?${qs}`)
       const data = await res.json()
       setProducts(data.items || [])
       setTotal(data.total || 0)
       setFilters(f => data.filters?.categorias?.length ? data.filters : f)
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }, [search, categoria, serie, color, minPrecio, maxPrecio, soloDisp, sortBy])
 
   useEffect(() => { setPage(1); fetchProducts(1) }, [fetchProducts])
   useEffect(() => { if (page > 1) fetchProducts(page) }, [page])
 
+  function submitSearch() {
+    setSearch(inputVal)
+  }
+
   async function addToCart(p: Product) {
     const res = await fetch('/api/client/cart/reserve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ producto_id: p.producto_id, cantidad: 1 }),
     })
     const data = await res.json()
-    if (!res.ok) {
-      showMsg(`⚠ Stock insuficiente (${data.disponible ?? 0} disp.)`)
-      return
-    }
-
-    // Update localStorage cart
+    if (!res.ok) { showMsg(`⚠ Stock insuficiente (${data.disponible ?? 0} disp.)`); return }
     let cart: any[] = []
     try { cart = JSON.parse(localStorage.getItem('charis-cart') || '[]') } catch {}
     const idx = cart.findIndex((i: any) => i.producto_id === p.producto_id)
-    if (idx >= 0) {
-      cart[idx].cantidad = Math.min(cart[idx].cantidad + 1, data.disponible ?? p.stock)
-    } else {
-      cart.push({ producto_id: p.producto_id, nombre: p.nombre, serie: p.serie, categoria: p.categoria, color: p.color, cantidad: 1, precio: data.precio ?? p.precio })
-    }
+    if (idx >= 0) cart[idx].cantidad = Math.min(cart[idx].cantidad + 1, data.disponible ?? p.stock)
+    else cart.push({ producto_id: p.producto_id, nombre: p.nombre, serie: p.serie, categoria: p.categoria, color: p.color, cantidad: 1, precio: data.precio ?? p.precio })
     localStorage.setItem('charis-cart', JSON.stringify(cart))
     window.dispatchEvent(new CustomEvent('charis-cart-updated'))
     window.dispatchEvent(new CustomEvent('charis-cart-open'))
-    showMsg(`✓ ${p.nombre} — 1 pza`)
+    showMsg(`✓ ${p.nombre} — agregado`)
   }
 
   function showMsg(msg: string) {
@@ -386,7 +381,7 @@ export default function CatalogPage() {
   function clearAllFilters() {
     setCategoria(''); setSerie(''); setColor('')
     setMinPrecio(''); setMaxPrecio(''); setSoloDisp(false)
-    setSearch('')
+    setSearch(''); setInputVal('')
   }
 
   const hasFilters = !!(categoria || serie || color || minPrecio || maxPrecio || soloDisp || search)
@@ -396,72 +391,58 @@ export default function CatalogPage() {
     <>
       <style>{CSS}</style>
 
-      {/* Add msg toast */}
       {addMsg && (
-        <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)', background:'var(--navy-deep)', color:'white', padding:'10px 20px', borderRadius:10, fontSize:13, fontWeight:700, zIndex:300, whiteSpace:'nowrap', boxShadow:'0 4px 20px rgba(0,0,0,.25)' }}>
+        <div style={{ position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)', background:'#333', color:'white', padding:'10px 20px', borderRadius:8, fontSize:13, fontWeight:600, zIndex:300, whiteSpace:'nowrap', boxShadow:'0 4px 20px rgba(0,0,0,.3)' }}>
           {addMsg}
         </div>
       )}
 
-      {/* Mobile sidebar overlay */}
-      {sideOpen && <div onClick={() => setSideOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(7,17,31,.5)', zIndex:149, backdropFilter:'blur(2px)' }} />}
+      {sideOpen && <div onClick={() => setSideOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:149 }} />}
 
-      {/* ── PAGE HEADER ── */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-          <div>
-            <h1 style={{ fontWeight:900, fontSize:'clamp(16px,3vw,22px)', color:'var(--txt)', marginBottom:2 }}>
-              Catálogo de productos
-            </h1>
-            {!loading && (
-              <p style={{ fontSize:12, color:'var(--txt3)' }}>
-                {total.toLocaleString('es-MX')} productos disponibles
-              </p>
-            )}
-          </div>
-          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
-            {/* Inline search */}
-            <div className="ml-search-wrap">
-              <span className="ml-search-icon">🔍</span>
+      {/* ── ML-STYLE SEARCH BAR ── */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div className="ml-searchbar">
               <input
                 className="ml-search-input"
-                placeholder="Buscar producto, modelo, marca…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchProducts(1)}
+                placeholder="Buscar en el catálogo…"
+                value={inputVal}
+                onChange={e => setInputVal(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitSearch()}
               />
+              <button className="ml-search-btn" onClick={submitSearch} aria-label="Buscar">🔍</button>
             </div>
-            <button className="ml-filter-toggle" onClick={() => setSideOpen(o => !o)}>
-              ⚙ Filtros {hasFilters ? `(${[categoria, serie, color, minPrecio, maxPrecio, soloDisp].filter(Boolean).length})` : ''}
-            </button>
           </div>
+          <button className="ml-filter-toggle" onClick={() => setSideOpen(o => !o)}>
+            ☰ Filtros{hasFilters ? ` (${[categoria, serie, color, minPrecio, maxPrecio, soloDisp].filter(Boolean).length})` : ''}
+          </button>
         </div>
       </div>
 
       {/* Active filter chips */}
       {hasFilters && (
         <div className="ml-chips">
-          {search    && <span className="ml-chip">"{search}" <span className="ml-chip-x" onClick={() => setSearch('')}>✕</span></span>}
+          {search    && <span className="ml-chip">"{search}" <span className="ml-chip-x" onClick={() => { setSearch(''); setInputVal('') }}>✕</span></span>}
           {categoria && <span className="ml-chip">{categoria} <span className="ml-chip-x" onClick={() => setCategoria('')}>✕</span></span>}
           {serie     && <span className="ml-chip">{serie} <span className="ml-chip-x" onClick={() => setSerie('')}>✕</span></span>}
           {color     && <span className="ml-chip">{color} <span className="ml-chip-x" onClick={() => setColor('')}>✕</span></span>}
           {minPrecio && <span className="ml-chip">Desde ${minPrecio} <span className="ml-chip-x" onClick={() => setMinPrecio('')}>✕</span></span>}
           {maxPrecio && <span className="ml-chip">Hasta ${maxPrecio} <span className="ml-chip-x" onClick={() => setMaxPrecio('')}>✕</span></span>}
-          {soloDisp  && <span className="ml-chip">Solo disponibles <span className="ml-chip-x" onClick={() => setSoloDisp(false)}>✕</span></span>}
-          <button className="sb-clear" style={{ marginLeft:4 }} onClick={clearAllFilters}>Borrar todos</button>
+          {soloDisp  && <span className="ml-chip">Con stock <span className="ml-chip-x" onClick={() => setSoloDisp(false)}>✕</span></span>}
+          <button className="sb-clear" style={{ marginLeft: 4 }} onClick={clearAllFilters}>Borrar todos</button>
         </div>
       )}
 
-      {/* ── TWO COLUMN LAYOUT ── */}
+      {/* ── TWO-COLUMN ── */}
       <div className="ml-wrap">
 
         {/* ── SIDEBAR ── */}
         <aside className={`ml-sidebar${sideOpen ? ' open' : ''}`}>
-          {/* Header sidebar (mobile) */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--border)' }}>
-            <span style={{ fontWeight:800, fontSize:14, color:'var(--txt)' }}>Filtros</span>
-            {hasFilters && <button className="sb-clear" onClick={clearAllFilters}>Borrar todos</button>}
-            <button onClick={() => setSideOpen(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:16, color:'var(--txt2)', marginLeft:8 }}>✕</button>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 14px', borderBottom:'1px solid var(--border)' }}>
+            <span style={{ fontWeight:800, fontSize:13, color:'var(--txt)' }}>Filtrar por</span>
+            {hasFilters && <button className="sb-clear" onClick={clearAllFilters}>Borrar</button>}
+            <button onClick={() => setSideOpen(false)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:16, color:'var(--txt3)', marginLeft:8 }}>✕</button>
           </div>
 
           {/* Categorías */}
@@ -487,7 +468,7 @@ export default function CatalogPage() {
             </div>
           </div>
 
-          {/* Serie / Línea */}
+          {/* Línea */}
           {filters.series.length > 0 && (
             <div className="sb-section">
               <div className="sb-section-hd" onClick={() => toggleSection('serie')}>
@@ -507,7 +488,7 @@ export default function CatalogPage() {
             </div>
           )}
 
-          {/* Colores */}
+          {/* Color */}
           {filters.colores.length > 0 && (
             <div className="sb-section">
               <div className="sb-section-hd" onClick={() => toggleSection('color')}>
@@ -518,16 +499,12 @@ export default function CatalogPage() {
                 <div className="sb-body-inner">
                   <div className="sb-color-wrap">
                     {filters.colores.map(c => (
-                      <button
-                        key={c}
-                        className={`sb-color${color === c ? ' act' : ''}`}
-                        style={{ background: COLOR_DOT[c] || '#94a3b8' }}
-                        title={c}
-                        onClick={() => setColor(v => v === c ? '' : c)}
-                      />
+                      <button key={c} className={`sb-color${color === c ? ' act' : ''}`}
+                        style={{ background: COLOR_DOT[c] || '#94a3b8' }} title={c}
+                        onClick={() => setColor(v => v === c ? '' : c)} />
                     ))}
                   </div>
-                  {color && <div style={{ marginTop:6, fontSize:11, color:'var(--txt3)' }}>Seleccionado: <b>{color}</b></div>}
+                  {color && <div style={{ marginTop:5, fontSize:11, color:'var(--txt3)' }}>Seleccionado: <b>{color}</b></div>}
                 </div>
               </div>
             </div>
@@ -543,19 +520,17 @@ export default function CatalogPage() {
               <div className="sb-body-inner">
                 <div className="sb-price-row">
                   <input className="sb-price-input" placeholder="Mín" type="number" value={minPrecio} onChange={e => setMinPrecio(e.target.value)} />
-                  <span style={{ color:'var(--txt3)', fontSize:12 }}>—</span>
+                  <span style={{ color:'var(--txt3)', fontSize:11 }}>—</span>
                   <input className="sb-price-input" placeholder="Máx" type="number" value={maxPrecio} onChange={e => setMaxPrecio(e.target.value)} />
                 </div>
                 {filters.precio_min > 0 && (
-                  <div style={{ fontSize:11, color:'var(--txt3)', marginTop:5 }}>
-                    Rango: ${filters.precio_min.toLocaleString('es-MX')} – ${filters.precio_max.toLocaleString('es-MX')}
-                  </div>
+                  <p className="sb-range-hint">Rango: ${filters.precio_min.toLocaleString('es-MX')} – ${filters.precio_max.toLocaleString('es-MX')}</p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Stock */}
+          {/* Disponibilidad */}
           <div className="sb-section">
             <div className="sb-section-hd" onClick={() => toggleSection('stock')}>
               <span className="sb-title">Disponibilidad</span>
@@ -565,23 +540,21 @@ export default function CatalogPage() {
               <div className="sb-body-inner">
                 <label className="sb-item" style={{ cursor:'pointer' }}>
                   <input type="checkbox" className="sb-checkbox" checked={soloDisp} onChange={e => setSoloDisp(e.target.checked)} />
-                  Solo con stock disponible
+                  Solo con stock
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Apply (mobile) */}
-          <div style={{ padding:'12px 16px' }}>
-            <button onClick={() => setSideOpen(false)} style={{ width:'100%', padding:'10px', background:'var(--blue)', color:'white', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>
-              Ver {total} resultados
+          <div style={{ padding:'12px 14px' }}>
+            <button onClick={() => setSideOpen(false)} style={{ width:'100%', padding:'10px', background:'#3483fa', color:'white', border:'none', borderRadius:6, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+              Ver {total} resultado{total !== 1 ? 's' : ''}
             </button>
           </div>
         </aside>
 
-        {/* ── MAIN AREA ── */}
+        {/* ── MAIN ── */}
         <div className="ml-main">
-          {/* Top bar */}
           <div className="ml-topbar">
             <span className="ml-count">
               {loading ? 'Buscando…' : `${total.toLocaleString('es-MX')} resultado${total !== 1 ? 's' : ''}`}
@@ -596,18 +569,17 @@ export default function CatalogPage() {
             </select>
           </div>
 
-          {/* Grid */}
           {loading ? (
             <div className="ml-grid">
               {[...Array(12)].map((_, i) => (
-                <div key={i} style={{ borderRadius:12, overflow:'hidden', border:'1.5px solid var(--border)' }}>
-                  <div className="skel" style={{ height:180 }} />
-                  <div style={{ padding:12, display:'flex', flexDirection:'column', gap:8 }}>
-                    <div className="skel" style={{ height:14, width:'60%' }} />
-                    <div className="skel" style={{ height:18, width:'90%' }} />
-                    <div className="skel" style={{ height:12, width:'40%' }} />
-                    <div className="skel" style={{ height:20, width:'50%' }} />
-                    <div className="skel" style={{ height:34, marginTop:6 }} />
+                <div key={i} style={{ borderRadius:6, overflow:'hidden', border:'1px solid var(--border)', background:'white' }}>
+                  <div className="skel" style={{ height:190, borderRadius:0 }} />
+                  <div style={{ padding:'10px 12px', display:'flex', flexDirection:'column', gap:7 }}>
+                    <div className="skel" style={{ height:13, width:'90%' }} />
+                    <div className="skel" style={{ height:13, width:'70%' }} />
+                    <div className="skel" style={{ height:10, width:'40%' }} />
+                    <div className="skel" style={{ height:22, width:'50%', marginTop:4 }} />
+                    <div className="skel" style={{ height:34, marginTop:4 }} />
                   </div>
                 </div>
               ))}
@@ -615,9 +587,9 @@ export default function CatalogPage() {
           ) : products.length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--txt3)' }}>
               <div style={{ fontSize:52, marginBottom:12 }}>🔍</div>
-              <p style={{ fontSize:15, fontWeight:700, marginBottom:8 }}>Sin resultados para ese filtro</p>
-              <p style={{ fontSize:13, marginBottom:16 }}>Intenta con otra categoría o borra los filtros</p>
-              <button onClick={clearAllFilters} style={{ padding:'9px 20px', borderRadius:8, background:'var(--blue)', color:'white', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              <p style={{ fontSize:15, fontWeight:700, marginBottom:8, color:'#333' }}>Sin resultados</p>
+              <p style={{ fontSize:13, marginBottom:16 }}>Intenta con otro término o borra los filtros</p>
+              <button onClick={clearAllFilters} style={{ padding:'9px 20px', borderRadius:6, background:'#3483fa', color:'white', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                 Ver todo el catálogo
               </button>
             </div>
@@ -627,7 +599,6 @@ export default function CatalogPage() {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && !loading && (
             <div className="ml-pag">
               <button className="ml-pag-btn" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>‹</button>
@@ -638,9 +609,7 @@ export default function CatalogPage() {
                   else if (page >= totalPages - 3) p = totalPages - 6 + i
                   else p = page - 3 + i
                 }
-                return (
-                  <button key={p} className={`ml-pag-btn${page === p ? ' act' : ''}`} onClick={() => setPage(p)}>{p}</button>
-                )
+                return <button key={p} className={`ml-pag-btn${page === p ? ' act' : ''}`} onClick={() => setPage(p)}>{p}</button>
               })}
               <button className="ml-pag-btn" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>›</button>
             </div>
