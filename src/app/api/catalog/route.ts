@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   const [rows, countRow] = await Promise.all([
     query(
-      `SELECT producto_id, categoria, serie, modelo, color, nombre, marca, foto_url, atributos,
+      `SELECT producto_id, categoria, serie, modelo, color, nombre, marca, foto_url, fotos, atributos,
               descripcion, precio_compra,
               activo, identificador, ubicacion, stock, precio, creado_en
        FROM public.catalogo_productos ${where}
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   // Aceptar tanto los nombres nuevos como los viejos (compat transición)
   const serie        = (body.serie ?? body.tipo_case)
   const { modelo, color, activo = true, identificador, ubicacion, stock = 0, precio = 0,
-          categoria = 'FUNDA', nombre, marca, foto_url, atributos,
+          categoria = 'FUNDA', nombre, marca, foto_url, fotos, atributos,
           descripcion, precio_compra } = body
 
   // Para fundas clásicas (categoria FUNDA), serie+modelo+color siguen siendo el key natural.
@@ -99,13 +99,14 @@ export async function POST(req: NextRequest) {
   const nombreFinal = (nombre ?? [serieNorm, modeloNorm, colorNorm].filter(Boolean).join(' ')).trim()
 
   const precioCompraVal = precio_compra !== undefined ? Math.max(0, parseFloat(precio_compra) || 0) : null
+  const fotosVal = Array.isArray(fotos) ? fotos.map((u: string) => u?.trim()).filter(Boolean) : []
 
   const rows = await query(
     `INSERT INTO public.catalogo_productos
-       (categoria, serie, modelo, color, nombre, marca, foto_url, atributos,
+       (categoria, serie, modelo, color, nombre, marca, foto_url, fotos, atributos,
         descripcion, precio_compra,
         activo, identificador, ubicacion, stock, precio)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      ON CONFLICT DO NOTHING
      RETURNING *`,
     [
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
       nombreFinal,
       marca?.trim()         || null,
       foto_url?.trim()      || null,
+      fotosVal,
       atributos ? JSON.stringify(atributos) : null,
       descripcion?.trim()   || null,
       precioCompraVal,

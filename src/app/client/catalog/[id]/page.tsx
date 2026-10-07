@@ -11,6 +11,7 @@ interface Producto {
   color: string | null
   nombre: string
   foto_url: string | null
+  fotos: string[] | null
   marca: string | null
   precio: number
   stock: number
@@ -222,6 +223,7 @@ export default function ProductDetailPage() {
 
   const allImgs = [
     producto?.foto_url,
+    ...(producto?.fotos || []),
     ...variantes.map(v => v.foto_url),
   ].filter(Boolean) as string[]
   const uniqueImgs = [...new Set(allImgs)]
