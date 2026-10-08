@@ -81,7 +81,7 @@ export default function CatalogPage() {
   const PAGE_SIZE = 50
 
   // Modal state
-  const [modal,     setModal]     = useState<'create' | 'edit' | null>(null)
+  const [modal,     setModal]     = useState<'create' | 'edit' | 'duplicate' | null>(null)
   const [showImport, setShowImport]   = useState(false)
   const [showDeleteAll, setShowDeleteAll] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
@@ -180,6 +180,30 @@ export default function CatalogPage() {
     setModal('edit')
   }
 
+  function openDuplicate(p: Product) {
+    setForm({
+      categoria:    p.categoria || 'FUNDA',
+      serie:        p.serie         || '',
+      modelo:       p.modelo        || '',
+      color:        '',                        // vacío — debe cambiar
+      nombre:       p.nombre        || '',
+      marca:        p.marca         || '',
+      foto_url:     '',                        // vacío — imágenes son por variante
+      fotos:        [],                        // vacío
+      descripcion:  p.descripcion   || '',
+      atributos:    atributosToRows(p.atributos),
+      activo:       p.activo,
+      identificador: p.identificador || '',   // pre-llenado pero editable
+      ubicacion:    p.ubicacion || '',
+      stock:        '0',                       // stock propio de la variante
+      precio_compra: p.precio_compra != null ? String(p.precio_compra) : '',
+      precio:       String(p.precio ?? 0),
+    })
+    setEditId(null)
+    setError('')
+    setModal('duplicate')
+  }
+
   // ── Price calculator ──────────────────────────────────────────────
   const costo  = parseFloat(form.precio_compra) || 0
   const venta  = parseFloat(form.precio)        || 0
@@ -233,6 +257,7 @@ export default function CatalogPage() {
       isEdit ? `/api/catalog/${editId}` : '/api/catalog',
       { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
     )
+    // 'duplicate' usa POST igual que 'create', editId es null en ese modo
     const data = await res.json()
     setSaving(false)
 
@@ -446,9 +471,14 @@ export default function CatalogPage() {
                   </td>
                   {canEdit && (
                     <td>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <button className="cbtn cbtn-ghost"
                                 onClick={() => openEdit(p)}>Editar</button>
+                        {canCreate && (
+                          <button className="cbtn cbtn-ghost"
+                                  title="Crear variante de color basada en este producto"
+                                  onClick={() => openDuplicate(p)}>Duplicar</button>
+                        )}
                         <button className="cbtn cbtn-ghost"
                                 style={{ color: p.activo ? '#f87171' : '#34d399' }}
                                 onClick={() => toggleActivo(p as Product)}>
@@ -482,8 +512,13 @@ export default function CatalogPage() {
         <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div className="modal-box">
             <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>
-              {modal === 'create' ? 'Nuevo producto' : 'Editar producto'}
+              {modal === 'create' ? 'Nuevo producto' : modal === 'duplicate' ? 'Nueva variante (copia)' : 'Editar producto'}
             </h2>
+            {modal === 'duplicate' && (
+              <p style={{ fontSize: 12, color: 'var(--txt2)', margin: '0 0 4px' }}>
+                Cambia el color, identificador y sube las fotos de esta variante.
+              </p>
+            )}
 
             {/* ─── SECCIÓN: Información general ─── */}
             <div className="section-label">Información general</div>
