@@ -95,8 +95,28 @@ const CSS = `
     display:flex; align-items:center; justify-content:center;
     cursor:zoom-in;
   }
-  .pd-main-img img { width:100%; height:100%; object-fit:contain; padding:6%; transition:transform .3s; }
-  .pd-main-img:hover img { transform:scale(1.06); }
+  .pd-main-img img { width:100%; height:100%; object-fit:contain; padding:6%; transition:transform .2s; }
+  .pd-main-img:hover img { transform:scale(1.03); }
+
+  /* ── LIGHTBOX ── */
+  .pd-lightbox {
+    position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+    cursor:zoom-out; animation:lbFadeIn .15s ease;
+  }
+  @keyframes lbFadeIn { from { opacity:0 } to { opacity:1 } }
+  .pd-lightbox img {
+    max-width:90vw; max-height:90vh; object-fit:contain;
+    border-radius:6px; box-shadow:0 8px 60px rgba(0,0,0,.6);
+    user-select:none;
+  }
+  .pd-lightbox-close {
+    position:absolute; top:16px; right:20px; background:rgba(255,255,255,.15);
+    border:none; color:#fff; width:40px; height:40px; border-radius:50%;
+    font-size:22px; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; transition:background .12s;
+  }
+  .pd-lightbox-close:hover { background:rgba(255,255,255,.28); }
 
   /* ── INFO PANEL ── */
   .pd-panel { }
@@ -250,9 +270,17 @@ export default function ProductDetailPage() {
   const [relacionados, setRelacionados]= useState<RelacionadoCard[]>([])
   const [loading,      setLoading]     = useState(true)
   const [mainImg,      setMainImg]     = useState<string | null>(null)
+  const [lightbox,     setLightbox]    = useState(false)
   const [qty,          setQty]         = useState(1)
   const [addMsg,       setAddMsg]      = useState('')
   const [adding,       setAdding]      = useState(false)
+
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   useEffect(() => {
     if (!productoId) return
@@ -350,6 +378,14 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* ── LIGHTBOX ── */}
+      {lightbox && mainImg && (
+        <div className="pd-lightbox" onClick={() => setLightbox(false)}>
+          <button className="pd-lightbox-close" onClick={() => setLightbox(false)} aria-label="Cerrar">✕</button>
+          <img src={mainImg} alt={producto.nombre} onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
       {/* ── BREADCRUMB ── */}
       <nav className="pd-breadcrumb">
         <Link href="/client">Inicio</Link>
@@ -389,7 +425,7 @@ export default function ProductDetailPage() {
 
         {/* COL 2: Main image */}
         <div className="pd-main-col">
-          <div className="pd-main-img">
+          <div className="pd-main-img" onClick={() => mainImg && setLightbox(true)}>
             {mainImg
               ? <img src={mainImg} alt={producto.nombre} />
               : <span style={{ fontSize:90, opacity:.15 }}>{producto.categoria === 'FUNDA' ? '📱' : producto.categoria === 'CARGADOR' ? '🔌' : '📦'}</span>
