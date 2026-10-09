@@ -22,6 +22,7 @@ interface Product {
 interface Filters {
   categorias: string[]
   series: string[]
+  modelos: string[]
   colores: string[]
   precio_min: number
   precio_max: number
@@ -53,9 +54,10 @@ const CSS = `
     font-size: 14px; color: var(--txt); font-family: inherit; outline: none;
   }
   .ml-search-btn {
-    padding: 0 16px; background: var(--blue); border: none; cursor: pointer;
-    height: 100%; display: flex; align-items: center; justify-content: center;
-    font-size: 16px; transition: background .15s; align-self: stretch;
+    padding: 0 18px; background: var(--blue); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1; transition: background .15s; align-self: stretch;
+    min-height: 44px;
   }
   .ml-search-btn:hover { background: var(--blue-hover, #1251a3); }
 
@@ -302,7 +304,7 @@ export default function CatalogPage() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const [products, setProducts]   = useState<Product[]>([])
-  const [filters,  setFilters]    = useState<Filters>({ categorias: [], series: [], colores: [], precio_min: 0, precio_max: 0 })
+  const [filters,  setFilters]    = useState<Filters>({ categorias: [], series: [], modelos: [], colores: [], precio_min: 0, precio_max: 0 })
   const [loading,  setLoading]    = useState(true)
   const [total,    setTotal]      = useState(0)
   const [page,     setPage]       = useState(1)
@@ -312,6 +314,7 @@ export default function CatalogPage() {
   const [inputVal,  setInputVal]  = useState(searchParams.get('search') || '')
   const [categoria, setCategoria] = useState(searchParams.get('categoria') || '')
   const [serie,     setSerie]     = useState(searchParams.get('serie') || searchParams.get('tipo') || '')
+  const [modelo,    setModelo]    = useState(searchParams.get('modelo') || '')
   const [color,     setColor]     = useState(searchParams.get('color') || '')
   const [minPrecio, setMinPrecio] = useState(searchParams.get('min_precio') || '')
   const [maxPrecio, setMaxPrecio] = useState(searchParams.get('max_precio') || '')
@@ -331,6 +334,7 @@ export default function CatalogPage() {
     if (search)    qs.set('search', search)
     if (categoria) qs.set('categoria', categoria)
     if (serie)     qs.set('serie', serie)
+    if (modelo)    qs.set('modelo', modelo)
     if (color)     qs.set('color', color)
     if (minPrecio) qs.set('min_precio', minPrecio)
     if (maxPrecio) qs.set('max_precio', maxPrecio)
@@ -345,7 +349,7 @@ export default function CatalogPage() {
       setTotal(data.total || 0)
       setFilters(f => data.filters?.categorias?.length ? data.filters : f)
     } finally { setLoading(false) }
-  }, [search, categoria, serie, color, minPrecio, maxPrecio, soloDisp, sortBy])
+  }, [search, categoria, serie, modelo, color, minPrecio, maxPrecio, soloDisp, sortBy])
 
   useEffect(() => { setPage(1); fetchProducts(1) }, [fetchProducts])
   useEffect(() => { if (page > 1) fetchProducts(page) }, [page])
@@ -379,12 +383,12 @@ export default function CatalogPage() {
   }
 
   function clearAllFilters() {
-    setCategoria(''); setSerie(''); setColor('')
+    setCategoria(''); setSerie(''); setModelo(''); setColor('')
     setMinPrecio(''); setMaxPrecio(''); setSoloDisp(false)
     setSearch(''); setInputVal('')
   }
 
-  const hasFilters = !!(categoria || serie || color || minPrecio || maxPrecio || soloDisp || search)
+  const hasFilters = !!(categoria || serie || modelo || color || minPrecio || maxPrecio || soloDisp || search)
   const totalPages = Math.ceil(total / pageSize)
 
   return (
@@ -415,7 +419,7 @@ export default function CatalogPage() {
             </div>
           </div>
           <button className="ml-filter-toggle" onClick={() => setSideOpen(o => !o)}>
-            ☰ Filtros{hasFilters ? ` (${[categoria, serie, color, minPrecio, maxPrecio, soloDisp].filter(Boolean).length})` : ''}
+            ☰ Filtros{hasFilters ? ` (${[categoria, serie, modelo, color, minPrecio, maxPrecio, soloDisp].filter(Boolean).length})` : ''}
           </button>
         </div>
       </div>
@@ -426,6 +430,7 @@ export default function CatalogPage() {
           {search    && <span className="ml-chip">"{search}" <span className="ml-chip-x" onClick={() => { setSearch(''); setInputVal('') }}>✕</span></span>}
           {categoria && <span className="ml-chip">{categoria} <span className="ml-chip-x" onClick={() => setCategoria('')}>✕</span></span>}
           {serie     && <span className="ml-chip">{serie} <span className="ml-chip-x" onClick={() => setSerie('')}>✕</span></span>}
+          {modelo    && <span className="ml-chip">{modelo} <span className="ml-chip-x" onClick={() => setModelo('')}>✕</span></span>}
           {color     && <span className="ml-chip">{color} <span className="ml-chip-x" onClick={() => setColor('')}>✕</span></span>}
           {minPrecio && <span className="ml-chip">Desde ${minPrecio} <span className="ml-chip-x" onClick={() => setMinPrecio('')}>✕</span></span>}
           {maxPrecio && <span className="ml-chip">Hasta ${maxPrecio} <span className="ml-chip-x" onClick={() => setMaxPrecio('')}>✕</span></span>}
@@ -468,19 +473,27 @@ export default function CatalogPage() {
             </div>
           </div>
 
-          {/* Línea */}
-          {filters.series.length > 0 && (
+          {/* Línea / Modelo */}
+          {(filters.series.length > 0 || filters.modelos?.length > 0) && (
             <div className="sb-section">
               <div className="sb-section-hd" onClick={() => toggleSection('serie')}>
-                <span className="sb-title">Línea</span>
+                <span className="sb-title">Línea / Modelo</span>
                 <span className={`sb-chevron${isOpen('serie') ? ' open' : ''}`}>▼</span>
               </div>
-              <div className={`sb-body${isOpen('serie') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('serie') ? 300 : 0 }}>
+              <div className={`sb-body${isOpen('serie') ? ' open' : ' closed'}`} style={{ maxHeight: isOpen('serie') ? 360 : 0 }}>
                 <div className="sb-body-inner">
                   {filters.series.slice(0, 8).map(s => (
-                    <label key={s} className={`sb-item${serie === s ? ' act' : ''}`} style={{ cursor:'pointer' }}>
-                      <input type="checkbox" className="sb-checkbox" checked={serie === s} onChange={() => setSerie(v => v === s ? '' : s)} />
+                    <label key={`s-${s}`} className={`sb-item${serie === s ? ' act' : ''}`} style={{ cursor:'pointer' }}>
+                      <input type="checkbox" className="sb-checkbox" checked={serie === s}
+                        onChange={() => { setSerie(v => v === s ? '' : s); setModelo('') }} />
                       {s}
+                    </label>
+                  ))}
+                  {(filters.modelos || []).slice(0, 8).map(m => (
+                    <label key={`m-${m}`} className={`sb-item${modelo === m ? ' act' : ''}`} style={{ cursor:'pointer' }}>
+                      <input type="checkbox" className="sb-checkbox" checked={modelo === m}
+                        onChange={() => { setModelo(v => v === m ? '' : m); setSerie('') }} />
+                      {m}
                     </label>
                   ))}
                 </div>

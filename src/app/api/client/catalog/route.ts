@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const search       = searchParams.get('search')          || ''
   const categoria    = searchParams.get('categoria')        || ''
   const serie        = searchParams.get('serie') || searchParams.get('tipo') || ''
+  const modelo       = searchParams.get('modelo')           || ''
   const color        = searchParams.get('color')            || ''
   const minPrecio    = parseFloat(searchParams.get('min_precio') || '0')   || 0
   const maxPrecio    = parseFloat(searchParams.get('max_precio') || '0')   || 0
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest) {
     }
     if (categoria) { conds.push(`p.categoria = $${idx++}`); params.push(categoria) }
     if (serie)     { conds.push(`p.serie = $${idx++}`);     params.push(serie.toUpperCase()) }
-    if (color)     { conds.push(`p.color = $${idx++}`);     params.push(color.toUpperCase()) }
+    if (modelo)    { conds.push(`p.modelo = $${idx++}`);   params.push(modelo.toUpperCase()) }
+    if (color)     { conds.push(`p.color = $${idx++}`);    params.push(color.toUpperCase()) }
     if (minPrecio) { conds.push(`p.precio >= $${idx++}`);   params.push(minPrecio) }
     if (maxPrecio) { conds.push(`p.precio <= $${idx++}`);   params.push(maxPrecio) }
     if (soloDisp)  { conds.push(`p.stock > 0`) }
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest) {
         SELECT
           ARRAY_AGG(DISTINCT categoria ORDER BY categoria) FILTER (WHERE categoria IS NOT NULL) AS categorias,
           ARRAY_AGG(DISTINCT serie     ORDER BY serie)     FILTER (WHERE serie     IS NOT NULL) AS series,
+          ARRAY_AGG(DISTINCT modelo   ORDER BY modelo)   FILTER (WHERE modelo    IS NOT NULL AND serie IS NULL) AS modelos,
           ARRAY_AGG(DISTINCT color     ORDER BY color)     FILTER (WHERE color     IS NOT NULL) AS colores,
           MIN(precio)::float AS precio_min,
           MAX(precio)::float AS precio_max
@@ -117,7 +120,7 @@ export async function GET(req: NextRequest) {
       total:    parseInt(countRow[0]?.total || '0'),
       page,
       pageSize,
-      filters:  filterRows[0] || { categorias: [], series: [], colores: [], precio_min: 0, precio_max: 0 },
+      filters:  filterRows[0] || { categorias: [], series: [], modelos: [], colores: [], precio_min: 0, precio_max: 0 },
       series:   seriesRows,
     })
   } catch (e: any) {

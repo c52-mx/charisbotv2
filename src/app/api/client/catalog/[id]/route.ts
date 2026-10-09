@@ -32,26 +32,29 @@ export async function GET(
     const disponible = disponibilidadMap[productoId] ?? 0
 
     // Variantes de color: agrupadas por (serie+modelo+marca) o (modelo+marca) cuando no hay serie
-    const variantes = producto.modelo ? await query<any>(
-      producto.serie
-        ? `SELECT v.producto_id, v.color, v.foto_url, v.precio
-           FROM public.catalogo_productos v
-           WHERE v.activo = true
-             AND v.serie = $1
-             AND v.modelo = $2
-             AND (v.marca IS NOT DISTINCT FROM $3)
-             AND v.producto_id != $4
-           ORDER BY v.color`
-        : `SELECT v.producto_id, v.color, v.foto_url, v.precio
-           FROM public.catalogo_productos v
-           WHERE v.activo = true
-             AND v.serie IS NULL
-             AND v.modelo = $2
-             AND (v.marca IS NOT DISTINCT FROM $3)
-             AND v.producto_id != $4
-           ORDER BY v.color`,
-      [producto.serie, producto.modelo, producto.marca || null, productoId]
-    ) : []
+    const variantes = producto.modelo
+      ? producto.serie
+        ? await query<any>(`
+            SELECT v.producto_id, v.color, v.foto_url, v.precio
+            FROM public.catalogo_productos v
+            WHERE v.activo = true
+              AND v.serie = $1
+              AND v.modelo = $2
+              AND (v.marca IS NOT DISTINCT FROM $3)
+              AND v.producto_id != $4
+            ORDER BY v.color`,
+            [producto.serie, producto.modelo, producto.marca || null, productoId])
+        : await query<any>(`
+            SELECT v.producto_id, v.color, v.foto_url, v.precio
+            FROM public.catalogo_productos v
+            WHERE v.activo = true
+              AND v.serie IS NULL
+              AND v.modelo = $1
+              AND (v.marca IS NOT DISTINCT FROM $2)
+              AND v.producto_id != $3
+            ORDER BY v.color`,
+            [producto.modelo, producto.marca || null, productoId])
+      : []
 
     // Obtener disponibilidad de variantes en una sola query
     const varianteIds = variantes.map((v: any) => v.producto_id)
