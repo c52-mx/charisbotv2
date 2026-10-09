@@ -10,13 +10,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // El detalle de producto es público — igual que el listado del catálogo.
-  // Auth solo se exige al agregar al carrito / checkout.
-  await getSession(req)
-
   const productoId = params.id
 
   try {
+    // Endpoint público — la sesión es opcional; si el JWT está malformado
+    // no debe bloquear el detalle del producto.
+    try { await getSession(req) } catch {}
     const producto = await queryOne<any>(`
       SELECT p.*,
              COALESCE(SUM(m.cantidad) FILTER (WHERE m.tipo = 'SALIDA'), 0)::int AS vendidos
