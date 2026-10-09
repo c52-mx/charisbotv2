@@ -30,8 +30,14 @@ export async function GET(req: NextRequest) {
     let   idx = 1
 
     if (search) {
-      conds.push(`to_tsvector('spanish', p.nombre) @@ plainto_tsquery('spanish', $${idx++})`)
-      params.push(search)
+      conds.push(`(
+        p.nombre        ILIKE $${idx}
+        OR p.marca      ILIKE $${idx}
+        OR p.modelo     ILIKE $${idx}
+        OR p.identificador ILIKE $${idx}
+      )`)
+      params.push(`%${search}%`)
+      idx++
     }
     if (categoria) { conds.push(`p.categoria = $${idx++}`); params.push(categoria) }
     if (serie)     { conds.push(`p.serie = $${idx++}`);     params.push(serie.toUpperCase()) }

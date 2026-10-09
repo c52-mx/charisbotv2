@@ -95,6 +95,22 @@ export default function CatalogPage() {
   const [marcasList, setMarcasList] = useState<string[]>([])
   const tiposOpts = tiposList.map(t => ({ value: t, label: t }))
 
+  // 3-dots actions menu
+  const [actMenu, setActMenu] = useState<string | null>(null)
+  useEffect(() => {
+    function closeMenu() { setActMenu(null) }
+    document.addEventListener('click', closeMenu)
+    return () => document.removeEventListener('click', closeMenu)
+  }, [])
+
+  // Drag-and-drop gallery ordering
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+
+  // Custom price calculator inputs
+  const [customPct, setCustomPct] = useState('')
+  const [customAmt, setCustomAmt] = useState('')
+
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(d => setUserRol(d.user || { rol:'VENDEDOR' }))
   }, [])
@@ -215,6 +231,13 @@ export default function CatalogPage() {
     if (!isNaN(p) && costo > 0) {
       const precioCalculado = Math.ceil(costo * (1 + p / 100))
       setForm(f => ({ ...f, precio: String(precioCalculado) }))
+    }
+  }
+
+  function aplicarMonto(monto: string) {
+    const m = parseFloat(monto)
+    if (!isNaN(m) && costo > 0) {
+      setForm(f => ({ ...f, precio: String(Math.ceil(costo + m)) }))
     }
   }
 
@@ -342,6 +365,16 @@ export default function CatalogPage() {
         .margen-ok   { background: rgba(34,197,94,.12);  color: #16a34a; }
         .margen-warn { background: rgba(234,179,8,.12);  color: #ca8a04; }
         .margen-bad  { background: rgba(239,68,68,.12);  color: #dc2626; }
+        .act-menu-wrap { position: relative; display: inline-block; }
+        .act-menu-btn { padding: 4px 10px; font-size: 18px; font-weight: 700; line-height: 1; border-radius: 6px; }
+        .act-menu-drop { position: absolute; right: 0; top: calc(100% + 4px); background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.15); z-index: 100; min-width: 150px; padding: 4px 0; }
+        .act-menu-item { display: block; width: 100%; padding: 8px 14px; background: none; border: none; text-align: left; font-size: 13px; color: var(--txt); cursor: pointer; font-family: inherit; }
+        .act-menu-item:hover { background: var(--bg4); }
+        .act-menu-sep { height: 1px; background: var(--border); margin: 4px 0; }
+        .gallery-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; border-radius: 8px; border: 2px solid transparent; transition: border-color .15s, background .15s; padding: 2px 4px; cursor: grab; }
+        .gallery-row:active { cursor: grabbing; }
+        .gallery-row.drag-over { border-color: var(--blue3); background: var(--bg4); }
+        .gallery-row.dragging { opacity: 0.4; }
       `}</style>
 
       {/* ── Header ── */}
@@ -471,19 +504,25 @@ export default function CatalogPage() {
                   </td>
                   {canEdit && (
                     <td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="cbtn cbtn-ghost"
-                                onClick={() => openEdit(p)}>Editar</button>
-                        {canCreate && (
-                          <button className="cbtn cbtn-ghost"
-                                  title="Crear variante de color basada en este producto"
-                                  onClick={() => openDuplicate(p)}>Duplicar</button>
-                        )}
-                        <button className="cbtn cbtn-ghost"
-                                style={{ color: p.activo ? '#f87171' : '#34d399' }}
-                                onClick={() => toggleActivo(p as Product)}>
-                          {p.activo ? 'Desactivar' : 'Activar'}
+                      <div className="act-menu-wrap">
+                        <button className="cbtn cbtn-ghost act-menu-btn"
+                                onClick={e => { e.stopPropagation(); setActMenu(actMenu === p.producto_id ? null : p.producto_id) }}>
+                          ⋮
                         </button>
+                        {actMenu === p.producto_id && (
+                          <div className="act-menu-drop" onClick={e => e.stopPropagation()}>
+                            <button className="act-menu-item" onClick={() => { openEdit(p); setActMenu(null) }}>✏️ Editar</button>
+                            {canCreate && (
+                              <button className="act-menu-item" onClick={() => { openDuplicate(p); setActMenu(null) }}>📋 Duplicar</button>
+                            )}
+                            <div className="act-menu-sep" />
+                            <button className="act-menu-item"
+                                    style={{ color: p.activo ? '#f87171' : '#34d399' }}
+                                    onClick={() => { toggleActivo(p as Product); setActMenu(null) }}>
+                              {p.activo ? '○ Desactivar' : '● Activar'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   )}
@@ -662,7 +701,7 @@ export default function CatalogPage() {
                   <div style={{ fontSize: 12, color: 'var(--txt3)', marginBottom: 8 }}>Ingresa el precio de venta para ver el margen</div>
                 )}
                 <div className="price-calc-row">
-                  <span style={{ fontSize: 12, color: 'var(--txt2)', flexShrink: 0 }}>Calcular precio con margen:</span>
+                  <span style={{ fontSize: 12, color: 'var(--txt2)', flexShrink: 0 }}>Margen %:</span>
                   {[10, 20, 30, 40, 50].map(pct => (
                     <button key={pct} type="button" className="cbtn cbtn-ghost"
                             style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
@@ -670,6 +709,31 @@ export default function CatalogPage() {
                       +{pct}%
                     </button>
                   ))}
+                  <input
+                    type="number" min={1} step={1} placeholder="otro %"
+                    value={customPct}
+                    onChange={e => setCustomPct(e.target.value)}
+                    style={{ width: 68, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize: 11, fontFamily: 'inherit' }}
+                  />
+                  <button type="button" className="cbtn cbtn-ghost"
+                          style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                          onClick={() => { aplicarMargen(customPct); setCustomPct('') }}>
+                    Aplicar %
+                  </button>
+                </div>
+                <div className="price-calc-row" style={{ marginTop: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--txt2)', flexShrink: 0 }}>Ganancia fija $:</span>
+                  <input
+                    type="number" min={0} step={1} placeholder="monto $"
+                    value={customAmt}
+                    onChange={e => setCustomAmt(e.target.value)}
+                    style={{ width: 90, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize: 11, fontFamily: 'inherit' }}
+                  />
+                  <button type="button" className="cbtn cbtn-ghost"
+                          style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                          onClick={() => { aplicarMonto(customAmt); setCustomAmt('') }}>
+                    Aplicar $
+                  </button>
                 </div>
               </div>
             )}
@@ -718,7 +782,23 @@ export default function CatalogPage() {
                 Galería — imágenes adicionales del carrusel
               </label>
               {form.fotos.map((url, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                <div
+                  key={i}
+                  className={`gallery-row${dragIdx === i ? ' dragging' : ''}${dragOverIdx === i && dragIdx !== i ? ' drag-over' : ''}`}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(i) }}
+                  onDrop={() => {
+                    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return }
+                    const arr = [...form.fotos]
+                    const [moved] = arr.splice(dragIdx, 1)
+                    arr.splice(i, 0, moved)
+                    setForm(f => ({ ...f, fotos: arr }))
+                    setDragIdx(null); setDragOverIdx(null)
+                  }}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+                >
+                  <span style={{ color: 'var(--txt3)', fontSize: 14, flexShrink: 0, userSelect: 'none' }}>⠿</span>
                   {url && (
                     <img src={url} alt="" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6,
                       border: '1px solid var(--border)', background: 'var(--bg4)', flexShrink: 0 }} />

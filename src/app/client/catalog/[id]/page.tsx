@@ -363,7 +363,7 @@ export default function ProductDetailPage() {
       <div style={{ textAlign:'center', padding:'60px 20px', color:'#999' }}>
         <div style={{ fontSize:52 }}>🔍</div>
         <p style={{ fontSize:16, fontWeight:400, margin:'12px 0 8px', color:'#333' }}>Producto no encontrado</p>
-        <button onClick={() => router.back()} style={{ background:'none', border:'none', color:'#3483fa', fontSize:14, cursor:'pointer', fontFamily:'inherit', padding:0 }}>← Volver al catálogo</button>
+        <button onClick={() => router.push('/client/catalog')} style={{ background:'none', border:'none', color:'#3483fa', fontSize:14, cursor:'pointer', fontFamily:'inherit', padding:0 }}>← Volver al catálogo</button>
       </div>
     </>
   )
@@ -401,7 +401,7 @@ export default function ProductDetailPage() {
         </>}
         <span className="pd-breadcrumb-sep">›</span>
         <span style={{ color:'#333', fontWeight:500 }}>{producto.nombre}</span>
-        <button onClick={() => router.back()} style={{ marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:6, padding:'4px 12px', fontSize:12, color:'#666', cursor:'pointer', fontFamily:'inherit' }}>
+        <button onClick={() => router.push('/client/catalog')} style={{ marginLeft:'auto', background:'none', border:'1px solid #e0e0e0', borderRadius:6, padding:'4px 12px', fontSize:12, color:'#666', cursor:'pointer', fontFamily:'inherit' }}>
           ← Volver
         </button>
       </nav>
@@ -455,10 +455,6 @@ export default function ProductDetailPage() {
             <div className="pd-price">
               ${Number(producto.precio).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
-            <p className="pd-iva">IVA incluido</p>
-            {stockStatus !== 'out' && precio > 0 && (
-              <p className="pd-cuotas">Hasta 3 pagos de ${Number(cuotaAmt).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
-            )}
           </div>
 
           {/* Stock status */}
