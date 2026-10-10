@@ -325,6 +325,15 @@ export default function CatalogPage() {
   const [addMsg,    setAddMsg]    = useState('')
   const addMsgTimer = useRef<any>(null)
 
+  // Sincronizar búsqueda del header: cuando el usuario usa la barra del header,
+  // navega a /client/catalog?search=..., lo que cambia searchParams sin
+  // remontar el componente — aquí actualizamos el estado para que se relance el fetch.
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || ''
+    setSearch(urlSearch)
+    setInputVal(urlSearch)
+  }, [searchParams])
+
   function toggleSection(key: string) { setCollapsed(c => ({ ...c, [key]: !c[key] })) }
   function isOpen(key: string) { return collapsed[key] !== true }
 

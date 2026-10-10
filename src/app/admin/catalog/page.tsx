@@ -98,7 +98,10 @@ export default function CatalogPage() {
   // 3-dots actions menu
   const [actMenu, setActMenu] = useState<string | null>(null)
   useEffect(() => {
-    function closeMenu() { setActMenu(null) }
+    // Cerrar menú al hacer clic fuera de cualquier act-menu-wrap
+    function closeMenu(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest?.('.act-menu-wrap')) setActMenu(null)
+    }
     document.addEventListener('click', closeMenu)
     return () => document.removeEventListener('click', closeMenu)
   }, [])
@@ -229,7 +232,7 @@ export default function CatalogPage() {
   function aplicarMargen(pct: string) {
     const p = parseFloat(pct)
     if (!isNaN(p) && costo > 0) {
-      const precioCalculado = Math.ceil(costo * (1 + p / 100))
+      const precioCalculado = parseFloat((costo * (1 + p / 100)).toFixed(2))
       setForm(f => ({ ...f, precio: String(precioCalculado) }))
     }
   }
@@ -237,7 +240,8 @@ export default function CatalogPage() {
   function aplicarMonto(monto: string) {
     const m = parseFloat(monto)
     if (!isNaN(m) && costo > 0) {
-      setForm(f => ({ ...f, precio: String(Math.ceil(costo + m)) }))
+      const precioCalculado = parseFloat((costo + m).toFixed(2))
+      setForm(f => ({ ...f, precio: String(precioCalculado) }))
     }
   }
 
@@ -506,7 +510,7 @@ export default function CatalogPage() {
                     <td>
                       <div className="act-menu-wrap">
                         <button className="cbtn cbtn-ghost act-menu-btn"
-                                onClick={e => { e.stopPropagation(); setActMenu(actMenu === p.producto_id ? null : p.producto_id) }}>
+                                onClick={() => setActMenu(actMenu === p.producto_id ? null : p.producto_id)}>
                           ⋮
                         </button>
                         {actMenu === p.producto_id && (
