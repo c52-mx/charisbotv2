@@ -47,6 +47,45 @@ export async function sendEmail({ to, subject, html, attachments }: SendEmailPar
 
 // ── Templates ─────────────────────────────────────────────────────────
 
+export function emailRecuperacion(nombre: string, token: string): string {
+  const url = `${APP_URL}/reset-password?token=${token}`
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 20px;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr><td style="background:#1565c0;padding:28px 36px;text-align:center;">
+          <p style="margin:0;font-size:28px;font-weight:900;color:white;letter-spacing:2px;">CHARIS</p>
+          <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:3px;">DISTRIBUIDOR MAYORISTA</p>
+        </td></tr>
+        <tr><td style="padding:36px;">
+          <p style="margin:0 0 16px;font-size:22px;font-weight:900;color:#0d2137;">¡Hola, ${nombre}!</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#3a6080;line-height:1.6;">
+            Recibimos una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón para elegir una nueva contraseña:
+          </p>
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${url}" style="display:inline-block;padding:14px 36px;background:#1565c0;color:white;font-size:15px;font-weight:700;text-decoration:none;border-radius:100px;letter-spacing:.5px;">
+              🔒 Restablecer contraseña
+            </a>
+          </div>
+          <p style="margin:24px 0 0;font-size:12px;color:#8aaac4;text-align:center;line-height:1.6;">
+            Este enlace expira en 1 hora.<br>
+            Si no solicitaste este cambio, ignora este mensaje.
+          </p>
+        </td></tr>
+        <tr><td style="background:#f5f8fc;padding:20px 36px;text-align:center;border-top:1px solid #e2eaf4;">
+          <p style="margin:0;font-size:12px;color:#8aaac4;">© 2026 Charis · Distribuidor Mayorista</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
 export function emailVerificacion(nombre: string, token: string): string {
   const url = `${APP_URL}/verify-email?token=${token}`
   return `

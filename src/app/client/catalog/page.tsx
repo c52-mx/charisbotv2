@@ -307,6 +307,7 @@ export default function CatalogPage() {
   const [filters,  setFilters]    = useState<Filters>({ categorias: [], series: [], modelos: [], colores: [], precio_min: 0, precio_max: 0 })
   const [loading,  setLoading]    = useState(true)
   const [total,    setTotal]      = useState(0)
+  const [tiers,    setTiers]      = useState<{ piezas_minimas: number; porcentaje: number }[]>([])
   const [page,     setPage]       = useState(1)
   const pageSize = 24
 
@@ -324,6 +325,10 @@ export default function CatalogPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [addMsg,    setAddMsg]    = useState('')
   const addMsgTimer = useRef<any>(null)
+
+  useEffect(() => {
+    fetch('/api/descuentos').then(r => r.json()).then(d => setTiers(d.items || [])).catch(() => {})
+  }, [])
 
   // Sincronizar búsqueda del header: cuando el usuario usa la barra del header,
   // navega a /client/catalog?search=..., lo que cambia searchParams sin
@@ -445,6 +450,18 @@ export default function CatalogPage() {
           {maxPrecio && <span className="ml-chip">Hasta ${maxPrecio} <span className="ml-chip-x" onClick={() => setMaxPrecio('')}>✕</span></span>}
           {soloDisp  && <span className="ml-chip">Con stock <span className="ml-chip-x" onClick={() => setSoloDisp(false)}>✕</span></span>}
           <button className="sb-clear" style={{ marginLeft: 4 }} onClick={clearAllFilters}>Borrar todos</button>
+        </div>
+      )}
+
+      {/* ── DESCUENTOS POR VOLUMEN ── */}
+      {tiers.length > 0 && (
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:14, padding:'8px 14px', background:'#eff6ff', borderRadius:10, border:'1px solid #bfdbfe', fontSize:12 }}>
+          <span style={{ fontWeight:700, color:'#1e40af', flexShrink:0 }}>Descuento mayoreo:</span>
+          {tiers.map(t => (
+            <span key={t.piezas_minimas} style={{ background:'white', border:'1px solid #bfdbfe', borderRadius:6, padding:'2px 9px', fontWeight:600, color:'#1e40af' }}>
+              {t.piezas_minimas}+ pzas&nbsp;→&nbsp;{t.porcentaje}% off
+            </span>
+          ))}
         </div>
       )}
 

@@ -125,14 +125,14 @@ export async function POST(req: NextRequest) {
 
     // JWT — acceso inmediato
     const jwt = await new SignJWT({
-      id: user.id, nombre: user.nombre, email: user.email, rol: user.rol,
+      sub: user.id, nombre: user.nombre, email: user.email, rol: user.rol,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('7d')
       .sign(JWT_SECRET)
 
     const res = NextResponse.json({ ok: true, rol: user.rol, nombre: user.nombre })
-    res.cookies.set('charis-token', jwt, {
+    res.cookies.set('charis_token', jwt, {
       httpOnly: true,
       secure:   process.env.NODE_ENV === 'production',
       sameSite: 'lax',

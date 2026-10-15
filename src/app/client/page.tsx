@@ -284,29 +284,27 @@ export default function ClientHome() {
       </div>
 
       {/* ── DESCUENTO POR VOLUMEN ── */}
-      <div style={{ background:'linear-gradient(135deg,#07111f,#0d2d52)', borderRadius:16, padding:'24px 28px', marginBottom:32, border:'1px solid rgba(75,174,240,.15)', animation:'fadeUp .3s ease-out .15s both' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
-          <div>
-            <div style={{ color:'white', fontWeight:900, fontSize:18, marginBottom:5 }}>% Descuentos por volumen activos</div>
-            <div style={{ color:'rgba(255,255,255,.6)', fontSize:14 }}>Se aplican automáticamente al confirmar tu pedido</div>
+      {descuentos.length > 0 && (
+        <div style={{ background:'linear-gradient(135deg,#07111f,#0d2d52)', borderRadius:16, padding:'24px 28px', marginBottom:32, border:'1px solid rgba(75,174,240,.15)', animation:'fadeUp .3s ease-out .15s both' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
+            <div>
+              <div style={{ color:'white', fontWeight:900, fontSize:18, marginBottom:5 }}>% Descuentos por volumen activos</div>
+              <div style={{ color:'rgba(255,255,255,.6)', fontSize:14 }}>Se aplican automáticamente al confirmar tu pedido</div>
+            </div>
+            <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+              {descuentos.sort((a, b) => a.piezas_minimas - b.piezas_minimas).map(t => (
+                <div key={t.piezas_minimas} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', borderRadius:10, padding:'10px 18px', textAlign:'center', minWidth:90 }}>
+                  <div style={{ color:'rgba(255,255,255,.5)', fontSize:10, marginBottom:4 }}>+{t.piezas_minimas} pzas</div>
+                  <div style={{ color:'var(--blue2)', fontSize:20, fontWeight:900 }}>{t.porcentaje}%</div>
+                </div>
+              ))}
+            </div>
+            <Link href="/client/catalog" className="btn-primary" style={{ whiteSpace:'nowrap' }}>
+              Explorar catálogo
+            </Link>
           </div>
-          <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-            {[
-              { rng:'+50 pzas',  desc:'5%',  color:'var(--blue2)' },
-              { rng:'+100 pzas', desc:'10%', color:'var(--blue2)' },
-              { rng:'+200 pzas', desc:'15%', color:'var(--ok)' },
-            ].map(t => (
-              <div key={t.rng} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', borderRadius:10, padding:'10px 18px', textAlign:'center', minWidth:90 }}>
-                <div style={{ color:'rgba(255,255,255,.5)', fontSize:10, marginBottom:4 }}>{t.rng}</div>
-                <div style={{ color:t.color, fontSize:20, fontWeight:900 }}>{t.desc}</div>
-              </div>
-            ))}
-          </div>
-          <Link href="/client/catalog" className="btn-primary" style={{ whiteSpace:'nowrap' }}>
-            Explorar catálogo
-          </Link>
         </div>
-      </div>
+      )}
 
     </>
   )
