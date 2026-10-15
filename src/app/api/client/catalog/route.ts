@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   // El catálogo es público — no requiere sesión (el cliente ve precios/stock
   // al navegar; la autenticación se exige sólo al agregar al carrito / comprar).
-  await getSession(req) // sin bloquear — sólo para context futuro si se necesita
+  try { await getSession(req) } catch {} // público — sesión opcional
 
   const { searchParams } = new URL(req.url)
   const search       = searchParams.get('search')          || ''

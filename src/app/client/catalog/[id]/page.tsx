@@ -346,7 +346,6 @@ export default function ProductDetailPage() {
   const cnt = producto ? cntFor(producto.nombre) : 0
   const stockStatus = !producto ? 'out' : disponible <= 0 ? 'out' : disponible <= 5 ? 'low' : 'ok'
   const precio = producto ? Number(producto.precio) : 0
-  const cuotaAmt = (precio / 3).toFixed(2)
 
   if (loading) return (
     <>

@@ -34,6 +34,9 @@ export default function AccountPage() {
   const [form, setForm] = useState({ nombre:'', empresa:'', telefono:'', email:'' })
   const [pwForm, setPwForm] = useState({ actual:'', nueva:'', confirmar:'' })
   const [showPw, setShowPw] = useState({ actual:false, nueva:false, confirmar:false })
+  const [verificado,     setVerificado]     = useState<boolean | null>(null)
+  const [resendLoading,  setResendLoading]  = useState(false)
+  const [resendMsg,      setResendMsg]      = useState('')
 
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addrLoading, setAddrLoading] = useState(true)
@@ -87,7 +90,21 @@ export default function AccountPage() {
       })
       setLoading(false)
     })
+    fetch('/api/client/account').then(r => r.json()).then(d => {
+      if (typeof d.verificado === 'boolean') setVerificado(d.verificado)
+    }).catch(() => {})
   }, [])
+
+  async function resendVerification() {
+    setResendLoading(true); setResendMsg('')
+    try {
+      const res  = await fetch('/api/auth/resend-verification', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setResendMsg(data.ya_verificado ? '✓ Tu correo ya está verificado' : '✓ Correo enviado — revisa tu bandeja')
+    } catch (e: any) { setResendMsg('⚠ ' + e.message) }
+    finally { setResendLoading(false) }
+  }
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -159,6 +176,26 @@ export default function AccountPage() {
           {user?.empresa && <p style={{ fontSize:12, color:'var(--blue2)', marginTop:2 }}>🏢 {user.empresa}</p>}
         </div>
       </div>
+
+      {/* Banner verificación pendiente */}
+      {verificado === false && (
+        <div style={{ background:'#fef9c3', border:'1px solid #fde047', borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10, animation:'fadeUp .3s ease-out .08s both' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span>📧</span>
+            <div>
+              <p style={{ fontSize:13, fontWeight:700, color:'#713f12', margin:0 }}>Correo no verificado</p>
+              <p style={{ fontSize:12, color:'#854d0e', margin:0 }}>Verifica tu correo para recibir notificaciones de tus pedidos</p>
+            </div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {resendMsg && <span style={{ fontSize:12, color: resendMsg.startsWith('✓') ? '#15803d' : '#991b1b', fontWeight:600 }}>{resendMsg}</span>}
+            <button onClick={resendVerification} disabled={resendLoading}
+              style={{ padding:'7px 14px', borderRadius:8, border:'1px solid #fde047', background:'white', color:'#92400e', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', opacity: resendLoading ? 0.7 : 1 }}>
+              {resendLoading ? 'Enviando…' : 'Reenviar correo'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display:'flex', gap:4, marginBottom:16, background:'var(--bg)', padding:4, borderRadius:10, width:'fit-content' }}>
