@@ -2,16 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { sendEmail, emailRecuperacion } from '@/lib/email'
 import crypto from 'crypto'
+import { aplicarLimites, hashToken } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json()
-    if (!email?.trim())
+    if (typeof email !== 'string' || !email.trim())
       return NextResponse.json({ ok: true }) // never enumerate
 
     const emailLower = email.toLowerCase().trim()
+
+    // Evita usar el endpoint para inundar de correos a una persona o agotar la cuota de envío
+    const limitado = aplicarLimites(req, 'forgot', [
+      { max: 10, ventanaMs: 60 * 60_000 },
+      { por: emailLower, max: 3, ventanaMs: 60 * 60_000 },
+    ])
+    if (limitado) return limitado
     const rows = await query<{ id: string; nombre: string }>(
       `SELECT id, nombre FROM public.usuarios WHERE email = $1 AND activo = true LIMIT 1`,
       [emailLower]
@@ -25,7 +33,7 @@ export async function POST(req: NextRequest) {
         `UPDATE public.usuarios
          SET reset_password_token = $1, reset_password_token_expira = $2
          WHERE id = $3`,
-        [token, expira, rows[0].id]
+        [hashToken(token), expira, rows[0].id]
       )
 
       sendEmail({

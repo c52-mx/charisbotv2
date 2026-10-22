@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { igualSeguro } from '@/lib/security'
 import { liberarPedidosVencidos, avisarPedidosPorVencer, avisarSurtidoTardio } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic'
 // compartido en vez de sesión, ya que no hay un usuario detrás.
 export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET || process.env.JWT_SECRET || ''
-  if (!secret || req.headers.get('x-cron-secret') !== secret) {
+  if (!secret || !igualSeguro(req.headers.get('x-cron-secret'), secret)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 

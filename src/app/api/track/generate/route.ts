@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession, buildTrackUrl } from '@/lib/auth'
+import { igualSeguro } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,8 @@ export async function POST(req: NextRequest) {
 
   // Auth: sesión portal O secret de n8n
   const n8nSecret = req.headers.get('x-n8n-secret')
-  const validN8n  = n8nSecret && n8nSecret === (process.env.N8N_WEBHOOK_SECRET || 'n8n_secret_change_me')
+  // Sin N8N_WEBHOOK_SECRET configurado, la vía n8n queda deshabilitada (nunca un valor por defecto).
+  const validN8n  = igualSeguro(n8nSecret, process.env.N8N_WEBHOOK_SECRET)
   const session   = await getSession(req)
   const isPortal  = session && ['ADMIN','VENDEDOR','ALMACEN'].includes(session.rol)
 

@@ -4,6 +4,10 @@ import { signToken } from '@/lib/auth'
 import { resolverPermisos } from '@/lib/roles'
 import { logSesion } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
+import { aplicarLimites } from '@/lib/security'
+
+// Hash de relleno para igualar el tiempo de respuesta cuando el usuario no existe.
+const HASH_RELLENO = bcrypt.hashSync('relleno-tiempo-constante', 12)
 
 export const dynamic = 'force-dynamic'
 
@@ -11,11 +15,18 @@ export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
 
-    if (!email || !password) {
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string' || password.length > 200) {
       return NextResponse.json({ error: 'Correo / teléfono y contraseña requeridos' }, { status: 400 })
     }
 
     const identifier = email.toLowerCase().trim()
+
+    // Fuerza bruta: por IP (amplio) y por cuenta (estricto)
+    const limitado = aplicarLimites(req, 'login', [
+      { max: 30, ventanaMs: 15 * 60_000 },
+      { por: identifier, max: 8, ventanaMs: 15 * 60_000 },
+    ])
+    if (limitado) return limitado
 
     // Buscar por email O por teléfono (para cuentas sin correo)
     const user = await queryOne<any>(
@@ -27,6 +38,7 @@ export async function POST(req: NextRequest) {
     )
 
     if (!user) {
+      await bcrypt.compare(password, HASH_RELLENO).catch(() => false)
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
     }
 

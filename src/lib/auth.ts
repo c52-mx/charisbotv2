@@ -1,49 +1,44 @@
 // ── auth.ts ─────────────────────────────────────────────────────
 // Solo para Server Components, API Routes y Middleware.
 // NO importar desde Client Components ('use client').
+// El middleware (Edge) importa de auth-core, no de aquí (este archivo usa la BD).
 // ────────────────────────────────────────────────────────────────
-import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
+import { verifyToken } from './auth-core'
+import { queryOne } from './db'
 
 // Re-export everything from auth-shared so server files only need one import
 export type { UserRol, Permiso, SessionLike } from './auth-shared'
 export { PERMISOS_DEFAULT, can, signTrackLink, verifyTrackLink, buildTrackUrl } from './auth-shared'
+export { signToken, verifyToken, tipoSesion } from './auth-core'
+export type { JWTPayload } from './auth-core'
+import type { JWTPayload } from './auth-core'
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback_secret_change_in_prod'
-)
+// ── Revocación de sesiones ──────────────────────────────────────────────
+// El JWT dura 7 días y lleva rol/permisos embebidos. Para que desactivar a un
+// usuario o cambiarle el rol surta efecto pronto (y no a los 7 días) se
+// contrasta contra la BD, con caché corta para no consultar en cada request.
+const TTL_MS = 30_000
+const cache = new Map<string, { ok: boolean; rol: string; hasta: number }>()
 
-export interface JWTPayload {
-  sub: string; email: string; nombre: string
-  rol: import('./auth-shared').UserRol
-  // Resueltos una sola vez al iniciar sesión (ver lib/roles.ts) y
-  // embebidos en el token — así can() y el middleware no dependen de
-  // la base de datos en cada request. Ausentes en tokens emitidos
-  // antes de la Fase C.5 (can() cae al fallback por rol en ese caso).
-  permisos?: Partial<Record<import('./auth-shared').Permiso, boolean>>
-  rolTipo?: 'INTERNO' | 'CLIENTE' | 'REPARTIDOR'
-  iat?: number; exp?: number
-}
-
-export async function signToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(SECRET)
-}
-
-export async function verifyToken(token: string): Promise<JWTPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, SECRET)
-    return payload as unknown as JWTPayload
-  } catch { return null }
-}
-
-// Tipo de portal de la sesión; tokens viejos sin claim se tratan como siempre.
-export function tipoSesion(s: Pick<JWTPayload, 'rol' | 'rolTipo'>): 'INTERNO' | 'CLIENTE' | 'REPARTIDOR' {
-  return s.rolTipo || (s.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+async function sesionVigente(s: JWTPayload): Promise<boolean> {
+  const ahora = Date.now()
+  let e = cache.get(s.sub)
+  if (!e || e.hasta < ahora) {
+    try {
+      const u = await queryOne<{ activo: boolean; rol: string }>(
+        `SELECT activo, rol FROM public.usuarios WHERE id = $1`, [s.sub]
+      )
+      e = { ok: !!u?.activo, rol: u?.rol ?? '', hasta: ahora + TTL_MS }
+    } catch {
+      // Si la BD falla no se tira a todos los usuarios: se confía en el token hasta que vuelva.
+      return true
+    }
+    if (cache.size > 5000) cache.clear()
+    cache.set(s.sub, e)
+  }
+  return e.ok && e.rol === s.rol
 }
 
 export async function getSession(req?: NextRequest): Promise<JWTPayload | null> {
@@ -55,5 +50,7 @@ export async function getSession(req?: NextRequest): Promise<JWTPayload | null> 
     token = c.get('charis_token')?.value
   }
   if (!token) return null
-  return verifyToken(token)
+  const s = await verifyToken(token)
+  if (!s) return null
+  return (await sesionVigente(s)) ? s : null
 }

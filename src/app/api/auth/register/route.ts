@@ -6,6 +6,7 @@ import { resolverPermisos } from '@/lib/roles'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { sendEmail, emailVerificacion } from '@/lib/email'
+import { aplicarLimites, hashToken } from '@/lib/security'
 
 const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/
 const TEL_RE   = /^\+?\d{8,15}$/
@@ -28,6 +29,9 @@ async function verifyHCaptcha(token: string): Promise<boolean> {
 
 export async function POST(req: NextRequest) {
   try {
+    const limitado = aplicarLimites(req, 'register', [{ max: 10, ventanaMs: 60 * 60_000 }])
+    if (limitado) return limitado
+
     const { nombre, empresa, telefono, email, password, hcaptchaToken } = await req.json()
 
     // Validaciones base
@@ -103,7 +107,7 @@ export async function POST(req: NextRequest) {
       `, [
         nombre.trim(), emailLower, hash,
         telefono?.trim() || null, empresa?.trim() || null,
-        verificado, token, expira,
+        verificado, token ? hashToken(token) : null, expira,
       ])
     } else {
       rows = await query(`

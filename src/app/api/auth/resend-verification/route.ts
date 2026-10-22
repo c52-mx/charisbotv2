@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { query, queryOne } from '@/lib/db'
 import { sendEmail, emailVerificacion } from '@/lib/email'
 import crypto from 'crypto'
+import { aplicarLimites, hashToken } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession(req)
     if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+    const limitado = aplicarLimites(req, 'resend', [{ por: session.sub, max: 3, ventanaMs: 60 * 60_000 }])
+    if (limitado) return limitado
 
     const user = await queryOne<{ id: string; nombre: string; email: string; verificado: boolean }>(
       `SELECT id, nombre, email, verificado FROM public.usuarios WHERE id = $1 AND activo = true LIMIT 1`,
@@ -25,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     await query(
       `UPDATE public.usuarios SET verificacion_token = $1, verificacion_token_expira = $2 WHERE id = $3`,
-      [token, expira, user.id]
+      [hashToken(token), expira, user.id]
     )
 
     sendEmail({

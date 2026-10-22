@@ -22,8 +22,9 @@ export async function POST(req: NextRequest) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any
     const pedidoId = session.metadata?.pedido_id
-    if (pedidoId) {
-      await confirmarPagoPedido(pedidoId, session.id, 'STRIPE').catch(e =>
+    // Solo cuando el cobro realmente se completó (no pagos asíncronos pendientes)
+    if (pedidoId && session.payment_status === 'paid' && session.currency === 'mxn') {
+      await confirmarPagoPedido(pedidoId, session.id, 'STRIPE', Number(session.amount_total) / 100).catch(e =>
         console.error('[webhook stripe] confirmarPagoPedido', e)
       )
     }

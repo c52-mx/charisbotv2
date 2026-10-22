@@ -170,6 +170,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   )
   if (!before) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
+  // CANCELADO y ENTREGADO son terminales aquí (reactivar tiene su propia ruta, solo ADMIN).
+  if (['CANCELADO', 'ENTREGADO'].includes(before.estado) && estado !== before.estado) {
+    return NextResponse.json({ error: `Un pedido ${before.estado.toLowerCase()} ya no puede cambiar de estado` }, { status: 400 })
+  }
+
   // Confirmar pago manual (PENDIENTE_PAGO→CONFIRMADO) y validar/rechazar surtido
   // (POR_VALIDAR_SURTIDO→EN_REPARTO/LISTO_PARA_RECOGER o →EN_PREPARACION)
   // requieren el visto bueno de ventas/admin — almacén no puede

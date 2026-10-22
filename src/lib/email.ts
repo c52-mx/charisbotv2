@@ -94,7 +94,7 @@ export function emailRecuperacion(nombre: string, token: string): string {
 }
 
 export function emailVerificacion(nombre: string, token: string): string {
-  const url = `${APP_URL}/verify-email?token=${token}`
+  const url = `${APP_URL}/api/auth/verify-email?token=${token}`
   return `
 <!DOCTYPE html>
 <html>

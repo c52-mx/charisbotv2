@@ -44,12 +44,22 @@ export function can(session: SessionLike | null | undefined, perm: Permiso): boo
 }
 
 // ── HMAC track links (no requiere next/headers) ──────────────────
-const HMAC_SECRET =
-  (typeof process !== 'undefined' && process.env?.TRACK_HMAC_SECRET) ||
-  'track_hmac_secret_change_in_prod'
+function hmacSecret(): string {
+  const v = typeof process !== 'undefined' ? process.env?.TRACK_HMAC_SECRET : undefined
+  if (v) return v
+  // En producción nunca se firma con un valor público por defecto.
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production') {
+    throw new Error('TRACK_HMAC_SECRET no está configurado')
+  }
+  return 'dev-only-track-secret-not-for-production'
+}
+
+// Se mantienen 16 hex (64 bits) para no invalidar los enlaces ya enviados por WhatsApp;
+// el intento de adivinarlos está acotado por rate limiting en /api/track.
+const SIG_LEN = 16
 
 export function signTrackLink(tel: string): string {
-  return createHmac('sha256', HMAC_SECRET).update(tel).digest('hex').slice(0, 16)
+  return createHmac('sha256', hmacSecret()).update(tel).digest('hex').slice(0, SIG_LEN)
 }
 
 export function verifyTrackLink(tel: string, sig: string): boolean {

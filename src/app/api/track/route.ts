@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { verifyTrackLink } from '@/lib/auth'
+import { aplicarLimites } from '@/lib/security'
 
 export const dynamic = 'force-dynamic'
 
 // GET /api/track?tel=521...&sig=... — returns orders for client (no auth cookie)
 export async function GET(req: NextRequest) {
+  const limitado = aplicarLimites(req, 'track', [{ max: 60, ventanaMs: 10 * 60_000 }])
+  if (limitado) return limitado
+
   const { searchParams } = new URL(req.url)
   const tel = searchParams.get('tel') || ''
   const sig = searchParams.get('sig') || ''

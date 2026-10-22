@@ -14,23 +14,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true })
   }
 
-  if (process.env.MP_WEBHOOK_SECRET) {
-    const valido = verificarFirmaMercadoPago({
-      xSignature: req.headers.get('x-signature'),
-      xRequestId: req.headers.get('x-request-id'),
-      dataId,
-    })
-    if (!valido) {
-      console.error('[webhook mercadopago] firma inválida')
-      return NextResponse.json({ error: 'Firma inválida' }, { status: 400 })
-    }
+  // La firma es obligatoria: sin MP_WEBHOOK_SECRET el endpoint no acepta nada (antes se saltaba la verificación).
+  if (!process.env.MP_WEBHOOK_SECRET) {
+    console.error('[webhook mercadopago] MP_WEBHOOK_SECRET no configurado — notificación rechazada')
+    return NextResponse.json({ error: 'No configurado' }, { status: 503 })
+  }
+  const valido = verificarFirmaMercadoPago({
+    xSignature: req.headers.get('x-signature'),
+    xRequestId: req.headers.get('x-request-id'),
+    dataId,
+  })
+  if (!valido) {
+    console.error('[webhook mercadopago] firma inválida')
+    return NextResponse.json({ error: 'Firma inválida' }, { status: 400 })
   }
 
   try {
     const payment = await obtenerPagoMercadoPago(dataId) as any
     const pedidoId = payment.external_reference
-    if (payment.status === 'approved' && pedidoId) {
-      await confirmarPagoPedido(pedidoId, dataId, 'MERCADOPAGO')
+    if (payment.status === 'approved' && pedidoId && payment.currency_id === 'MXN') {
+      await confirmarPagoPedido(pedidoId, dataId, 'MERCADOPAGO', Number(payment.transaction_amount))
     }
   } catch (e) {
     console.error('[webhook mercadopago]', e)

@@ -8,8 +8,19 @@ import { notificarClienteEmail } from '@/lib/email'
 export async function confirmarPagoPedido(
   pedidoId: string,
   referenciaExterna: string,
-  gateway: 'STRIPE' | 'MERCADOPAGO'
+  gateway: 'STRIPE' | 'MERCADOPAGO',
+  montoPagado?: number // MXN realmente cobrado por la pasarela
 ): Promise<void> {
+  // El monto cobrado debe cubrir el total del pedido; si no, se deja pendiente para revisión manual.
+  const pedido = await queryOne<{ monto_total: string | null }>(
+    `SELECT monto_total FROM public.pedidos WHERE id = $1`, [pedidoId]
+  )
+  if (!pedido) return
+  if (montoPagado === undefined || !Number.isFinite(montoPagado) || montoPagado + 0.01 < Number(pedido.monto_total || 0)) {
+    console.error(`[confirmarPagoPedido] monto no coincide (pedido ${pedidoId}, ${gateway}): cobrado=${montoPagado} esperado=${pedido.monto_total}`)
+    return
+  }
+
   const updated = await queryOne<{ id: string; telefono: string; resumen: string; numero_pedido: string | null }>(
     `UPDATE public.pedidos
      SET estado = 'CONFIRMADO', pago_referencia_externa = $1, pago_gateway = $2,
