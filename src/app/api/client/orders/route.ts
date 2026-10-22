@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { items, metodo_pago, referencia_pago, metodo_entrega, direccion_id, notas_cliente, punto_pickup, paqueteria } = body
 
-    if (!items?.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
+    if (!Array.isArray(items) || !items.length) return NextResponse.json({ error: 'El pedido está vacío' }, { status: 400 })
+    if (items.length > 200 || items.some((i: any) => !Number.isInteger(i?.cantidad) || i.cantidad < 1 || i.cantidad > 100000)) {
+      return NextResponse.json({ error: 'Cada artículo requiere una cantidad entera mayor a 0' }, { status: 400 })
+    }
 
     // Resolver la dirección elegida (o pickup)
     const entrega = metodo_entrega === 'pickup' ? 'pickup' : 'envio'
@@ -132,9 +135,12 @@ export async function POST(req: NextRequest) {
     const itemsConPrecio = itemsNorm.map((it: any) => ({
       ...it,
       precio: precioMap.get(`${it.serie}__${it.modelo}__${it.color}`)
-           ?? (it.producto_id ? precioPorId.get(it.producto_id) : undefined)
-           ?? 0,
+           ?? (it.producto_id ? precioPorId.get(it.producto_id) : undefined),
     }))
+    // Todo artículo debe existir en el catálogo: nunca se acepta un precio ausente ni 0.
+    if (itemsConPrecio.some((it: any) => !(Number(it.precio) > 0))) {
+      return NextResponse.json({ error: 'Algún artículo del pedido ya no está disponible en el catálogo' }, { status: 409 })
+    }
 
     const tiers = await query<{ piezas_minimas: number; porcentaje: number }>(
       `SELECT piezas_minimas, porcentaje FROM public.descuentos_volumen WHERE activo = true`, []

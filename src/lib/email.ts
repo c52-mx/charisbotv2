@@ -6,6 +6,13 @@ const RESEND_API_KEY  = process.env.RESEND_API_KEY  || ''
 const FROM_EMAIL      = process.env.RESEND_FROM_EMAIL || 'noreply@charis.com.mx'
 const APP_URL         = process.env.NEXT_PUBLIC_APP_URL || 'https://charis.com.mx'
 
+// Escapa texto de usuario antes de interpolarlo en las plantillas HTML.
+function esc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 interface SendEmailParams {
   to:      string
   subject: string
@@ -62,7 +69,7 @@ export function emailRecuperacion(nombre: string, token: string): string {
           <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:3px;">DISTRIBUIDOR MAYORISTA</p>
         </td></tr>
         <tr><td style="padding:36px;">
-          <p style="margin:0 0 16px;font-size:22px;font-weight:900;color:#0d2137;">¡Hola, ${nombre}!</p>
+          <p style="margin:0 0 16px;font-size:22px;font-weight:900;color:#0d2137;">¡Hola, ${esc(nombre)}!</p>
           <p style="margin:0 0 24px;font-size:15px;color:#3a6080;line-height:1.6;">
             Recibimos una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón para elegir una nueva contraseña:
           </p>
@@ -103,7 +110,7 @@ export function emailVerificacion(nombre: string, token: string): string {
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:36px;">
-          <p style="margin:0 0 16px;font-size:22px;font-weight:900;color:#0d2137;">¡Hola, ${nombre}!</p>
+          <p style="margin:0 0 16px;font-size:22px;font-weight:900;color:#0d2137;">¡Hola, ${esc(nombre)}!</p>
           <p style="margin:0 0 24px;font-size:15px;color:#3a6080;line-height:1.6;">
             Gracias por registrarte en el portal de Charis. Para activar tu cuenta, confirma tu correo electrónico haciendo clic en el botón:
           </p>
@@ -131,9 +138,9 @@ export function emailVerificacion(nombre: string, token: string): string {
 export function emailSurtidoTardio(pedidos: { numeroPedido: string; telefono: string; resumen: string }[]): string {
   const filas = pedidos.map(p => `
     <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;font-family:monospace;">#${p.numeroPedido.toUpperCase()}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${p.telefono}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:12px;color:#3a6080;">${p.resumen}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;font-family:monospace;">#${esc(p.numeroPedido.toUpperCase())}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${esc(p.telefono)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:12px;color:#3a6080;">${esc(p.resumen)}</td>
     </tr>`).join('')
 
   return `
@@ -191,13 +198,13 @@ export function emailEstadoPedido(
           <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.7);letter-spacing:3px;">DISTRIBUIDOR MAYORISTA</p>
         </td></tr>
         <tr><td style="padding:36px;">
-          <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#0d2137;">Hola, ${nombre}</p>
+          <p style="margin:0 0 8px;font-size:22px;font-weight:900;color:#0d2137;">Hola, ${esc(nombre)}</p>
           <p style="margin:0 0 24px;font-size:15px;color:#3a6080;">Tu pedido ha sido actualizado:</p>
           <div style="background:#f5f8fc;border-radius:12px;padding:20px 24px;border:2px solid #e2eaf4;text-align:center;margin-bottom:24px;">
             <p style="margin:0 0 6px;font-size:12px;color:#8aaac4;letter-spacing:.06em;">PEDIDO</p>
-            <p style="margin:0 0 16px;font-size:16px;font-weight:700;color:#0d2137;font-family:monospace;">#${numeroPedido.toUpperCase()}</p>
-            <p style="margin:0;font-size:22px;font-weight:900;color:${meta.color};">${meta.icon} ${meta.label}</p>
-            ${nota ? `<p style="margin:12px 0 0;font-size:13px;color:#3a6080;">${nota}</p>` : ''}
+            <p style="margin:0 0 16px;font-size:16px;font-weight:700;color:#0d2137;font-family:monospace;">#${esc(numeroPedido.toUpperCase())}</p>
+            <p style="margin:0;font-size:22px;font-weight:900;color:${meta.color};">${meta.icon} ${esc(meta.label)}</p>
+            ${nota ? `<p style="margin:12px 0 0;font-size:13px;color:#3a6080;">${esc(nota)}</p>` : ''}
           </div>
           <div style="text-align:center;">
             <a href="${url}" style="display:inline-block;padding:13px 32px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
@@ -242,7 +249,7 @@ export async function notificarClienteEmail(
 export function emailStockBajo(items: { modelo: string; color: string; tipo_case: string; stock: number }[]): string {
   const filas = items.map(it => `
     <tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${it.modelo} · ${it.color} <span style="color:#8aaac4;">(${it.tipo_case})</span></td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;color:#0d2137;">${esc(it.modelo)} · ${esc(it.color)} <span style="color:#8aaac4;">(${esc(it.tipo_case)})</span></td>
       <td style="padding:8px 12px;border-bottom:1px solid #e2eaf4;font-size:13px;font-weight:700;color:${it.stock===0?'#991b1b':'#92400e'};text-align:right;">${it.stock} pzas</td>
     </tr>`).join('')
 
@@ -285,9 +292,9 @@ export function emailOrdenCompra(nombre: string, numeroPedido: string): string {
           <p style="margin:0;font-size:28px;font-weight:900;color:white;letter-spacing:2px;">CHARIS</p>
         </td></tr>
         <tr><td style="padding:36px;">
-          <p style="margin:0 0 16px;font-size:20px;font-weight:900;color:#0d2137;">¡Gracias por tu pedido, ${nombre}!</p>
+          <p style="margin:0 0 16px;font-size:20px;font-weight:900;color:#0d2137;">¡Gracias por tu pedido, ${esc(nombre)}!</p>
           <p style="margin:0 0 20px;font-size:14px;color:#3a6080;line-height:1.6;">
-            Tu pedido <strong>#${numeroPedido.toUpperCase()}</strong> fue registrado correctamente. Adjuntamos tu orden de compra en PDF con el detalle completo.
+            Tu pedido <strong>#${esc(numeroPedido.toUpperCase())}</strong> fue registrado correctamente. Adjuntamos tu orden de compra en PDF con el detalle completo.
           </p>
           <a href="${url}" style="display:inline-block;padding:13px 32px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">
             Ver mis pedidos →
@@ -318,10 +325,10 @@ export function emailNuevoPedido(
         </td></tr>
         <tr><td style="padding:28px 36px;">
           <p style="margin:0 0 16px;font-size:16px;color:#0d2137;">
-            <strong>${cliente}</strong> realizó un nuevo pedido:
+            <strong>${esc(cliente)}</strong> realizó un nuevo pedido:
           </p>
           <div style="background:#f5f8fc;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
-            <p style="margin:0 0 6px;font-size:13px;color:#8aaac4;">PEDIDO #${numeroPedido.toUpperCase()}</p>
+            <p style="margin:0 0 6px;font-size:13px;color:#8aaac4;">PEDIDO #${esc(numeroPedido.toUpperCase())}</p>
             <p style="margin:0;font-size:20px;font-weight:900;color:#1565c0;">${totalPiezas} piezas</p>
           </div>
           <a href="${APP_URL}/admin/orders" style="display:inline-block;padding:12px 28px;background:#1565c0;color:white;font-size:14px;font-weight:700;text-decoration:none;border-radius:100px;">

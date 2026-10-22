@@ -25,9 +25,23 @@ export async function PATCH(req: NextRequest) {
 
   const { nombre, empresa, telefono } = await req.json()
 
+  if (typeof nombre !== 'string' || !nombre.trim() || nombre.length > 100)
+    return NextResponse.json({ error: 'Nombre inválido' }, { status: 400 })
+  const tel = typeof telefono === 'string' ? telefono.trim() : ''
+  if (tel && !/^\+?\d{8,15}$/.test(tel.replace(/[\s-]/g, '')))
+    return NextResponse.json({ error: 'Teléfono inválido' }, { status: 400 })
+
+  // El teléfono sirve para iniciar sesión: no puede coincidir con el de otra cuenta.
+  if (tel) {
+    const [dup] = await query(
+      `SELECT 1 FROM public.usuarios WHERE telefono = $1 AND id <> $2 LIMIT 1`, [tel, session.sub]
+    )
+    if (dup) return NextResponse.json({ error: 'Ese teléfono ya está asociado a otra cuenta' }, { status: 409 })
+  }
+
   await query(`
     UPDATE public.usuarios SET nombre=$1, empresa=$2, telefono=$3 WHERE id=$4
-  `, [nombre, empresa || null, telefono, session.sub])
+  `, [nombre.trim(), empresa || null, tel || null, session.sub])
 
   return NextResponse.json({ ok: true })
 }

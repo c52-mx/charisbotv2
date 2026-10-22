@@ -10,10 +10,14 @@ export async function middleware(req: NextRequest) {
   const isRepartidor = pathname.startsWith('/repartidor')
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
                     && pathname !== '/api/landing-promos' && pathname !== '/api/internal/cron'
+                    && !pathname.startsWith('/api/webhooks/') && pathname !== '/api/health'
+                    && pathname !== '/api/public/config'
   const isTrack  = pathname.startsWith('/track')
 
   // /track y /api/landing-promos son públicos — no requieren auth
   // (landing-promos alimenta el carrusel del home, visible sin sesión).
+  // /api/webhooks/* (Stripe/Mercado Pago, verifican su propia firma), /api/health y
+  // /api/public/config no llevan cookie de sesión, así que no pueden exigirla.
   // /api/internal/cron tiene su propia auth por secreto compartido (lo
   // llama src/instrumentation.ts desde el mismo proceso, sin cookie).
   if (isTrack || pathname === '/api/landing-promos' || pathname === '/api/internal/cron') return NextResponse.next()

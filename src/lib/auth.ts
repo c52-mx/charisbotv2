@@ -41,6 +41,11 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   } catch { return null }
 }
 
+// Tipo de portal de la sesión; tokens viejos sin claim se tratan como siempre.
+export function tipoSesion(s: Pick<JWTPayload, 'rol' | 'rolTipo'>): 'INTERNO' | 'CLIENTE' | 'REPARTIDOR' {
+  return s.rolTipo || (s.rol === 'CLIENTE' ? 'CLIENTE' : 'INTERNO')
+}
+
 export async function getSession(req?: NextRequest): Promise<JWTPayload | null> {
   let token: string | undefined
   if (req) {

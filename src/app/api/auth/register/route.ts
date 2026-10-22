@@ -1,12 +1,14 @@
 // src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-import { SignJWT } from 'jose'
+import { signToken } from '@/lib/auth'
+import { resolverPermisos } from '@/lib/roles'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { sendEmail, emailVerificacion } from '@/lib/email'
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'charis-secret-2025')
+const EMAIL_RE = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/
+const TEL_RE   = /^\+?\d{8,15}$/
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET || ''
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +19,7 @@ async function verifyHCaptcha(token: string): Promise<boolean> {
     const res = await fetch('https://hcaptcha.com/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${HCAPTCHA_SECRET}&response=${token}`,
+      body: new URLSearchParams({ secret: HCAPTCHA_SECRET, response: token }).toString(),
     })
     const data = await res.json()
     return data.success === true
@@ -31,14 +33,25 @@ export async function POST(req: NextRequest) {
     // Validaciones base
     if (!nombre?.trim() || !password)
       return NextResponse.json({ error: 'Nombre y contraseña son obligatorios' }, { status: 400 })
-    if (password.length < 8)
-      return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
+    if (typeof password !== 'string' || password.length < 8 || password.length > 72)
+      return NextResponse.json({ error: 'La contraseña debe tener entre 8 y 72 caracteres' }, { status: 400 })
+    if (typeof nombre !== 'string' || nombre.trim().length > 100)
+      return NextResponse.json({ error: 'Nombre inválido' }, { status: 400 })
 
     // Se requiere al menos uno: email o teléfono
     const tieneEmail    = !!email?.trim()
     const tieneTelefono = !!telefono?.trim()
     if (!tieneEmail && !tieneTelefono)
       return NextResponse.json({ error: 'Ingresa tu correo o número de teléfono (al menos uno)' }, { status: 400 })
+
+    // Formato: el correo debe ser un correo real (no un teléfono ni texto libre) — la
+    // identidad del pedido se liga a este valor, así que no puede imitar a otro cliente.
+    if (tieneEmail && (typeof email !== 'string' || email.length > 254 || !EMAIL_RE.test(email.trim())))
+      return NextResponse.json({ error: 'Correo electrónico inválido' }, { status: 400 })
+    if (tieneTelefono && !TEL_RE.test(String(telefono).replace(/[\s-]/g, '')))
+      return NextResponse.json({ error: 'Teléfono inválido' }, { status: 400 })
+    if (empresa && String(empresa).length > 150)
+      return NextResponse.json({ error: 'Empresa inválida' }, { status: 400 })
 
     // Verificar hCaptcha
     const captchaOk = await verifyHCaptcha(hcaptchaToken)
@@ -57,8 +70,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Ya existe una cuenta con ese correo electrónico' }, { status: 409 })
     }
 
-    // Teléfono duplicado (solo si viene teléfono y no hay email que identifique)
-    if (tieneTelefono && !emailLower) {
+    // Teléfono duplicado (el teléfono también sirve para iniciar sesión)
+    if (tieneTelefono) {
       const existingTel = await query(
         `SELECT id FROM public.usuarios WHERE telefono = $1 LIMIT 1`,
         [telefono.trim()]
@@ -109,8 +122,8 @@ export async function POST(req: NextRequest) {
         INSERT INTO public.clientes (usuario_id, nombre, telefono, email)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (telefono) DO UPDATE
-          SET usuario_id = EXCLUDED.usuario_id, nombre = EXCLUDED.nombre,
-              email = COALESCE(EXCLUDED.email, public.clientes.email)
+          SET usuario_id = COALESCE(public.clientes.usuario_id, EXCLUDED.usuario_id),
+              email = COALESCE(public.clientes.email, EXCLUDED.email)
       `, [user.id, nombre.trim(), telefono.trim(), emailLower]).catch(e => console.error('[register] clientes sync error:', e))
     }
 
@@ -123,13 +136,11 @@ export async function POST(req: NextRequest) {
       }).catch(e => console.error('[register] email error:', e))
     }
 
-    // JWT — acceso inmediato
-    const jwt = await new SignJWT({
-      sub: user.id, nombre: user.nombre, email: user.email, rol: user.rol,
+    // JWT — acceso inmediato (mismo formato que el login: con rolTipo y permisos)
+    const { tipo: rolTipo, permisos } = await resolverPermisos(user.rol)
+    const jwt = await signToken({
+      sub: user.id, nombre: user.nombre, email: user.email || telefono.trim(), rol: user.rol, rolTipo, permisos,
     })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('7d')
-      .sign(JWT_SECRET)
 
     const res = NextResponse.json({ ok: true, rol: user.rol, nombre: user.nombre })
     res.cookies.set('charis_token', jwt, {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-import { getSession, can } from '@/lib/auth'
+import { getSession, can, tipoSesion } from '@/lib/auth'
+import { acotarPaginacion } from '@/lib/uploads'
 import { notificarConfirmacion } from '@/lib/whatsapp'
 import { resolveProductoId, liberarPedidosVencidos, checkStockBajoYNotificar, registrarMovimiento } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
@@ -12,6 +13,12 @@ export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
+  const esCliente = tipoSesion(session) === 'CLIENTE'
+  // Fuera del portal cliente se exige el permiso de ver pedidos (repartidores tienen su propio endpoint).
+  if (!esCliente && !can(session, 'pedidos_ver')) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
   await liberarPedidosVencidos().catch(() => {})
 
   const { searchParams } = new URL(req.url)
@@ -20,9 +27,7 @@ export async function GET(req: NextRequest) {
   const q           = searchParams.get('q') || searchParams.get('telefono') // soporta ambos para compatibilidad
   const fechaDesde  = searchParams.get('fecha_desde')
   const fechaHasta  = searchParams.get('fecha_hasta')
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
-  const offset = (page - 1) * limit
+  const { page, limit, offset } = acotarPaginacion(searchParams.get('page'), searchParams.get('limit'))
 
   const conditions: string[] = []
   const params: any[] = []
@@ -34,15 +39,11 @@ export async function GET(req: NextRequest) {
   }
 
   // Clientes solo ven sus pedidos
-  if (session.rol === 'CLIENTE') {
-    const cliente = await queryOne<any>(
-      'SELECT telefono FROM public.usuarios WHERE id = $1',
-      [session.sub]
-    )
-    if (cliente?.telefono) {
-      conditions.push(`p.telefono = $${idx++}`)
-      params.push(cliente.telefono)
-    }
+  if (esCliente) {
+    // Misma llave de identidad que usa /api/client/orders: el pedido del portal se
+    // guarda con session.email. Siempre se filtra — nunca se listan pedidos ajenos.
+    conditions.push(`p.telefono = $${idx++}`)
+    params.push(session.email)
   } else {
     if (q) {
       conditions.push(`(p.telefono ILIKE $${idx} OR c.nombre ILIKE $${idx} OR p.numero_pedido ILIKE $${idx})`)
@@ -91,7 +92,9 @@ export async function GET(req: NextRequest) {
 // POST /api/orders - crear pedido manual desde portal
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  if (!session || !can(session, 'pedidos_crear')) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const body = await req.json()
   const { telefono, items, tipo_case, requiere_firma, notas,
@@ -99,6 +102,13 @@ export async function POST(req: NextRequest) {
 
   if (!telefono || !items || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'telefono e items son requeridos' }, { status: 400 })
+  }
+
+  if (typeof telefono !== 'string' || !/^\+?\d{8,15}$/.test(telefono.replace(/[\s-]/g, ''))) {
+    return NextResponse.json({ error: 'Teléfono inválido' }, { status: 400 })
+  }
+  if (items.length > 200 || items.some((it: any) => !Number.isInteger(it?.cantidad) || it.cantidad < 1 || it.cantidad > 100000)) {
+    return NextResponse.json({ error: 'Cada item requiere una cantidad entera mayor a 0' }, { status: 400 })
   }
 
   const colorNorm = (c: string) => (c || '').trim().toUpperCase() || 'NEGRO'

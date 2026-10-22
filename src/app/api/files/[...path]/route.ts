@@ -13,29 +13,39 @@ const MIME: Record<string, string> = {
   jpg:  'image/jpeg',
   jpeg: 'image/jpeg',
   webp: 'image/webp',
-  svg:  'image/svg+xml',
+  svg:  'image/svg+xml',   // solo para archivos legados ya subidos; las rutas de subida ya no lo aceptan
   gif:  'image/gif',
 }
+
+const BASE = path.resolve(process.cwd(), 'public', 'uploads')
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
-  // Bloquear path traversal
-  const segments = (params.path || []).map(s => s.replace(/\.\./g, ''))
+  const segments = params.path || []
   if (segments.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const filePath = path.join(process.cwd(), 'public', 'uploads', ...segments)
+  // Bloquear path traversal: la ruta resuelta debe quedar dentro de BASE
+  const filePath = path.resolve(BASE, ...segments)
+  if (!filePath.startsWith(BASE + path.sep)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const ext = (path.extname(filePath).slice(1) || '').toLowerCase()
+  const contentType = MIME[ext]
+  // Solo se sirven tipos de imagen conocidos — nada de html/js/octet-stream.
+  if (!contentType) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   try {
     const buf = await readFile(filePath)
-    const ext = (segments[segments.length - 1].split('.').pop() || '').toLowerCase()
-    const contentType = MIME[ext] || 'application/octet-stream'
-
     return new NextResponse(buf, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+        // Si alguien abre el archivo directamente, no puede ejecutar scripts (SVG legado).
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
       },
     })
   } catch {

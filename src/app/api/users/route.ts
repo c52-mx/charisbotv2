@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!email?.trim() || !password?.trim() || !rol) return NextResponse.json({ error:'nombre, email, password y rol son requeridos' }, { status:400 })
   const valid = (await listarRolesAsignables()).map(r => r.clave)
   if (!valid.includes(rol)) return NextResponse.json({ error:'Rol inválido' }, { status:400 })
+  if (rol === 'ADMIN' && s.rol !== 'ADMIN') return NextResponse.json({ error:'Solo un ADMIN puede crear otro ADMIN' }, { status:403 })
+  if (typeof password !== 'string' || password.length < 8 || password.length > 72) return NextResponse.json({ error:'La contraseña debe tener entre 8 y 72 caracteres' }, { status:400 })
   try {
     const hash = await bcrypt.hash(password, 10)
     const row = await queryOne<any>(
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok:true, data:row }, { status:201 })
   } catch(e:any) {
     if (e.code==='23505') return NextResponse.json({ error:'Ese email ya existe' }, { status:409 })
-    return NextResponse.json({ error:e.message }, { status:500 })
+    console.error('[POST /api/users]', e)
+    return NextResponse.json({ error:'Error interno' }, { status:500 })
   }
 }

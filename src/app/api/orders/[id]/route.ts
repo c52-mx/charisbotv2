@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-import { getSession, can } from '@/lib/auth'
+import { getSession, can, tipoSesion } from '@/lib/auth'
+import { UUID_RE, urlSegura } from '@/lib/uploads'
 import { notificarCliente } from '@/lib/notify'
 import { finalizarPedido, liberarPedido, restaurarStockPedido } from '@/lib/stock'
 
@@ -14,6 +15,12 @@ const ESTADOS_FINALES = ['CONFIRMADO']
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  if (!UUID_RE.test(params.id)) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  const kind = tipoSesion(session)
+  if (kind === 'REPARTIDOR' || (kind === 'INTERNO' && !can(session, 'pedidos_ver'))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const pedido = await queryOne<any>(
     `SELECT p.*, c.nombre as cliente_nombre, u.nombre as creado_por_nombre
@@ -25,6 +32,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   )
 
   if (!pedido) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  // Un cliente solo ve sus propios pedidos
+  if (kind === 'CLIENTE' && pedido.telefono !== session.email) {
+    return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  }
 
   const items = await query(
     'SELECT * FROM public.pedido_items WHERE pedido_id = $1 ORDER BY creado_en',
@@ -53,6 +65,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
+  if (!UUID_RE.test(params.id)) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
   const body = await req.json()
   const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
           tipo_evento, nota_evento, detalle: detalleEvento,
@@ -61,6 +75,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // ── Actualización de datos de guía/envío (sin cambiar estado) ─────────
   if (envio_guia !== undefined || envio_costo !== undefined || envio_rastreo_url !== undefined ||
       envio_observaciones !== undefined || envio_archivo_url !== undefined) {
+    // Las URLs guardadas se muestran como links: solo http(s) o rutas internas (nada de javascript:)
+    for (const u of [envio_rastreo_url, envio_archivo_url]) {
+      if (u !== undefined && u !== null && u !== '' && !urlSegura(u)) {
+        return NextResponse.json({ error: 'URL inválida (solo http/https)' }, { status: 400 })
+      }
+    }
     await query(
       `UPDATE public.pedidos SET
          envio_guia          = COALESCE($1, envio_guia),
@@ -84,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'tipo_evento inválido' }, { status: 400 })
     }
     // Para PICKUP, también actualiza direccion_entrega en el pedido
-    if (tipo_evento === 'PICKUP' && detalleEvento?.pickup_nuevo) {
+    if (tipo_evento === 'PICKUP' && detalleEvento?.pickup_nuevo && typeof detalleEvento.pickup_nuevo === 'string') {
       await queryOne(
         `UPDATE public.pedidos
          SET direccion_entrega = jsonb_build_object('tipo','pickup','nombre',$1::text),

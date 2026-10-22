@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { logCliente } from '@/lib/audit'
+import { acotarPaginacion } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,9 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q')
-  const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '20')
-  const offset = (page - 1) * limit
+  const { page, limit, offset } = acotarPaginacion(searchParams.get('page'), searchParams.get('limit'))
 
   const params: any[] = []
   let where = ''

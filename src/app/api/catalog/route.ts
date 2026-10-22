@@ -4,6 +4,7 @@ import { query } from '@/lib/db'
 import { getSession, can } from '@/lib/auth'
 import { registrarMovimiento } from '@/lib/stock'
 import { logCatalogo, logAdmin } from '@/lib/audit'
+import { acotarPaginacion } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,15 +12,15 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
   if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  // Esta ruta expone costos y ubicación: es solo para el equipo interno (clientes usan /api/client/catalog).
+  if (!can(session, 'catalogo_ver')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const search    = searchParams.get('search')    || ''
   const serie     = searchParams.get('serie')     || searchParams.get('tipo') || ''
   const categoria = searchParams.get('categoria') || ''
   const activo    = searchParams.get('activo')    || ''
-  const page      = parseInt(searchParams.get('page') || '1')
-  const pageSize  = parseInt(searchParams.get('size') || '50')
-  const offset    = (page - 1) * pageSize
+  const { page, limit: pageSize, offset } = acotarPaginacion(searchParams.get('page'), searchParams.get('size'), 200, 50)
 
   const conditions: string[] = []
   const params: any[]        = []

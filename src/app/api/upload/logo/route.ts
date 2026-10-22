@@ -3,33 +3,30 @@
 // Se sirve vía GET /api/files/logos/{filename} porque Next.js standalone no sirve
 // archivos escritos en public/ después del build.
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession, can } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
+import { validarImagen } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !(session.rol === 'ADMIN' || can(session, 'config_editar'))) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
   const formData = await req.formData()
-  const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'Sin archivo' }, { status: 400 })
+  const file = formData.get('file')
+  if (!file || typeof file === 'string') return NextResponse.json({ error: 'Sin archivo' }, { status: 400 })
 
-  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
-  const ALLOWED_EXT   = ['png', 'jpg', 'jpeg', 'webp', 'svg']
-  const ext = file.name.split('.').pop()?.toLowerCase() || ''
-  if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_EXT.includes(ext)) {
-    return NextResponse.json({ error: 'Formato no permitido. Usa PNG, JPG, WEBP o SVG.' }, { status: 400 })
-  }
+  // SVG ya no se acepta: puede contener scripts y se serviría desde nuestro origen.
+  const v = await validarImagen(file, ['png', 'jpg', 'jpeg', 'webp'])
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
 
-  const fname = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-  const dir   = path.join(process.cwd(), 'public', 'uploads', 'logos')
+  const dir = path.join(process.cwd(), 'public', 'uploads', 'logos')
   await mkdir(dir, { recursive: true })
-  await writeFile(path.join(dir, fname), Buffer.from(await file.arrayBuffer()))
+  await writeFile(path.join(dir, v.fname), v.buffer)
 
-  return NextResponse.json({ url: `/api/files/logos/${fname}` })
+  return NextResponse.json({ url: `/api/files/logos/${v.fname}` })
 }
