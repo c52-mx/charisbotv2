@@ -23,6 +23,25 @@ const BADGE: Record<string,string> = {
 // porque el backend va a rechazar el PATCH si lo intenta.
 const ESTADOS_GATEADOS = ['PENDIENTE_PAGO','POR_VALIDAR_SURTIDO']
 
+function Ayuda({ text }: { text: string }) {
+  return (
+    <span title={text} aria-label={text} tabIndex={0}
+          style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, marginLeft:6, borderRadius:'50%',
+                   border:'1px solid var(--txt3)', color:'var(--txt3)', fontSize:9, fontWeight:700, cursor:'help', verticalAlign:'middle', textTransform:'none', letterSpacing:0 }}>?</span>
+  )
+}
+
+function Sec({ icon, title, hint, children }: { icon: string; title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom:18, paddingTop:14, borderTop:'1px solid var(--border)' }}>
+      <h3 style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 10px' }}>
+        {icon} {title}{hint && <Ayuda text={hint} />}
+      </h3>
+      {children}
+    </section>
+  )
+}
+
 export default function OrdersPage() {
   const { dark } = useContext(ThemeContext)
   const [userRol, setUserRol] = useState<SessionLike>({ rol:'VENDEDOR' })
@@ -65,6 +84,11 @@ export default function OrdersPage() {
   const [filters,  setFilters]  = useState({ estado:'', origen:'', q:'' })
   const [montoInput, setMontoInput] = useState('')
   const [savingMonto, setSavingMonto] = useState(false)
+  const [montoMotivo, setMontoMotivo] = useState('')
+  const [montoError, setMontoError] = useState('')
+  const [surtidoEdit, setSurtidoEdit] = useState<Record<string,{cant:string;motivo:string}>>({})
+  const [savingSurtido, setSavingSurtido] = useState(false)
+  const [surtidoError, setSurtidoError] = useState('')
   const [ubicacionInput, setUbicacionInput] = useState('')
   const [savingUbicacion, setSavingUbicacion] = useState(false)
   // ── Edit panel state ──────────────────────────────────────────────────
@@ -107,6 +131,7 @@ export default function OrdersPage() {
     const data = await r.json()
     setSelected(data)
     setMontoInput(data.monto_total != null ? String(data.monto_total) : '')
+    setMontoMotivo(''); setMontoError(''); setSurtidoEdit({}); setSurtidoError('')
     setUbicacionInput(data.ubicacion_fisica || '')
     setEditNota('')
     // Pre-seleccionar pickup actual
@@ -208,10 +233,21 @@ export default function OrdersPage() {
   }
 
   async function saveMonto(id: string) {
-    setSavingMonto(true)
-    await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ monto_total: montoInput }) })
-    await loadDetail(id)
-    setSavingMonto(false)
+    setSavingMonto(true); setMontoError('')
+    try {
+      const r = await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ monto_total: montoInput, motivo_monto: montoMotivo }) })
+      if (!r.ok) { const d = await r.json().catch(()=>({})); setMontoError(d.error || 'No se pudo guardar el monto'); return }
+      await loadDetail(id)
+    } finally { setSavingMonto(false) }
+  }
+  async function saveSurtido(id: string) {
+    setSavingSurtido(true); setSurtidoError('')
+    try {
+      const items_surtido = Object.entries(surtidoEdit).map(([item_id, v]) => ({ id: item_id, cantidad_surtida: parseInt(v.cant) || 0, motivo: v.motivo }))
+      const r = await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ items_surtido }) })
+      if (!r.ok) { const d = await r.json().catch(()=>({})); setSurtidoError(d.error || 'No se pudo guardar el surtido'); return }
+      await loadDetail(id)
+    } finally { setSavingSurtido(false) }
   }
   async function saveUbicacion(id: string) {
     setSavingUbicacion(true)
@@ -270,6 +306,8 @@ export default function OrdersPage() {
   }
 
   const pages = Math.ceil(total / 20)
+  const puedeSurtir = !!selected && ['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO'].includes(selected.estado) && can(userRol,'pedidos_estado')
+  const verNotaCliente = can(userRol,'pagos_confirmar')
 
   return (
     <div className="page-anim" style={{ ...Object.fromEntries(Object.entries(tv)) as any, color: tv['--txt'], fontFamily:"'DM Sans',system-ui,sans-serif" }}>
@@ -335,7 +373,7 @@ export default function OrdersPage() {
                     {o.cliente_nombre && <div style={{ fontWeight:500 }}>{o.cliente_nombre}</div>}
                     <div style={{ fontSize:11, color:'var(--txt2)', marginTop: o.cliente_nombre ? 2 : 0 }}>{o.telefono}</div>
                   </td>
-                  <td><span style={{ fontSize:11, background:'rgba(26,143,227,0.1)', color:'var(--blue3)', padding:'2px 8px', borderRadius:4, fontWeight:500 }}>{o.tipo_case}</span></td>
+                  <td><span style={{ fontSize:11, background:'rgba(26,143,227,0.1)', color:'var(--blue3)', padding:'2px 8px', borderRadius:4, fontWeight:500 }}>{o.tipo_case || '—'}</span></td>
                   <td style={{ fontWeight:600 }}>{o.total_piezas || 0}</td>
                   <td>
                     <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, fontWeight:500,
@@ -345,7 +383,7 @@ export default function OrdersPage() {
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{o.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}</span>
+                    <span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{o.estado.replace(/_/g,' ')}</span>
                     {necesitaAtencion(o) && <span className="badge badge-red" style={{ marginLeft:6 }} title="Cerca de su límite de surtido">⏰ Atención</span>}
                   </td>
                   <td className="no-mob" style={{ fontSize:12, color:'var(--txt2)' }}>{format(new Date(o.creado_en),'dd MMM HH:mm',{locale:es})}</td>
@@ -354,6 +392,8 @@ export default function OrdersPage() {
                       <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => loadDetail(o.id)}>Ver</button>
                       {o.estado === 'CANCELADO' ? (
                         <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => reactivate(o.id)} disabled={reactivating}>♻️ Reactivar</button>
+                      ) : o.estado === 'ENTREGADO' && userRol.rol !== 'ADMIN' ? (
+                        <span style={{ fontSize:11, color:'var(--txt3)' }}>🔒 Entregado</span>
                       ) : ESTADOS_GATEADOS.includes(o.estado) && !can(userRol,'pagos_confirmar') ? (
                         <span style={{ fontSize:11, color:'var(--txt3)' }}>⏳ Esperando validación</span>
                       ) : (
@@ -384,7 +424,7 @@ export default function OrdersPage() {
       {/* Detail modal */}
       {selected && (
         <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setSelected(null) }}>
-          <div className="modal-box" style={{ maxWidth:600 }}>
+          <div className="modal-box" style={{ maxWidth:680 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
               <div>
                 <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>Pedido #{selected.id.slice(0,8).toUpperCase()}</div>
@@ -393,14 +433,34 @@ export default function OrdersPage() {
               <button onClick={() => setSelected(null)} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
             </div>
             <div style={{ padding:'18px 22px 22px' }}>
+              <Sec icon="👤" title="Datos del cliente y entrega" hint="Quién compró y a dónde se entrega.">
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                {[['Teléfono',selected.telefono],['Estado',selected.estado.replace(/_/g,' ')],['Origen',selected.origen],['Tipo',selected.tipo_case]].map(([l,v])=>(
+                {[['Teléfono',selected.telefono],['Estado',selected.estado.replace(/_/g,' ')],['Origen',selected.origen],['Tipo',selected.tipo_case || '—']].map(([l,v])=>(
                   <div key={l}>
                     <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{l}</div>
                     <div style={{ fontSize:13,color:'var(--txt)' }}>{v}</div>
                   </div>
                 ))}
               </div>
+              {selected.direccion_entrega && (
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
+                  {selected.direccion_entrega.tipo === 'pickup' ? (
+                    <>🏬 Recoger en tienda{selected.direccion_entrega.nombre ? ` — ${selected.direccion_entrega.nombre}` : ''}</>
+                  ) : (
+                    <>📍 {selected.direccion_entrega.nombre_contacto || selected.direccion_entrega.nombre} — {selected.direccion_entrega.calle}, {selected.direccion_entrega.colonia}, {selected.direccion_entrega.ciudad}, {selected.direccion_entrega.estado_mx} {selected.direccion_entrega.cp}
+                      {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>ℹ️ {selected.direccion_entrega.instrucciones_entrega}</div>}
+                      <div style={{ marginTop:4 }}>
+                        <a target="_blank" rel="noreferrer" style={{ color:'var(--blue)', textDecoration:'underline' }}
+                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([selected.direccion_entrega.calle, selected.direccion_entrega.colonia, selected.direccion_entrega.ciudad, selected.direccion_entrega.estado_mx, selected.direccion_entrega.cp].filter(Boolean).join(', '))}`}>
+                          🗺️ Ver en mapa
+                        </a>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              </Sec>
+              <Sec icon="🧾" title="Resumen del pedido" hint="Descripción general y notas capturadas al crear el pedido.">
               {selected.resumen && <div style={{ marginBottom:14,padding:'9px 12px',borderRadius:8,background:'var(--bg4)',fontSize:12,color:'var(--txt2)' }}>{selected.resumen}</div>}
               {selected.notas && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)', borderLeft:`3px solid var(--blue)` }}>
@@ -412,58 +472,90 @@ export default function OrdersPage() {
                   ✕ Motivo de cancelación: {selected.motivo_cancelacion}
                 </div>
               )}
-              {selected.direccion_entrega && (
-                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
-                  {selected.direccion_entrega.tipo === 'pickup' ? (
-                    <>🏬 Recoger en tienda{selected.direccion_entrega.nombre ? ` — ${selected.direccion_entrega.nombre}` : ''}</>
-                  ) : (
-                    <>📍 {selected.direccion_entrega.nombre_contacto || selected.direccion_entrega.nombre} — {selected.direccion_entrega.calle}, {selected.direccion_entrega.colonia}, {selected.direccion_entrega.ciudad}, {selected.direccion_entrega.estado_mx} {selected.direccion_entrega.cp}
-                      {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>ℹ️ {selected.direccion_entrega.instrucciones_entrega}</div>}
-                    </>
-                  )}
-                </div>
-              )}
-              {/* Evidencias — siempre visibles, permite agregar */}
-              <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
-                  📎 Evidencias {selected.evidencias?.length ? `(${selected.evidencias.length})` : ''}
-                </div>
-                <ImageUploader
-                  pedidoId={selected.id}
-                  initialUrls={selected.evidencias || []}
-                  onUploaded={urls => setSelected((s:any) => ({ ...s, evidencias: urls }))}
-                />
-              </div>
-              <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Items ({selected.items?.length||0})</div>
-              <div style={{ borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', marginBottom:16 }}>
-                {(selected.items||[]).map((it:any,i:number)=>(
-                  <div key={i} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 12px',fontSize:12,borderTop:i>0?'1px solid var(--border)':'none' }}>
-                    <div><span style={{ fontWeight:600 }}>{it.modelo}</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.serie ?? it.tipo_case}</span></div>
-                    <div style={{ textAlign:'right' }}><span style={{ fontWeight:600 }}>{it.cantidad} pzas</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.color}</span></div>
+              </Sec>
+              <Sec icon="🛒" title="Artículos del pedido" hint="Clave, tipo y cantidad de cada artículo. Quien surte puede capturar cuántas piezas surtió y por qué no se completó.">
+              <div style={{ borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', marginBottom:4 }}>
+                {(selected.items||[]).map((it:any,i:number)=>{
+                  const surtido = Number(it.cantidad_surtida || 0)
+                  const pct = it.cantidad ? Math.min(100, Math.round((surtido / it.cantidad) * 100)) : 0
+                  return (
+                  <div key={it.id||i} style={{ padding:'9px 12px', fontSize:12, borderTop:i>0?'1px solid var(--border)':'none' }}>
+                    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:8 }}>
+                      <div style={{ minWidth:0 }}>
+                        {it.clave && <span style={{ fontFamily:'monospace', fontSize:11, fontWeight:700, color:'var(--blue3)', marginRight:8 }}>{it.clave}</span>}
+                        <span style={{ fontWeight:600 }}>{it.nombre_producto || it.modelo}</span>
+                        <span style={{ marginLeft:8, fontSize:10, padding:'1px 6px', borderRadius:4, background:'rgba(26,143,227,0.1)', color:'var(--blue3)', fontWeight:600 }}>
+                          {[it.categoria, it.serie ?? it.tipo_case].filter(Boolean).join(' · ') || '—'}
+                        </span>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}><span style={{ fontWeight:600 }}>{it.cantidad} pzas</span><span style={{ marginLeft:8,color:'var(--txt2)' }}>{it.color}</span></div>
+                    </div>
+                    {puedeSurtir && (
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:7, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:11, color:'var(--txt2)' }}>Surtido:</span>
+                        <input className="cinput" type="number" min={0} max={it.cantidad} style={{ width:70, padding:'4px 6px', fontSize:12 }}
+                               value={surtidoEdit[it.id]?.cant ?? String(surtido)}
+                               onChange={e => setSurtidoEdit(m => ({ ...m, [it.id]: { cant: e.target.value, motivo: m[it.id]?.motivo ?? (it.motivo_surtido || '') } }))} />
+                        <span style={{ fontSize:11, color:'var(--txt3)' }}>de {it.cantidad}</span>
+                        <input className="cinput" style={{ flex:1, minWidth:120, padding:'4px 8px', fontSize:12 }} placeholder="Motivo si no se surtió completo"
+                               value={surtidoEdit[it.id]?.motivo ?? (it.motivo_surtido || '')}
+                               onChange={e => setSurtidoEdit(m => ({ ...m, [it.id]: { cant: m[it.id]?.cant ?? String(surtido), motivo: e.target.value } }))} />
+                      </div>
+                    )}
+                    {!puedeSurtir && (surtido > 0 || it.motivo_surtido) && (
+                      <div style={{ fontSize:11, color:'var(--txt2)', marginTop:5 }}>
+                        Surtido {surtido}/{it.cantidad} ({pct}%){it.motivo_surtido ? ` — ${it.motivo_surtido}` : ''}
+                      </div>
+                    )}
                   </div>
-                ))}
+                )})}
               </div>
-              <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
-                💳 Monto a cobrar (MXN) <span style={{ fontWeight:400, textTransform:'none', fontSize:11 }}>— necesario para generar el link de pago</span>
-              </div>
-              <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              {(selected.items||[]).length > 0 && (() => {
+                const tot = (selected.items||[]).reduce((a:number,it:any)=>a+Number(it.cantidad||0),0)
+                const sur = (selected.items||[]).reduce((a:number,it:any)=>a+Math.min(Number(it.cantidad_surtida||0), Number(it.cantidad||0)),0)
+                return (
+                  <div style={{ fontSize:11, color:'var(--txt2)', marginBottom:4 }}>
+                    Avance de surtido: <b style={{ color:'var(--txt)' }}>{sur}/{tot} pzas ({tot ? Math.round(sur/tot*100) : 0}%)</b>
+                    {puedeSurtir && (
+                      <button className="cbtn cbtn-secondary cbtn-sm" style={{ marginLeft:10 }} disabled={savingSurtido || !Object.keys(surtidoEdit).length} onClick={() => saveSurtido(selected.id)}>
+                        {savingSurtido ? 'Guardando…' : 'Guardar surtido'}
+                      </button>
+                    )}
+                    {surtidoError && <span style={{ color:'#f87171', marginLeft:8 }}>{surtidoError}</span>}
+                  </div>
+                )
+              })()}
+              </Sec>
+              <Sec icon="💳" title="Cobro" hint="Monto en MXN que se cobra al cliente. Cualquier cambio exige un motivo y queda en la bitácora.">
+              <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                 <input
                   type="number" min={0} step="0.01"
                   className="cinput"
                   placeholder="0.00"
                   value={montoInput}
                   onChange={e => setMontoInput(e.target.value)}
-                  style={{ flex:1 }}
+                  disabled={!can(userRol,'pagos_confirmar') || (selected.estado === 'ENTREGADO' && userRol.rol !== 'ADMIN')}
+                  style={{ flex:1, minWidth:120 }}
                 />
-                <button className="cbtn cbtn-secondary" disabled={savingMonto} onClick={() => saveMonto(selected.id)}>
-                  {savingMonto ? 'Guardando…' : 'Guardar'}
-                </button>
+                {can(userRol,'pagos_confirmar') && (
+                  <>
+                    <input className="cinput" style={{ flex:2, minWidth:160 }} placeholder="Motivo del cambio (obligatorio si cambia el monto)"
+                           value={montoMotivo} onChange={e => setMontoMotivo(e.target.value)} />
+                    <button className="cbtn cbtn-secondary" disabled={savingMonto} onClick={() => saveMonto(selected.id)}>
+                      {savingMonto ? 'Guardando…' : 'Guardar'}
+                    </button>
+                  </>
+                )}
               </div>
-
+              {montoError && <div style={{ fontSize:12, color:'#f87171', marginBottom:8 }}>⚠ {montoError}</div>}
+              {!can(userRol,'pagos_confirmar') && <p style={{ fontSize:11, color:'var(--txt3)', marginBottom:8 }}>Solo ventas/administración puede modificar el monto.</p>}
+              </Sec>
+              <Sec icon="🏭" title="Almacén y surtido" hint="Ubicación física, orden de surtido y evidencias del pedido.">
               {!['ENTREGADO','CANCELADO'].includes(selected.estado) && (
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
+                  <div style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
                     📦 Ubicación física (caja/tarima)
+                    <Ayuda text="Dónde quedó el pedido surtido dentro del almacén (tarima, caja, carrito). Ayuda a localizarlo al despachar." />
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
                     <input
@@ -481,16 +573,98 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {['CONFIRMADO','EN_PREPARACION'].includes(selected.estado) && (
+                <div style={{ marginBottom:16 }}>
+                  <a className="cbtn cbtn-secondary" href={`/api/orders/${selected.id}/picking`} target="_blank" rel="noreferrer"
+                     style={{ display:'inline-block', textDecoration:'none' }}
+                     onClick={() => setTimeout(() => { loadDetail(selected.id); load() }, 1500)}>
+                    📋 Exportar orden de surtido
+                  </a>
+                  {selected.estado === 'CONFIRMADO' && (
+                    <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>Al exportarla, el pedido pasa a "En preparación" automáticamente.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Evidencias — siempre visibles, permite agregar */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
+                  📎 Evidencias {selected.evidencias?.length ? `(${selected.evidencias.length})` : ''}
+                  <Ayuda text="Fotos o archivos que respaldan el pedido: comprobante de pago, foto del surtido, empaque, etc." />
+                </div>
+                <ImageUploader
+                  pedidoId={selected.id}
+                  initialUrls={selected.evidencias || []}
+                  onUploaded={urls => setSelected((s:any) => ({ ...s, evidencias: urls }))}
+                />
+              </div>
+              </Sec>
+              {/* ── Panel: datos de envío / guía (solo pedidos de envío) ── */}
+              {selected.metodo_entrega === 'envio' && (
+                <Sec icon="🚚" title="Datos de envío" hint="Paquetería elegida por el cliente, guía y rastreo.">
+
+                  {/* Paquetería elegida por el cliente */}
+                  {selected.paqueteria && (
+                    <div style={{ marginBottom:8, padding:'7px 10px', borderRadius:8, background:'var(--bg3)', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
+                      {(() => {
+                        const p = paqueteriasList.find(x => x.nombre === selected.paqueteria)
+                        return p?.logo_url
+                          ? <img src={p.logo_url} alt={p.nombre} style={{ height:20, objectFit:'contain' }} />
+                          : <span>🚚</span>
+                      })()}
+                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{selected.paqueteria}</span>
+                      {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados &&
+                        <span style={{ color:'var(--txt3)' }}>· {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados}</span>}
+                    </div>
+                  )}
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      <div>
+                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>N° de guía <Ayuda text="Número de rastreo que asigna la paquetería." /></label>
+                        <input className="cinput" value={envioGuia} onChange={e=>setEnvioGuia(e.target.value)} placeholder="Ej: 1234567890" />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Costo de envío (MXN)</label>
+                        <input className="cinput" type="number" min="0" step="0.01" value={envioCosto} onChange={e=>setEnvioCosto(e.target.value)} placeholder="0.00" />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>URL de rastreo</label>
+                      <input className="cinput" value={envioRastreo} onChange={e=>setEnvioRastreo(e.target.value)} placeholder="https://rastreo.paqueteria.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Observaciones de envío</label>
+                      <input className="cinput" value={envioObs} onChange={e=>setEnvioObs(e.target.value)} placeholder="Instrucciones especiales, notas de entrega…" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía <Ayuda text="PDF o imagen de la guía de la paquetería; queda disponible en el pedido. El cliente solo recibe aviso (WhatsApp y correo) con la 'nota para el cliente' al cambiar de estado." /></label>
+                      {selected.envio_archivo_url && (
+                        <a href={selected.envio_archivo_url} target="_blank" rel="noreferrer"
+                           style={{ display:'inline-block', marginBottom:6, fontSize:11, color:'var(--blue)', textDecoration:'underline' }}>
+                          📎 Ver archivo actual
+                        </a>
+                      )}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={e=>setEnvioArchivo(e.target.files?.[0]||null)}
+                        style={{ fontSize:11, color:'var(--txt2)' }} />
+                    </div>
+                    <button className="cbtn cbtn-secondary" style={{ alignSelf:'flex-start' }}
+                      disabled={savingEnvio} onClick={() => saveEnvio(selected.id)}>
+                      {savingEnvio ? 'Guardando…' : '💾 Guardar datos de envío'}
+                    </button>
+                  </div>
+                </Sec>
+              )}
+
+              <Sec icon="✏️" title="Información interna" hint="Vendedor, sede de recolección y observaciones del equipo.">
               {/* ── Panel: editar información del pedido ─────────────── */}
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>
-                  ✏️ Editar información del pedido
-                </div>
+
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
                   {/* Vendedor — texto libre con sugerencias de usuarios del sistema */}
                   <div>
-                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor</label>
+                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor <Ayuda text="Quién atiende el pedido. Puedes escribir cualquier nombre o elegir un usuario del sistema." /></label>
                     <p style={{ fontSize:10,color:'var(--txt3)',marginBottom:5 }}>
                       Escribe cualquier nombre o elige un usuario del sistema. No requiere cuenta.
                     </p>
@@ -533,7 +707,7 @@ export default function OrdersPage() {
 
                   {/* Nota interna */}
                   <div>
-                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>📝 Agregar observación interna</label>
+                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>📝 Agregar observación interna <Ayuda text="Solo la ve el equipo (bitácora). El cliente no la ve; para avisarle algo usa la 'Nota para el cliente' al cambiar el estado." /></label>
                     <div style={{ display:'flex', gap:8 }}>
                       <input className="cinput" style={{ flex:1 }} placeholder="Observación visible solo para el equipo…"
                              value={editNota} onChange={e => setEditNota(e.target.value)}
@@ -548,81 +722,11 @@ export default function OrdersPage() {
               </div>
               {/* ──────────────────────────────────────────────────── */}
 
-              {/* ── Panel: datos de envío / guía (solo pedidos de envío) ── */}
-              {selected.metodo_entrega === 'envio' && (
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>
-                    📦 Datos de envío
-                  </div>
-                  {/* Paquetería elegida por el cliente */}
-                  {selected.paqueteria && (
-                    <div style={{ marginBottom:8, padding:'7px 10px', borderRadius:8, background:'var(--bg3)', fontSize:12, display:'flex', alignItems:'center', gap:8 }}>
-                      {(() => {
-                        const p = paqueteriasList.find(x => x.nombre === selected.paqueteria)
-                        return p?.logo_url
-                          ? <img src={p.logo_url} alt={p.nombre} style={{ height:20, objectFit:'contain' }} />
-                          : <span>🚚</span>
-                      })()}
-                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{selected.paqueteria}</span>
-                      {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados &&
-                        <span style={{ color:'var(--txt3)' }}>· {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados}</span>}
-                    </div>
-                  )}
-                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                      <div>
-                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>N° de guía</label>
-                        <input className="cinput" value={envioGuia} onChange={e=>setEnvioGuia(e.target.value)} placeholder="Ej: 1234567890" />
-                      </div>
-                      <div>
-                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Costo de envío (MXN)</label>
-                        <input className="cinput" type="number" min="0" step="0.01" value={envioCosto} onChange={e=>setEnvioCosto(e.target.value)} placeholder="0.00" />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>URL de rastreo</label>
-                      <input className="cinput" value={envioRastreo} onChange={e=>setEnvioRastreo(e.target.value)} placeholder="https://rastreo.paqueteria.com/..." />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Observaciones de envío</label>
-                      <input className="cinput" value={envioObs} onChange={e=>setEnvioObs(e.target.value)} placeholder="Instrucciones especiales, notas de entrega…" />
-                    </div>
-                    <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía</label>
-                      {selected.envio_archivo_url && (
-                        <a href={selected.envio_archivo_url} target="_blank" rel="noreferrer"
-                           style={{ display:'inline-block', marginBottom:6, fontSize:11, color:'var(--blue)', textDecoration:'underline' }}>
-                          📎 Ver archivo actual
-                        </a>
-                      )}
-                      <input type="file" accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={e=>setEnvioArchivo(e.target.files?.[0]||null)}
-                        style={{ fontSize:11, color:'var(--txt2)' }} />
-                    </div>
-                    <button className="cbtn cbtn-secondary" style={{ alignSelf:'flex-start' }}
-                      disabled={savingEnvio} onClick={() => saveEnvio(selected.id)}>
-                      {savingEnvio ? 'Guardando…' : '💾 Guardar datos de envío'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
+              </Sec>
+              <Sec icon="🔄" title="Estado y acciones" hint="Cambia el estado del pedido. Se avisa al cliente por WhatsApp y correo (excepto Por validar surtido, que es interno).">
               {selected.motivo_rechazo_surtido && selected.estado === 'EN_PREPARACION' && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
                   ✕ Surtido rechazado: {selected.motivo_rechazo_surtido}
-                </div>
-              )}
-
-              {['CONFIRMADO','EN_PREPARACION'].includes(selected.estado) && (
-                <div style={{ marginBottom:16 }}>
-                  <a className="cbtn cbtn-secondary" href={`/api/orders/${selected.id}/picking`} target="_blank" rel="noreferrer"
-                     style={{ display:'inline-block', textDecoration:'none' }}
-                     onClick={() => setTimeout(() => { loadDetail(selected.id); load() }, 1500)}>
-                    📋 Exportar orden de surtido
-                  </a>
-                  {selected.estado === 'CONFIRMADO' && (
-                    <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>Al exportarla, el pedido pasa a "En preparación" automáticamente.</p>
-                  )}
                 </div>
               )}
 
@@ -675,7 +779,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                   {/* Nota visible al cliente */}
-                  {selected.notas_cliente && (
+                  {verNotaCliente && selected.notas_cliente && (
                     <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12 }}>
                       <span style={{ fontWeight:700, color:'#1d4ed8' }}>📝 Nota al cliente:</span>{' '}
                       <span style={{ color:'#1e40af' }}>{selected.notas_cliente}</span>
@@ -717,6 +821,8 @@ export default function OrdersPage() {
                 </>
               )}
 
+              </Sec>
+
               {selected.timeline?.length > 0 && (
                 <div style={{ marginTop:18 }}>
                   <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Bitácora del pedido</div>
@@ -724,7 +830,7 @@ export default function OrdersPage() {
                     {selected.timeline.map((t:any,i:number) => {
                       const tipo = t.tipo_evento || 'ESTADO'
                       const esEstado = tipo === 'ESTADO'
-                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : '📌'
+                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : tipo === 'MONTO' ? '💳' : tipo === 'UBICACION' ? '📦' : '📌'
                       return (
                         <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'7px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
                           <div style={{ flex:1 }}>
@@ -784,13 +890,13 @@ export default function OrdersPage() {
                   <p style={{ fontSize:11, color:'var(--txt3)' }}>Agrega abajo el número de guía o instrucciones para el cliente.</p>
                 </div>
               )}
-              <div style={{ marginBottom:14 }}>
+              {verNotaCliente && <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
                   📝 Nota para el cliente <span style={{ fontWeight:400, textTransform:'none', fontSize:9 }}>(visible en su portal)</span>
                 </label>
                 <textarea className="cinput" style={{ minHeight:70 }} value={notasCliente} onChange={e => setNotasCliente(e.target.value)}
                   placeholder={pendingChange.estado==='EN_REPARTO' ? 'Ej: Tu pedido va con Estafeta, guía: 1234567890. Entrega estimada: 2-3 días.' : 'Instrucción, aclaración o nota para el cliente...'} />
-              </div>
+              </div>}
               {confirmError && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
                   ⚠ {confirmError}

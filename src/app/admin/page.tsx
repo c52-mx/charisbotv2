@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
@@ -9,13 +9,17 @@ import { useContext } from 'react'
 import Link from 'next/link'
 
 const ESTADO_COLORS: Record<string,string> = {
-  CONFIRMADO:'#22c55e', PENDIENTE_CONFIRMACION:'#f59e0b',
+  CONFIRMADO:'#22c55e', PENDIENTE_CONFIRMACION:'#f59e0b', PENDIENTE_PAGO:'#fbbf24',
+  EN_PREPARACION:'#1a8fe3', POR_VALIDAR_SURTIDO:'#a78bfa', EN_REPARTO:'#38bdf8',
+  LISTO_PARA_RECOGER:'#2dd4bf', ENTREGA_FALLIDA:'#fb7185', ENTREGADO:'#818cf8',
   EN_PROCESO:'#1a8fe3', COMPLETADO:'#818cf8',
   CANCELADO:'#ef4444',  PENDIENTE:'#6b7280',
 }
 const BADGE_CLASS: Record<string,string> = {
-  CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn',
-  PENDIENTE:'badge-warn', EN_PROCESO:'badge-blue',
+  CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn', PENDIENTE_PAGO:'badge-warn',
+  PENDIENTE:'badge-warn', EN_PROCESO:'badge-blue', EN_PREPARACION:'badge-blue',
+  POR_VALIDAR_SURTIDO:'badge-warn', EN_REPARTO:'badge-blue', LISTO_PARA_RECOGER:'badge-blue',
+  ENTREGA_FALLIDA:'badge-red', ENTREGADO:'badge-purple',
   COMPLETADO:'badge-purple', CANCELADO:'badge-red',
 }
 
@@ -44,7 +48,7 @@ export default function DashboardPage() {
     setDiaDetalle(fecha)
     setLoadingDia(true)
     const desde = fecha
-    const hasta = format(addDays(new Date(fecha), 1), 'yyyy-MM-dd')
+    const hasta = format(addDays(new Date(fecha+'T12:00:00'), 1), 'yyyy-MM-dd')
     const r = await fetch(`/api/orders?fecha_desde=${desde}&fecha_hasta=${hasta}&limit=20`)
     const d = await r.json()
     setDiaOrders(d.data || [])
@@ -58,11 +62,17 @@ export default function DashboardPage() {
   )
 
   const st     = data?.stats || {}
-  const porDia = (data?.porDia||[]).map((d:any)=>({
-    rawFecha: d.fecha,
-    fecha: format(new Date(d.fecha),'dd MMM',{locale:es}),
-    pedidos: parseInt(d.pedidos),
-  }))
+  const porDia = (data?.porDia||[]).map((d:any)=>{
+    const dia = String(d.fecha).slice(0,10)
+    return {
+      rawFecha: dia,
+      fecha: format(new Date(dia+'T12:00:00'),'dd MMM',{locale:es}),
+      Pendientes: parseInt(d.pendientes),
+      'En proceso': parseInt(d.en_proceso),
+      Entregados: parseInt(d.entregados),
+      Cancelados: parseInt(d.cancelados),
+    }
+  })
 
   const stats = [
     {label:'Pedidos hoy',     value:st.pedidos_hoy??0,        icon:'📅', color:'#1a8fe3'},
@@ -146,7 +156,7 @@ export default function DashboardPage() {
         <div className="ccard" style={{padding:20,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:8,flexWrap:'wrap'}}>
             <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
-              Pedidos por día
+              Pedidos por día y estado
             </div>
             <div style={{display:'flex',gap:6}}>
               {([7,30] as Periodo[]).map(p=>(
@@ -156,22 +166,26 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={porDia} barSize={periodo===7?24:12} onClick={handleBarClick}>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={porDia} onClick={handleBarClick} style={{cursor:'pointer'}}>
               <XAxis dataKey="fecha" tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false} width={24}/>
-              <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:12}} cursor={{fill:'rgba(26,143,227,0.06)'}}/>
-              <Bar dataKey="pedidos" fill="var(--blue3)" radius={[5,5,0,0]}/>
-            </BarChart>
+              <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:12}}/>
+              <Legend iconType="plainline" wrapperStyle={{fontSize:11}}/>
+              <Line type="monotone" dataKey="Pendientes" stroke="#f59e0b" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
+              <Line type="monotone" dataKey="En proceso" stroke="#1a8fe3" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
+              <Line type="monotone" dataKey="Entregados" stroke="#22c55e" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
+              <Line type="monotone" dataKey="Cancelados" stroke="#ef4444" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
+            </LineChart>
           </ResponsiveContainer>
-          <p style={{fontSize:10,color:'var(--txt3)',marginTop:8}}>Haz clic en una barra para ver los pedidos de ese día.</p>
+          <p style={{fontSize:10,color:'var(--txt3)',marginTop:8}}>Haz clic en un punto de la gráfica para listar abajo los pedidos de ese día.</p>
 
           {/* Día detalle */}
           {diaDetalle && (
             <div style={{marginTop:14,borderTop:'1px solid var(--border)',paddingTop:14}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
                 <span style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em'}}>
-                  {format(new Date(diaDetalle),"dd 'de' MMMM",{locale:es})} — {diaOrders.length} pedido{diaOrders.length!==1?'s':''}
+                  {format(new Date(diaDetalle+'T12:00:00'),"dd 'de' MMMM",{locale:es})} — {diaOrders.length} pedido{diaOrders.length!==1?'s':''}
                 </span>
                 <button onClick={()=>setDiaDetalle(null)} style={{background:'none',border:'none',color:'var(--txt3)',cursor:'pointer',fontSize:14}}>✕</button>
               </div>

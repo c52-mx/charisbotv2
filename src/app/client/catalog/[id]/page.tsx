@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import QtyInput from '@/components/QtyInput'
 
 interface Producto {
   producto_id: string
@@ -272,6 +273,10 @@ export default function ProductDetailPage() {
   const [mainImg,      setMainImg]     = useState<string | null>(null)
   const [lightbox,     setLightbox]    = useState(false)
   const [qty,          setQty]         = useState(1)
+  const [minimoPedido, setMinimoPedido] = useState(1)
+  useEffect(() => {
+    fetch('/api/client/config').then(r => r.json()).then(d => { const n = parseInt(d?.minimo_pedido_piezas); if (n > 1) setMinimoPedido(n) }).catch(() => {})
+  }, [])
   const [addMsg,       setAddMsg]      = useState('')
   const [adding,       setAdding]      = useState(false)
 
@@ -502,11 +507,13 @@ export default function ProductDetailPage() {
           {/* Qty + CTAs */}
           <div style={{ marginBottom:14 }}>
             <p style={{ fontSize:12, color:'#999', marginBottom:8, fontWeight:500 }}>Cantidad</p>
+            {minimoPedido > 1 && (
+              <p style={{ fontSize:11, color:'#b45309', marginBottom:8 }}>Pedido mínimo: {minimoPedido} piezas en total (puedes combinar varios productos).</p>
+            )}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12, flexWrap:'wrap' }}>
               <div className="pd-qty">
                 <button className="pd-qty-btn" disabled={qty <= 1} onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
-                <input type="number" className="pd-qty-val" value={qty} min={1} max={disponible}
-                  onChange={e => setQty(Math.max(1, Math.min(disponible, parseInt(e.target.value) || 1)))} />
+                <QtyInput className="pd-qty-val" value={qty} max={disponible} onCommit={setQty} />
                 <button className="pd-qty-btn" disabled={qty >= disponible} onClick={() => setQty(q => Math.min(disponible, q + 1))}>+</button>
               </div>
               {stockStatus !== 'out' && (

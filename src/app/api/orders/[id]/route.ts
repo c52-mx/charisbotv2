@@ -7,9 +7,11 @@ import { finalizarPedido, liberarPedido, restaurarStockPedido } from '@/lib/stoc
 
 export const dynamic = 'force-dynamic'
 
-// Solo CONFIRMADO descuenta stock — EN_PREPARACION/EN_REPARTO/ENTREGADO son
-// pasos de seguimiento posteriores que no vuelven a tocar el inventario.
-const ESTADOS_FINALES = ['CONFIRMADO']
+// El stock se descuenta al pasar de un estado "sin pagar" a cualquiera posterior
+// (aunque se salten CONFIRMADO). finalizarPedido es idempotente, así que repetir
+// la llamada no descuenta dos veces.
+const ESTADOS_SIN_STOCK_DESCONTADO = ['PENDIENTE_PAGO', 'PENDIENTE_CONFIRMACION']
+const ESTADOS_FINALES = ['CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGADO']
 
 // GET /api/orders/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -38,8 +40,16 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   }
 
+  // La clave (identificador del catálogo) se toma del producto ligado o, en pedidos históricos, por serie+modelo+color.
   const items = await query(
-    'SELECT * FROM public.pedido_items WHERE pedido_id = $1 ORDER BY creado_en',
+    `SELECT pi.*,
+            COALESCE(cp.identificador,
+              (SELECT c2.identificador FROM public.catalogo_productos c2
+               WHERE COALESCE(c2.serie,'') = COALESCE(pi.serie,'') AND c2.modelo = pi.modelo AND c2.color = pi.color LIMIT 1)) AS clave
+     FROM public.pedido_items pi
+     LEFT JOIN public.catalogo_productos cp ON cp.producto_id = pi.producto_id
+     WHERE pi.pedido_id = $1
+     ORDER BY pi.creado_en`,
     [params.id]
   )
 
@@ -68,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!UUID_RE.test(params.id)) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
-  const { estado, notas, notas_cliente, monto_total, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
+  const { estado, notas, notas_cliente, monto_total, motivo_monto, items_surtido, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
           tipo_evento, nota_evento, detalle: detalleEvento,
           envio_guia, envio_costo, envio_rastreo_url, envio_observaciones, envio_archivo_url } = body
 
@@ -128,9 +138,67 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ ok: true })
   }
 
+  // ── Avance de surtido por artículo (sin cambiar estado) ──────────────────
+  if (Array.isArray(items_surtido)) {
+    const actual = await queryOne<{ estado: string }>(`SELECT estado FROM public.pedidos WHERE id = $1`, [params.id])
+    if (!actual) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    if (!['CONFIRMADO', 'EN_PREPARACION', 'POR_VALIDAR_SURTIDO'].includes(actual.estado)) {
+      return NextResponse.json({ error: 'Solo se captura el surtido de pedidos confirmados en preparación' }, { status: 400 })
+    }
+    for (const it of items_surtido.slice(0, 200)) {
+      if (!UUID_RE.test(String(it?.id))) return NextResponse.json({ error: 'Artículo inválido' }, { status: 400 })
+      const cant = Number(it.cantidad_surtida)
+      if (!Number.isInteger(cant) || cant < 0) return NextResponse.json({ error: 'Cantidad surtida inválida' }, { status: 400 })
+      const row = await queryOne<{ cantidad: number }>(
+        `SELECT cantidad FROM public.pedido_items WHERE id = $1 AND pedido_id = $2`, [it.id, params.id]
+      )
+      if (!row) return NextResponse.json({ error: 'Artículo no pertenece al pedido' }, { status: 400 })
+      if (cant > Number(row.cantidad)) return NextResponse.json({ error: `No puedes surtir más de lo pedido (${row.cantidad})` }, { status: 400 })
+      const motivo = String(it.motivo || '').trim().slice(0, 300)
+      if (cant < Number(row.cantidad) && !motivo) {
+        return NextResponse.json({ error: 'Indica el motivo cuando un artículo no se surte completo' }, { status: 400 })
+      }
+      await query(
+        `UPDATE public.pedido_items SET cantidad_surtida = $1, motivo_surtido = $2 WHERE id = $3`,
+        [cant, cant < Number(row.cantidad) ? motivo : null, it.id]
+      )
+    }
+    await query(
+      `INSERT INTO public.pedido_timeline (pedido_id, estado, tipo_evento, nota, realizado_por)
+       VALUES ($1, $2, 'NOTA', 'Avance de surtido actualizado', $3)`,
+      [params.id, actual.estado, session.sub]
+    )
+    return NextResponse.json({ ok: true })
+  }
+
   // Solo permitir actualizar el monto a cobrar, la ubicación física y/o el
   // repartidor asignado, sin cambiar de estado (reasignación libre).
   if (estado === undefined && (monto_total !== undefined || ubicacion_fisica !== undefined || asignado_a !== undefined)) {
+    const actual = await queryOne<{ estado: string; monto_total: string | null; ubicacion_fisica: string | null }>(
+      `SELECT estado, monto_total, ubicacion_fisica FROM public.pedidos WHERE id = $1`, [params.id]
+    )
+    if (!actual) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+    // Un pedido entregado solo lo modifica el admin.
+    if (actual.estado === 'ENTREGADO' && session.rol !== 'ADMIN') {
+      return NextResponse.json({ error: 'Un pedido entregado solo puede modificarlo el administrador' }, { status: 403 })
+    }
+
+    // El monto a cobrar es dinero: solo quien valida pagos (ventas/admin), con motivo y queda en bitácora.
+    const montoNuevo = monto_total === null || monto_total === '' ? null : Number(monto_total)
+    const cambiaMonto = monto_total !== undefined && montoNuevo !== (actual.monto_total === null ? null : Number(actual.monto_total))
+    if (monto_total !== undefined) {
+      if (!can(session, 'pagos_confirmar')) {
+        return NextResponse.json({ error: 'Sin permiso para modificar el monto a cobrar' }, { status: 403 })
+      }
+      if (montoNuevo !== null && (!Number.isFinite(montoNuevo) || montoNuevo < 0)) {
+        return NextResponse.json({ error: 'Monto inválido' }, { status: 400 })
+      }
+      if (cambiaMonto && !String(motivo_monto || '').trim()) {
+        return NextResponse.json({ error: 'El motivo del cambio de monto es obligatorio' }, { status: 400 })
+      }
+    }
+
     const updated = await queryOne<any>(
       `UPDATE public.pedidos
        SET monto_total = CASE WHEN $1::text IS NOT NULL THEN $2::numeric ELSE monto_total END,
@@ -142,7 +210,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
        RETURNING id, monto_total, ubicacion_fisica, asignado_a`,
       [
         monto_total !== undefined ? 'set' : null,
-        monto_total === null || monto_total === '' ? null : monto_total,
+        montoNuevo,
         ubicacion_fisica !== undefined ? 'set' : null,
         ubicacion_fisica || null,
         params.id,
@@ -151,6 +219,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ]
     )
     if (!updated) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+    if (cambiaMonto) {
+      await query(
+        `INSERT INTO public.pedido_timeline (pedido_id, estado, tipo_evento, nota, detalle, realizado_por)
+         VALUES ($1, $2, 'MONTO', $3, $4, $5)`,
+        [params.id, actual.estado,
+         `Monto a cobrar: $${actual.monto_total ?? '—'} → $${montoNuevo ?? '—'}. Motivo: ${String(motivo_monto).trim()}`,
+         JSON.stringify({ monto_anterior: actual.monto_total, monto_nuevo: montoNuevo, motivo: String(motivo_monto).trim() }),
+         session.sub]
+      )
+    }
+    if (ubicacion_fisica !== undefined && (ubicacion_fisica || null) !== (actual.ubicacion_fisica || null)) {
+      await query(
+        `INSERT INTO public.pedido_timeline (pedido_id, estado, tipo_evento, nota, realizado_por)
+         VALUES ($1, $2, 'UBICACION', $3, $4)`,
+        [params.id, actual.estado, `Ubicación física: ${actual.ubicacion_fisica || '—'} → ${ubicacion_fisica || '—'}`, session.sub]
+      )
+    }
     return NextResponse.json({ ok: true, data: updated })
   }
 
@@ -171,8 +257,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!before) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   // CANCELADO y ENTREGADO son terminales aquí (reactivar tiene su propia ruta, solo ADMIN).
-  if (['CANCELADO', 'ENTREGADO'].includes(before.estado) && estado !== before.estado) {
-    return NextResponse.json({ error: `Un pedido ${before.estado.toLowerCase()} ya no puede cambiar de estado` }, { status: 400 })
+  // Un pedido ENTREGADO solo lo puede corregir el administrador.
+  if (before.estado === 'CANCELADO' && estado !== before.estado) {
+    return NextResponse.json({ error: 'Un pedido cancelado ya no puede cambiar de estado' }, { status: 400 })
+  }
+  if (before.estado === 'ENTREGADO' && estado !== before.estado && session.rol !== 'ADMIN') {
+    return NextResponse.json({ error: 'Un pedido entregado solo puede modificarlo el administrador' }, { status: 403 })
   }
 
   // Confirmar pago manual (PENDIENTE_PAGO→CONFIRMADO) y validar/rechazar surtido
@@ -222,7 +312,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
      RETURNING id, telefono, estado, resumen, numero_pedido, notas_cliente`,
     [
       estado, notas || null, params.id,
-      monto_total === undefined || monto_total === '' ? null : monto_total,
+      null, // el monto solo cambia por la rama dedicada (permiso + motivo + bitácora)
       motivo_cancelacion || null,
       motivo_rechazo_surtido || null,
       asignado_a || null,
@@ -240,7 +330,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   // Confirmado/pagado por primera vez → descuenta stock definitivo y libera la reserva.
   // Cancelado → libera reservas; si ya estaba confirmado (stock descontado), lo restaura.
-  if (ESTADOS_FINALES.includes(estado) && !ESTADOS_FINALES.includes(before.estado)) {
+  if (ESTADOS_FINALES.includes(estado) && ESTADOS_SIN_STOCK_DESCONTADO.includes(before.estado)) {
     await finalizarPedido(params.id, session.sub).catch(e => console.error('[finalizarPedido]', e))
   } else if (estado === 'CANCELADO' && before.estado !== 'CANCELADO') {
     await liberarPedido(params.id).catch(e => console.error('[liberarPedido]', e))

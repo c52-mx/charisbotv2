@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { CharisLogotipo } from '@/components/CharisLogo'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
+import QtyInput from '@/components/QtyInput'
 
 const NAV = [
   { href: '/client',          label: 'Inicio',      icon: '🏠', exact: true  },
@@ -314,7 +315,11 @@ const CSS = `
   .c-qty-btn:last-child  { border-radius: 0 5px 5px 0; }
   .c-qty-btn:hover { background: var(--border); }
   .c-qty-val {
-    width: 36px;
+    width: 44px;
+    text-align: center;
+    background: var(--field-bg);
+    font-family: inherit;
+    outline: none;
     height: 26px;
     border: 1px solid var(--field-border);
     border-left: none;
@@ -778,7 +783,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                         nc[i] = { ...nc[i], cantidad: Math.max(1, nc[i].cantidad - 1) }
                         setCartItems(nc); saveAndNotify(nc)
                       }}>−</button>
-                      <div className="c-qty-val">{item.cantidad}</div>
+                      <QtyInput className="c-qty-val" value={item.cantidad} onCommit={n => {
+                        const nc = [...cartItems]
+                        nc[i] = { ...nc[i], cantidad: n }
+                        setCartItems(nc); saveAndNotify(nc)
+                      }} />
                       <button className="c-qty-btn" onClick={() => {
                         const nc = [...cartItems]
                         nc[i] = { ...nc[i], cantidad: nc[i].cantidad + 1 }

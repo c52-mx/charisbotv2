@@ -39,7 +39,7 @@ export async function GET(
             WHERE v.activo = true
               AND v.serie = $1
               AND v.modelo = $2
-              AND (v.marca IS NOT DISTINCT FROM $3)
+              AND (v.marca IS NOT DISTINCT FROM $3::text)
               AND v.producto_id != $4
             ORDER BY v.color`,
             [producto.serie, producto.modelo, producto.marca || null, productoId])
@@ -49,7 +49,7 @@ export async function GET(
             WHERE v.activo = true
               AND v.serie IS NULL
               AND v.modelo = $1
-              AND (v.marca IS NOT DISTINCT FROM $2)
+              AND (v.marca IS NOT DISTINCT FROM $2::text)
               AND v.producto_id != $3
             ORDER BY v.color`,
             [producto.modelo, producto.marca || null, productoId])
@@ -67,16 +67,16 @@ export async function GET(
     const modelosRel = (producto.serie) ? await query<any>(`
       SELECT
         p.modelo,
-        MIN(p.producto_id) AS producto_id,
+        (ARRAY_AGG(p.producto_id ORDER BY p.color))[1] AS producto_id,
         MIN(p.foto_url) AS foto_url,
         MIN(p.precio) AS precio_min,
         COUNT(DISTINCT p.color) AS num_colores
       FROM public.catalogo_productos p
       WHERE p.activo = true
         AND p.serie = $1
-        AND (p.marca IS NOT DISTINCT FROM $2)
+        AND (p.marca IS NOT DISTINCT FROM $2::text)
         AND p.modelo IS NOT NULL
-        AND p.modelo != $3
+        AND p.modelo != $3::text
       GROUP BY p.modelo
       ORDER BY p.modelo
       LIMIT 12

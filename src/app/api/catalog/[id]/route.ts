@@ -31,6 +31,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
+  // Entrada de mercancía: suma al stock actual (atómico) y queda como movimiento ENTRADA.
+  if (body.entrada_stock !== undefined) {
+    const cant = Number(body.entrada_stock?.cantidad)
+    if (!Number.isInteger(cant) || cant < 1 || cant > 1_000_000) {
+      return NextResponse.json({ error: 'Cantidad de entrada inválida' }, { status: 400 })
+    }
+    const motivo = String(body.entrada_stock?.motivo || '').trim().slice(0, 200) || 'Entrada de mercancía'
+    const upd = await queryOne<{ stock: number }>(
+      `UPDATE public.catalogo_productos SET stock = stock + $1 WHERE producto_id = $2 RETURNING stock`,
+      [cant, params.id]
+    )
+    if (!upd) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    await registrarMovimiento({
+      producto_id: params.id, tipo: 'ENTRADA', cantidad: cant, stock_resultante: upd.stock,
+      motivo, realizado_por: session.sub,
+    })
+    await logCatalogo(params.id, 'EDITAR', { campo: 'stock', valor_anterior: upd.stock - cant, valor_nuevo: upd.stock }, session.sub)
+    return NextResponse.json({ ok: true, stock: upd.stock })
+  }
+
   const sets: string[]  = []
   const vals: any[]     = []
   let   idx = 1

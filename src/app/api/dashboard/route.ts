@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, can } from '@/lib/auth'
 import { getReporteVentas } from '@/lib/reports'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !can(session, 'dashboard')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
   const [stats, byEstado, byOrigen, topModelos, ultimosPedidos, stockBajo] = await Promise.all([
-    queryOne<any>(`SELECT * FROM public.v_dashboard_stats`),
+    // pedidos_confirmados y clientes_unicos no existen en la vista v_dashboard_stats
+    // (por eso el dashboard los mostraba siempre en 0), así que se calculan aquí.
+    queryOne<any>(`
+      SELECT s.*,
+        (SELECT COUNT(*)::int FROM public.pedidos
+          WHERE estado NOT IN ('PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','PENDIENTE','CANCELADO')) AS pedidos_confirmados,
+        (SELECT COUNT(DISTINCT telefono)::int FROM public.pedidos)                                 AS clientes_unicos
+      FROM public.v_dashboard_stats s`),
 
     query(`
       SELECT estado, COUNT(*) as cantidad
@@ -57,10 +64,15 @@ export async function GET(req: NextRequest) {
   const diasParam = parseInt(searchParams.get('dias') || '7')
   const dias = [7, 30].includes(diasParam) ? diasParam : 7
 
+  // Una serie por grupo de estado para poder graficarlas como líneas.
   const porDia = await query(`
     SELECT
       DATE(creado_en) as fecha,
-      COUNT(*) as pedidos
+      COUNT(*) as pedidos,
+      COUNT(*) FILTER (WHERE estado IN ('PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','PENDIENTE')) as pendientes,
+      COUNT(*) FILTER (WHERE estado IN ('CONFIRMADO','EN_PREPARACION','POR_VALIDAR_SURTIDO','EN_REPARTO','LISTO_PARA_RECOGER','ENTREGA_FALLIDA','EN_PROCESO')) as en_proceso,
+      COUNT(*) FILTER (WHERE estado IN ('ENTREGADO','COMPLETADO')) as entregados,
+      COUNT(*) FILTER (WHERE estado = 'CANCELADO') as cancelados
     FROM public.pedidos
     WHERE creado_en >= NOW() - INTERVAL '${dias} days'
     GROUP BY DATE(creado_en)

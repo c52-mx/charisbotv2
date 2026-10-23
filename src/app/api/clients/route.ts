@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, can } from '@/lib/auth'
 import { logCliente } from '@/lib/audit'
 import { acotarPaginacion } from '@/lib/uploads'
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !can(session, 'clientes_ver')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req)
-  if (!session || session.rol !== 'ADMIN') {
+  if (!session || !can(session, 'clientes_crear')) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

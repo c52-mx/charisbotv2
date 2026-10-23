@@ -1,5 +1,6 @@
 // src/app/api/client/catalog/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+import { condBusqueda, normBusqueda } from '@/lib/busqueda'
 import { query } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
@@ -30,13 +31,8 @@ export async function GET(req: NextRequest) {
     let   idx = 1
 
     if (search) {
-      conds.push(`(
-        p.nombre        ILIKE $${idx}
-        OR p.marca      ILIKE $${idx}
-        OR p.modelo     ILIKE $${idx}
-        OR p.identificador ILIKE $${idx}
-      )`)
-      params.push(`%${search}%`)
+      conds.push(condBusqueda(['p.nombre', 'p.marca', 'p.modelo', 'p.identificador'], idx))
+      params.push(`%${normBusqueda(search)}%`)
       idx++
     }
     if (categoria) { conds.push(`p.categoria = $${idx++}`); params.push(categoria) }
