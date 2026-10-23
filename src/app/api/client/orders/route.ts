@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
             SELECT
               $1::uuid,
               COALESCE(NULLIF(x.modelo,''), NULLIF(x.nombre,''), '—'),
-              NULLIF(x.serie,''),
+              COALESCE(NULLIF(x.serie,''), ''), -- accesorios no tienen serie; pedido_items.serie es NOT NULL en producción
               COALESCE(NULLIF(x.color,''),'NEGRO'),
               x.cantidad,
               x.precio,
