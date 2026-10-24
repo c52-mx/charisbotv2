@@ -19,21 +19,24 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   )
   if (!pedido) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const items = await query<{ modelo: string; serie: string; color: string; cantidad: number }>(
-    `SELECT pi.modelo, pi.serie, pi.color, pi.cantidad
-     FROM public.pedido_items pi WHERE pi.pedido_id = $1 ORDER BY pi.serie, pi.modelo`,
+  // Clave y ubicación salen del producto ligado al artículo; en pedidos históricos, por serie+modelo+color.
+  const items = await query<{ clave: string | null; nombre: string | null; categoria: string | null; modelo: string; serie: string | null; color: string; cantidad: number; ubicacion: string | null }>(
+    `SELECT COALESCE(cp.identificador, c2.identificador) AS clave,
+            COALESCE(pi.nombre_producto, pi.modelo) AS nombre,
+            pi.categoria, pi.modelo, pi.serie, pi.color, pi.cantidad,
+            COALESCE(cp.ubicacion, c2.ubicacion) AS ubicacion
+     FROM public.pedido_items pi
+     LEFT JOIN public.catalogo_productos cp ON cp.producto_id = pi.producto_id
+     LEFT JOIN LATERAL (
+       SELECT identificador, ubicacion FROM public.catalogo_productos c
+       WHERE c.producto_id IS DISTINCT FROM pi.producto_id AND pi.producto_id IS NULL
+         AND COALESCE(c.serie,'') = COALESCE(pi.serie,'') AND c.modelo = pi.modelo AND c.color = pi.color
+       LIMIT 1
+     ) c2 ON true
+     WHERE pi.pedido_id = $1
+     ORDER BY pi.serie, pi.modelo`,
     [params.id]
   )
-
-  let ubicacionMap = new Map<string, string | null>()
-  if (items.length > 0) {
-    const ubicaciones = await query<{ serie: string; modelo: string; color: string; ubicacion: string | null }>(
-      `SELECT serie, modelo, color, ubicacion FROM public.catalogo_productos
-       WHERE (serie, modelo, color) IN (${items.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',')})`,
-      items.flatMap(it => [it.serie, it.modelo, it.color])
-    )
-    ubicacionMap = new Map(ubicaciones.map(u => [`${u.serie}__${u.modelo}__${u.color}`, u.ubicacion]))
-  }
 
   if (pedido.estado === 'CONFIRMADO') {
     await query(`UPDATE public.pedidos SET estado='EN_PREPARACION', actualizado_en=NOW() WHERE id=$1`, [params.id])
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const numero = (pedido.numero_pedido || pedido.id.slice(0, 8)).toUpperCase()
   return excelResponse(`surtido-${numero}.xlsx`, wb => {
-    addSheet(wb, 'Surtido', ['Modelo', 'Serie', 'Color', 'Cantidad', 'Ubicación'],
-      items.map(it => [it.modelo, it.serie, it.color, it.cantidad, ubicacionMap.get(`${it.serie}__${it.modelo}__${it.color}`) || '']))
+    addSheet(wb, 'Surtido', ['Clave', 'Producto', 'Tipo', 'Modelo', 'Serie', 'Color', 'Cantidad', 'Ubicación'],
+      items.map(it => [it.clave || '', it.nombre || it.modelo, it.categoria || '', it.modelo, it.serie || '', it.color, it.cantidad, it.ubicacion || '']))
   })
 }

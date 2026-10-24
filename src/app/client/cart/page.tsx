@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { calcularTotal, type DescuentoTier } from '@/lib/pricing'
+import QtyInput from '@/components/QtyInput'
 
 interface CartItem {
   _id?: string
@@ -373,8 +374,8 @@ export default function CartPage() {
                     </div>
                     <div className="qty-ctrl">
                       <button className="qty-btn" style={{ borderRadius:'7px 0 0 7px' }} onClick={() => updateQty(item._id!, item.cantidad - 1)}>−</button>
-                      <input className="qty-input" type="number" value={item.cantidad} min={1}
-                        onChange={e => updateQty(item._id!, parseInt(e.target.value) || 1)} />
+                      <QtyInput className="qty-input" value={item.cantidad}
+                        onCommit={n => updateQty(item._id!, n)} />
                       <button className="qty-btn" style={{ borderRadius:'0 7px 7px 0' }} onClick={() => updateQty(item._id!, item.cantidad + 1)}>+</button>
                     </div>
                     <span style={{ fontSize:13, fontWeight:700, color:'var(--blue)', minWidth:74, textAlign:'right', flexShrink:0 }}>

@@ -196,23 +196,62 @@ export async function checkStockBajoYNotificar(productoIds: string[]): Promise<v
 
 // ── Cierre del pedido ────────────────────────────────────────────────────
 // Confirmado/pagado: descuenta stock físico definitivamente y libera la reserva.
+// Las líneas salen de pedido_items (no de stock_reservas): si ventas confirma
+// después de que la reserva venció, la reserva ya no existe y antes el stock
+// nunca se descontaba. Es idempotente: si ya hay salidas netas del pedido no repite.
 export async function finalizarPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
   const productoIds: string[] = []
   await withTransaction(async (tx) => {
-    const rows = await tx<{ producto_id: string; cantidad: number }>(
-      `SELECT producto_id, cantidad FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`,
+    await tx(`SELECT id FROM public.pedidos WHERE id = $1 FOR UPDATE`, [pedidoId])
+
+    const [neto] = await tx<{ neto: number }>(
+      `SELECT COALESCE(SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad WHEN tipo = 'AJUSTE' THEN -cantidad ELSE 0 END), 0)::int AS neto
+       FROM public.movimientos_stock WHERE pedido_id = $1`,
       [pedidoId]
     )
-    for (const r of rows) {
+    if (Number(neto?.neto ?? 0) > 0) {
+      await tx(`DELETE FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`, [pedidoId])
+      return
+    }
+
+    // Por producto: lo que dice el pedido; si alguna línea no tiene producto_id
+    // (pedidos históricos) se resuelve por serie+modelo+color, y como último
+    // recurso se usa la reserva que siga viva.
+    const lineas = await tx<{ producto_id: string | null; serie: string | null; modelo: string | null; color: string | null; cantidad: number }>(
+      `SELECT producto_id, serie, modelo, color, cantidad FROM public.pedido_items WHERE pedido_id = $1`,
+      [pedidoId]
+    )
+    const porProducto = new Map<string, number>()
+    for (const l of lineas) {
+      let pid = l.producto_id
+      if (!pid && l.modelo && l.color) {
+        const [row] = await tx<{ producto_id: string }>(
+          `SELECT producto_id FROM public.catalogo_productos WHERE COALESCE(serie,'') = $1 AND modelo = $2 AND color = $3 LIMIT 1`,
+          [l.serie || '', l.modelo, l.color]
+        )
+        pid = row?.producto_id ?? null
+      }
+      if (pid) porProducto.set(pid, (porProducto.get(pid) || 0) + Number(l.cantidad))
+    }
+    if (!porProducto.size) {
+      const rows = await tx<{ producto_id: string; cantidad: number }>(
+        `SELECT producto_id, cantidad FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`,
+        [pedidoId]
+      )
+      for (const r of rows) porProducto.set(r.producto_id, Number(r.cantidad))
+    }
+
+    for (const [productoId, cantidad] of porProducto) {
       const [updated] = await tx<{ stock: number }>(
         `UPDATE public.catalogo_productos SET stock = GREATEST(0, stock - $1) WHERE producto_id = $2 RETURNING stock`,
-        [r.cantidad, r.producto_id]
+        [cantidad, productoId]
       )
+      if (!updated) continue
       await registrarMovimiento({
-        producto_id: r.producto_id, tipo: 'SALIDA', cantidad: r.cantidad, stock_resultante: updated.stock,
+        producto_id: productoId, tipo: 'SALIDA', cantidad, stock_resultante: updated.stock,
         motivo: 'Pedido confirmado/pagado', pedido_id: pedidoId, realizado_por: realizadoPor,
       }, tx)
-      productoIds.push(r.producto_id)
+      productoIds.push(productoId)
     }
     await tx(`DELETE FROM public.stock_reservas WHERE origen = 'PEDIDO' AND referencia = $1`, [pedidoId])
   })
@@ -228,10 +267,12 @@ export async function liberarPedido(pedidoId: string): Promise<void> {
 // Lee los movimientos SALIDA asociados al pedido y los revierte con un AJUSTE.
 export async function restaurarStockPedido(pedidoId: string, realizadoPor?: string): Promise<void> {
   const salidas = await query<{ producto_id: string; cantidad: number }>(
-    `SELECT producto_id, SUM(cantidad)::int as cantidad
+    `SELECT producto_id,
+            SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad WHEN tipo = 'AJUSTE' THEN -cantidad ELSE 0 END)::int as cantidad
      FROM public.movimientos_stock
-     WHERE pedido_id = $1 AND tipo = 'SALIDA'
-     GROUP BY producto_id`,
+     WHERE pedido_id = $1
+     GROUP BY producto_id
+     HAVING SUM(CASE WHEN tipo = 'SALIDA' THEN cantidad WHEN tipo = 'AJUSTE' THEN -cantidad ELSE 0 END) > 0`,
     [pedidoId]
   )
   for (const s of salidas) {

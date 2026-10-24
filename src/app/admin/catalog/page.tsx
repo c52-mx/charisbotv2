@@ -97,6 +97,11 @@ export default function CatalogPage() {
 
   // 3-dots actions menu
   const [actMenu, setActMenu] = useState<string | null>(null)
+  const [entradaProd, setEntradaProd] = useState<Product | null>(null)
+  const [entradaCant, setEntradaCant] = useState('')
+  const [entradaMotivo, setEntradaMotivo] = useState('')
+  const [entradaError, setEntradaError] = useState('')
+  const [entradaSaving, setEntradaSaving] = useState(false)
   useEffect(() => {
     // Cerrar menú al hacer clic fuera de cualquier act-menu-wrap
     function closeMenu(e: MouseEvent) {
@@ -309,6 +314,20 @@ export default function CatalogPage() {
   }
 
   // ── Toggle active ─────────────────────────────────────────────────
+  async function registrarEntrada() {
+    if (!entradaProd) return
+    setEntradaSaving(true); setEntradaError('')
+    try {
+      const r = await fetch(`/api/catalog/${entradaProd.producto_id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entrada_stock: { cantidad: parseInt(entradaCant), motivo: entradaMotivo } }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) { setEntradaError(d.error || 'No se pudo registrar la entrada'); return }
+      setEntradaProd(null); fetchItems()
+    } finally { setEntradaSaving(false) }
+  }
+
   async function toggleActivo(p: Product) {
     await fetch(`/api/catalog/${p.producto_id}`, {
       method: 'PATCH',
@@ -516,6 +535,7 @@ export default function CatalogPage() {
                         {actMenu === p.producto_id && (
                           <div className="act-menu-drop" onClick={e => e.stopPropagation()}>
                             <button className="act-menu-item" onClick={() => { openEdit(p); setActMenu(null) }}>✏️ Editar</button>
+                            <button className="act-menu-item" onClick={() => { setEntradaProd(p as Product); setEntradaCant(''); setEntradaMotivo(''); setEntradaError(''); setActMenu(null) }}>📥 Registrar entrada de stock</button>
                             {canCreate && (
                               <button className="act-menu-item" onClick={() => { openDuplicate(p); setActMenu(null) }}>📋 Duplicar</button>
                             )}
@@ -547,6 +567,30 @@ export default function CatalogPage() {
           </span>
           <button className="cbtn cbtn-ghost" disabled={page >= totalPages}
                   onClick={() => { setPage(p => p + 1); fetchItems(page + 1) }}>Siguiente →</button>
+        </div>
+      )}
+
+      {/* ── Modal: entrada de stock ── */}
+      {entradaProd && (
+        <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setEntradaProd(null) }}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>Registrar entrada de stock</h2>
+            <p style={{ fontSize: 12, color: 'var(--txt2)', margin: '0 0 14px' }}>
+              {entradaProd.nombre || entradaProd.modelo} {entradaProd.color ? `· ${entradaProd.color}` : ''} — stock actual: <b>{entradaProd.stock}</b>.
+              Las piezas se suman al stock y quedan en el historial de movimientos.
+            </p>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Piezas que ingresan</label>
+            <input className="cinput" type="number" min={1} value={entradaCant} onChange={e => setEntradaCant(e.target.value)} placeholder="Ej. 100" style={{ marginBottom: 10 }} />
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Motivo / referencia (opcional)</label>
+            <input className="cinput" value={entradaMotivo} onChange={e => setEntradaMotivo(e.target.value)} placeholder="Ej. Compra a proveedor, factura 123" style={{ marginBottom: 12 }} />
+            {entradaError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 10 }}>⚠ {entradaError}</p>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button className="cbtn cbtn-secondary" onClick={() => setEntradaProd(null)}>Cancelar</button>
+              <button className="cbtn cbtn-primary" disabled={entradaSaving || !(parseInt(entradaCant) > 0)} onClick={registrarEntrada}>
+                {entradaSaving ? 'Guardando…' : 'Registrar entrada'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

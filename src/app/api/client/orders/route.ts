@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { sendEmail, emailNuevoPedido, emailOrdenCompra } from '@/lib/email'
 import { resolveProductoId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
+import { UUID_RE } from '@/lib/uploads'
 import { generarOrdenCompraPdf } from '@/lib/purchaseOrderPdf'
 
 const METODO_CONFIG_KEY: Record<string, string> = {
@@ -155,7 +156,8 @@ export async function POST(req: NextRequest) {
       RETURNING id
     `, [session.email])
 
-    const tipos = [...new Set(itemsNorm.map((i: any) => i.serie))]
+    // Accesorios no tienen serie: el tipo del pedido cae a su categoría para no quedar vacío.
+    const tipos = [...new Set(itemsNorm.map((i: any) => i.serie || String(i.categoria || 'ACCESORIO').toUpperCase()))]
     const tipo  = tipos.length === 1 ? tipos[0] : 'MIXTO'
     const resumen = `${items.length} modelos, ${totalPiezas} piezas`
 
@@ -184,8 +186,8 @@ export async function POST(req: NextRequest) {
             conversacion_id, telefono, tipo_case, estado,
             requiere_firma, resumen, pedido_json,
             metodo_pago, referencia_pago, direccion_entrega, notas_cliente,
-            monto_total, metodo_entrega, paqueteria, creado_en, creado_por
-          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, $12, NOW(), $13)
+            monto_total, metodo_entrega, paqueteria, creado_en, creado_por, origen
+          ) VALUES ($1, $2, $3, 'PENDIENTE_PAGO', false, $4, $5::jsonb, $6, $7, $8::jsonb, $9, $10, $11, $12, NOW(), $13, 'PORTAL')
           RETURNING id, numero_pedido
         `, [
           conv.id, session.email, tipo, resumen,
@@ -200,7 +202,7 @@ export async function POST(req: NextRequest) {
           // accesorios que no tienen serie/modelo en el catálogo.
           await tx(`
             INSERT INTO public.pedido_items
-              (pedido_id, modelo, serie, color, cantidad, precio_unitario, categoria, nombre_producto)
+              (pedido_id, modelo, serie, color, cantidad, precio_unitario, categoria, nombre_producto, producto_id)
             SELECT
               $1::uuid,
               COALESCE(NULLIF(x.modelo,''), NULLIF(x.nombre,''), '—'),
@@ -218,10 +220,16 @@ export async function POST(req: NextRequest) {
                 (SELECT nombre FROM public.catalogo_productos cp WHERE cp.serie = x.serie AND cp.modelo = x.modelo AND cp.color = COALESCE(NULLIF(x.color,''),'NEGRO') LIMIT 1),
                 NULLIF(x.modelo,''),
                 '—'
-              )
-            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, serie text, color text, cantidad int, precio numeric, categoria text, nombre text)
+              ),
+              x.producto_id
+            FROM jsonb_to_recordset($2::jsonb) AS x(modelo text, serie text, color text, cantidad int, precio numeric, categoria text, nombre text, producto_id uuid)
             WHERE COALESCE(x.cantidad,0) > 0
-          `, [p.id, JSON.stringify(itemsConPrecio)])
+          `, [p.id, JSON.stringify(itemsConPrecio.map((it: any) => ({
+            ...it,
+            // Se congela el producto del catálogo para poder descontar stock aunque la reserva ya haya vencido.
+            producto_id: (typeof it.producto_id === 'string' && UUID_RE.test(it.producto_id) ? it.producto_id : null)
+              ?? productoIdMap.get(`${it.serie}__${it.modelo}__${it.color}`) ?? null,
+          })))])
         }
 
         await tx(`

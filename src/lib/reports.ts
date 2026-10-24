@@ -118,7 +118,8 @@ export async function getReporteInventario(f: FiltrosInventario) {
 
 // ── Reporte de ventas ────────────────────────────────────────────────────
 export async function getReporteVentas(f: RangoFechas) {
-  const conditions: string[] = [`p.monto_total IS NOT NULL`]
+  // Una venta es un pedido ya confirmado/pagado: los pendientes de pago y los cancelados no cuentan.
+  const conditions: string[] = [`p.monto_total IS NOT NULL`, `p.estado NOT IN ('PENDIENTE_PAGO','PENDIENTE_CONFIRMACION','PENDIENTE','CANCELADO')`]
   const params: any[] = []
   let idx = 1
   if (f.desde) { conditions.push(`p.creado_en >= $${idx++}`); params.push(f.desde) }
