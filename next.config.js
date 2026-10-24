@@ -14,7 +14,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://hcaptcha.com https://*.hcaptcha.com https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
+      "connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://nominatim.openstreetmap.org",
       "frame-src https://hcaptcha.com https://*.hcaptcha.com",
       "frame-ancestors 'self'",
       "base-uri 'self'",

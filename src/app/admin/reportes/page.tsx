@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useContext, useMemo } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type Tab = 'pedidos' | 'inventario' | 'ventas'
 
@@ -276,8 +277,50 @@ function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) 
 function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] }) {
   const movimientos = data?.movimientos || []
   const umbral = data?.umbral ?? 10
+  const [prodSel, setProdSel] = useState('')
+
+  // Productos con movimientos en el rango, el que más movimientos tiene primero
+  const productos = useMemo(() => {
+    const m = new Map<string, { id: string; nombre: string; n: number }>()
+    for (const x of movimientos) {
+      if (!x.producto_id) continue
+      const cur = m.get(x.producto_id) || { id: x.producto_id, nombre: `${x.modelo || x.producto_nombre || ''} ${x.color || ''}`.trim() || x.producto_id, n: 0 }
+      cur.n++; m.set(x.producto_id, cur)
+    }
+    return [...m.values()].sort((a, b) => b.n - a.n)
+  }, [movimientos])
+  const prodActual = productos.find(p => p.id === prodSel)?.id || productos[0]?.id || ''
+  const serie = useMemo(() =>
+    movimientos.filter((x: any) => x.producto_id === prodActual && x.stock_resultante != null)
+      .slice().reverse()
+      .map((x: any) => ({ t: new Date(x.creado_en).toLocaleDateString('es-MX', { day:'2-digit', month:'short' }), hora: new Date(x.creado_en).toLocaleString('es-MX'), stock: Number(x.stock_resultante), tipo: x.tipo, delta: x.delta })),
+    [movimientos, prodActual])
+
   return (
     <>
+      <div className="ccard" style={{ padding:16, marginBottom:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:10 }}>
+          <h3 style={{ fontSize:14, fontWeight:700, color:'var(--txt)', margin:0 }}>📈 Evolución del stock</h3>
+          <select className="cinput" style={{ maxWidth:260 }} value={prodActual} onChange={e => setProdSel(e.target.value)}>
+            {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.n} mov.)</option>)}
+          </select>
+        </div>
+        {serie.length > 0 ? (
+          <div style={{ width:'100%', height:220 }}>
+            <ResponsiveContainer>
+              <LineChart data={serie}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="t" tick={{ fontSize:11, fill:'var(--txt2)' }} />
+                <YAxis tick={{ fontSize:11, fill:'var(--txt2)' }} allowDecimals={false} />
+                <Tooltip formatter={(v:any) => [`${v} pzas`, 'Stock']} labelFormatter={(_l:any, pl:any) => pl?.[0]?.payload ? `${pl[0].payload.hora} · ${pl[0].payload.tipo} ${pl[0].payload.delta > 0 ? '+' : ''}${pl[0].payload.delta ?? ''}` : ''} />
+                <Line type="stepAfter" dataKey="stock" stroke="var(--blue)" strokeWidth={2} dot={{ r:3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : <p style={{ fontSize:12, color:'var(--txt2)', margin:0 }}>Sin movimientos en el rango para graficar.</p>}
+        <p style={{ fontSize:11, color:'var(--txt3)', margin:'8px 0 0' }}>Cada punto es un movimiento: entradas suben la línea, salidas (pedidos) la bajan y los ajustes la llevan al valor capturado.</p>
+      </div>
+
       <div className="table-wrap" style={{ marginBottom:20 }}>
         <table className="ctable rtable">
           <thead><tr><th>Tipo</th><th>Modelo</th><th>Color</th><th>Stock</th><th>Ubicación</th></tr></thead>
@@ -297,14 +340,16 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
       <h3 style={{ fontSize:14, fontWeight:700, color:'var(--txt)', margin:'0 0 10px' }}>Movimientos recientes</h3>
       <div className="table-wrap">
         <table className="ctable rtable">
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cantidad</th><th>Resultante</th><th>Motivo</th><th>Pedido</th><th>Por</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cambio</th><th>Stock final</th><th>Motivo</th><th>Pedido</th><th>Por</th></tr></thead>
           <tbody>
             {movimientos.map((m:any) => (
               <tr key={m.id}>
                 <td style={{ fontSize:12, color:'var(--txt2)' }}>{new Date(m.creado_en).toLocaleString('es-MX')}</td>
                 <td><span className={`badge ${m.tipo==='SALIDA'?'badge-red':m.tipo==='ENTRADA'?'badge-ok':'badge-warn'}`}>{m.tipo}</span></td>
                 <td>{m.modelo} {m.color}</td>
-                <td>{m.cantidad}</td>
+                <td style={{ fontWeight:700, color: Number(m.delta) > 0 ? 'var(--ok, #16a34a)' : Number(m.delta) < 0 ? '#f87171' : 'var(--txt2)' }}>
+                  {m.delta == null ? m.cantidad : `${Number(m.delta) > 0 ? '+' : ''}${m.delta}`}
+                </td>
                 <td>{m.stock_resultante}</td>
                 <td style={{ fontSize:12 }}>{m.motivo || '—'}</td>
                 <td style={{ fontFamily:'monospace', fontSize:11 }}>{m.numero_pedido ? `#${m.numero_pedido.toUpperCase()}` : '—'}</td>

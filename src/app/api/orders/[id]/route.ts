@@ -345,7 +345,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   // le notifica (de cara al cliente nada cambió, sigue viendo "en preparación").
   // notificarCliente envía WhatsApp siempre + email si el cliente tiene correo.
   if (estado !== 'POR_VALIDAR_SURTIDO') {
+    // La guía de paquetería (si hay archivo cargado) viaja adjunta en el correo al salir a reparto.
+    const guia = estado === 'EN_REPARTO'
+      ? await queryOne<{ envio_archivo_url: string | null }>(`SELECT envio_archivo_url FROM public.pedidos WHERE id = $1`, [params.id])
+      : null
     await notificarCliente({
+      adjuntoUrl: guia?.envio_archivo_url,
       id: updated.id,
       telefono: updated.telefono,
       estado: updated.estado,

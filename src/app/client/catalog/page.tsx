@@ -417,21 +417,9 @@ export default function CatalogPage() {
 
       {sideOpen && <div onClick={() => setSideOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:149 }} />}
 
-      {/* ── ML-STYLE SEARCH BAR ── */}
+      {/* La búsqueda vive solo en la barra superior del layout */}
       <div style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div className="ml-searchbar">
-              <input
-                className="ml-search-input"
-                placeholder="Buscar en el catálogo…"
-                value={inputVal}
-                onChange={e => setInputVal(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submitSearch()}
-              />
-              <button className="ml-search-btn" onClick={submitSearch} aria-label="Buscar">🔍</button>
-            </div>
-          </div>
           <button className="ml-filter-toggle" onClick={() => setSideOpen(o => !o)}>
             ☰ Filtros{hasFilters ? ` (${[categoria, serie, modelo, color, minPrecio, maxPrecio, soloDisp].filter(Boolean).length})` : ''}
           </button>

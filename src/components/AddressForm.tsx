@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { MapPicker } from './MapPicker'
 
 export interface AddressFormValues {
   nombre_contacto: string
@@ -10,11 +11,14 @@ export interface AddressFormValues {
   estado_mx: string
   cp: string
   instrucciones_entrega: string
+  lat?: number | null
+  lng?: number | null
 }
 
 const EMPTY: AddressFormValues = {
   nombre_contacto: '', telefono_contacto: '', calle: '', colonia: '',
   ciudad: '', estado_mx: '', cp: '', instrucciones_entrega: '',
+  lat: null, lng: null,
 }
 
 // Reusa las clases .input-field / .field-label que ya definen tanto
@@ -71,6 +75,12 @@ export function AddressForm({ initial, onSave, onCancel, saving }: {
           <label className="field-label">CÓDIGO POSTAL *</label>
           <input className="input-field" value={form.cp} onChange={set('cp')} required />
         </div>
+      </div>
+      <div>
+        <label className="field-label">UBICACIÓN EN EL MAPA <span style={{ color: 'var(--txt3)', fontWeight: 400, textTransform: 'none' }}>(recomendado, evita fallas en el envío)</span></label>
+        <MapPicker lat={form.lat ?? null} lng={form.lng ?? null}
+          direccion={[form.calle, form.colonia, form.ciudad, form.estado_mx, form.cp].filter(Boolean).join(', ')}
+          onChange={(lat, lng) => setForm(f => ({ ...f, lat, lng }))} />
       </div>
       <div>
         <label className="field-label">INSTRUCCIONES DE ENTREGA <span style={{ color: 'var(--txt3)', fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
