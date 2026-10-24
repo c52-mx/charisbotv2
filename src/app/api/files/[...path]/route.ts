@@ -15,6 +15,7 @@ const MIME: Record<string, string> = {
   webp: 'image/webp',
   svg:  'image/svg+xml',   // solo para archivos legados ya subidos; las rutas de subida ya no lo aceptan
   gif:  'image/gif',
+  pdf:  'application/pdf',  // guías de paquetería (validadas con firma %PDF- al subir)
 }
 
 const BASE = path.resolve(process.cwd(), 'public', 'uploads')
@@ -45,7 +46,8 @@ export async function GET(
         'Cache-Control': 'public, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
         // Si alguien abre el archivo directamente, no puede ejecutar scripts (SVG legado).
-        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        // (el visor de PDF de Chrome no abre documentos con `sandbox`, y un PDF no ejecuta HTML/JS del sitio)
+        'Content-Security-Policy': ext === 'pdf' ? "default-src 'none'" : "default-src 'none'; style-src 'unsafe-inline'; sandbox",
       },
     })
   } catch {

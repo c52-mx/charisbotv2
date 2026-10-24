@@ -99,11 +99,17 @@ export async function getReporteInventario(f: FiltrosInventario) {
   if (f.hasta) { condMov.push(`m.creado_en <= $${idx++}`); paramsMov.push(f.hasta) }
   const whereMov = condMov.length ? `WHERE ${condMov.join(' AND ')}` : ''
 
+  // `delta` = cambio real de stock (resultante − resultante previo del mismo producto),
+  // calculado sobre TODO el historial para que el primer movimiento del rango no pierda su base.
   const movimientos = await query(
-    `SELECT m.id, m.tipo, m.cantidad, m.stock_resultante, m.motivo, m.creado_en,
+    `SELECT m.id, m.producto_id, m.tipo, m.cantidad, m.stock_resultante, m.motivo, m.creado_en,
+            m.stock_resultante - COALESCE(m.stock_previo, 0) AS delta,
             c.nombre as producto_nombre, c.categoria, c.serie, c.modelo, c.color,
             p.numero_pedido, u.nombre as realizado_por_nombre
-     FROM public.movimientos_stock m
+     FROM (
+       SELECT mm.*, LAG(mm.stock_resultante) OVER (PARTITION BY mm.producto_id ORDER BY mm.creado_en, mm.id) AS stock_previo
+       FROM public.movimientos_stock mm
+     ) m
      LEFT JOIN public.catalogo_productos c ON c.producto_id = m.producto_id
      LEFT JOIN public.pedidos p ON p.id = m.pedido_id
      LEFT JOIN public.usuarios u ON u.id = m.realizado_por

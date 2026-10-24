@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query, queryOne } from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { parseCoords } from '@/lib/geo'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const body = await req.json()
-  const { nombre_contacto, telefono_contacto, calle, colonia, ciudad, estado_mx, cp, instrucciones_entrega, predeterminada } = body
+  const { nombre_contacto, telefono_contacto, calle, colonia, ciudad, estado_mx, cp, instrucciones_entrega, predeterminada, lat, lng } = body
 
   if (predeterminada === true) {
     await query(`UPDATE public.direcciones_cliente SET predeterminada = false WHERE usuario_id = $1`, [session.sub])
@@ -41,6 +42,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   setIf('cp', cp, v => v.trim())
   setIf('instrucciones_entrega', instrucciones_entrega, v => v?.trim() || null)
   setIf('predeterminada', predeterminada)
+  if (lat !== undefined || lng !== undefined) {
+    const coords = parseCoords(lat, lng)
+    if (coords === 'invalid') return NextResponse.json({ error: 'Coordenadas inválidas' }, { status: 400 })
+    setIf('lat', coords?.lat ?? null)
+    setIf('lng', coords?.lng ?? null)
+  }
 
   if (!sets.length) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
 

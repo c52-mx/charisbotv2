@@ -220,8 +220,10 @@ export default function OrdersPage() {
       if (envioArchivo) {
         const fd = new FormData()
         fd.append('file', envioArchivo)
-        const upRes = await fetch('/api/upload/logo', { method:'POST', body: fd })
-        const upData = await upRes.json()
+        fd.append('pedido_id', pedidoId)
+        const upRes = await fetch('/api/upload/guia', { method:'POST', body: fd })
+        const upData = await upRes.json().catch(() => ({}))
+        if (!upRes.ok) { alert(upData.error || 'No se pudo subir la guía'); return }
         if (upData.url) body.envio_archivo_url = upData.url
       }
       await fetch(`/api/orders/${pedidoId}`, {
@@ -451,8 +453,10 @@ export default function OrdersPage() {
                       {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>ℹ️ {selected.direccion_entrega.instrucciones_entrega}</div>}
                       <div style={{ marginTop:4 }}>
                         <a target="_blank" rel="noreferrer" style={{ color:'var(--blue)', textDecoration:'underline' }}
-                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([selected.direccion_entrega.calle, selected.direccion_entrega.colonia, selected.direccion_entrega.ciudad, selected.direccion_entrega.estado_mx, selected.direccion_entrega.cp].filter(Boolean).join(', '))}`}>
-                          🗺️ Ver en mapa
+                           href={selected.direccion_entrega.lat != null && selected.direccion_entrega.lng != null
+                             ? `https://www.openstreetmap.org/?mlat=${selected.direccion_entrega.lat}&mlon=${selected.direccion_entrega.lng}#map=18/${selected.direccion_entrega.lat}/${selected.direccion_entrega.lng}`
+                             : `https://www.openstreetmap.org/search?query=${encodeURIComponent([selected.direccion_entrega.calle, selected.direccion_entrega.colonia, selected.direccion_entrega.ciudad, selected.direccion_entrega.estado_mx, selected.direccion_entrega.cp].filter(Boolean).join(', '))}`}>
+                          🗺️ {selected.direccion_entrega.lat != null ? 'Ver punto exacto en el mapa' : 'Buscar en el mapa'}
                         </a>
                       </div>
                     </>
@@ -637,7 +641,7 @@ export default function OrdersPage() {
                       <input className="cinput" value={envioObs} onChange={e=>setEnvioObs(e.target.value)} placeholder="Instrucciones especiales, notas de entrega…" />
                     </div>
                     <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía <Ayuda text="PDF o imagen de la guía de la paquetería; queda disponible en el pedido. El cliente solo recibe aviso (WhatsApp y correo) con la 'nota para el cliente' al cambiar de estado." /></label>
+                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía <Ayuda text="PDF o imagen de la guía de la paquetería; queda en el pedido y se adjunta al correo que recibe el cliente cuando el pedido pasa a En reparto. Súbela antes de cambiar el estado." /></label>
                       {selected.envio_archivo_url && (
                         <a href={selected.envio_archivo_url} target="_blank" rel="noreferrer"
                            style={{ display:'inline-block', marginBottom:6, fontSize:11, color:'var(--blue)', textDecoration:'underline' }}>
