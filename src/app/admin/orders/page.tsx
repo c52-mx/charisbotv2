@@ -88,6 +88,10 @@ export default function OrdersPage() {
   const [montoError, setMontoError] = useState('')
   const [surtidoEdit, setSurtidoEdit] = useState<Record<string,{cant:string;motivo:string}>>({})
   const [savingSurtido, setSavingSurtido] = useState(false)
+  const [editCant, setEditCant] = useState<Record<string,string> | null>(null)
+  const [editMotivo, setEditMotivo] = useState('')
+  const [editError, setEditError] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const [surtidoError, setSurtidoError] = useState('')
   const [ubicacionInput, setUbicacionInput] = useState('')
   const [savingUbicacion, setSavingUbicacion] = useState(false)
@@ -138,7 +142,7 @@ export default function OrdersPage() {
     const data = await r.json()
     setSelected(data)
     setMontoInput(data.monto_total != null ? String(data.monto_total) : '')
-    setMontoMotivo(''); setMontoError(''); setSurtidoEdit({}); setSurtidoError('')
+    setMontoMotivo(''); setMontoError(''); setSurtidoEdit({}); setSurtidoError(''); setEditCant(null); setEditMotivo(''); setEditError('')
     setUbicacionInput(data.ubicacion_fisica || '')
     setEditNota('')
     // Pre-seleccionar pickup actual
@@ -248,6 +252,19 @@ export default function OrdersPage() {
       if (!r.ok) { const d = await r.json().catch(()=>({})); setMontoError(d.error || 'No se pudo guardar el monto'); return }
       await loadDetail(id)
     } finally { setSavingMonto(false) }
+  }
+  async function saveEdicion(id: string) {
+    if (!editCant) return
+    setSavingEdit(true); setEditError('')
+    try {
+      const items_edicion = Object.entries(editCant).map(([item_id, v]) => ({ id: item_id, cantidad: parseInt(v) }))
+      const r = await fetch(`/api/orders/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ items_edicion, motivo_edicion: editMotivo }) })
+      const d = await r.json().catch(()=>({}))
+      if (!r.ok) { setEditError(d.error || 'No se pudo editar el pedido'); return }
+      setEditCant(null); setEditMotivo('')
+      await loadDetail(id)
+      load()
+    } finally { setSavingEdit(false) }
   }
   async function saveSurtido(id: string) {
     setSavingSurtido(true); setSurtidoError('')
@@ -533,6 +550,39 @@ export default function OrdersPage() {
                       </button>
                     )}
                     {surtidoError && <span style={{ color:'#f87171', marginLeft:8 }}>{surtidoError}</span>}
+                  </div>
+                )
+              })()}
+              {(() => {
+                const pendiente = ['PENDIENTE_PAGO','PENDIENTE_CONFIRMACION'].includes(selected.estado)
+                const puedeEditar = can(userRol,'pagos_confirmar') && (pendiente || (userRol.rol === 'ADMIN' && ['CONFIRMADO','EN_PREPARACION'].includes(selected.estado)))
+                if (!puedeEditar || !(selected.items||[]).length) return null
+                if (!editCant) return (
+                  <button className="cbtn cbtn-secondary cbtn-sm" style={{ marginTop:8 }}
+                          onClick={() => setEditCant(Object.fromEntries((selected.items||[]).map((it:any) => [it.id, String(it.cantidad)])))}>
+                    ✏️ Editar cantidades
+                  </button>
+                )
+                return (
+                  <div style={{ marginTop:10, padding:12, border:'1px dashed var(--border)', borderRadius:10 }}>
+                    <div style={{ fontSize:11, color:'var(--txt2)', marginBottom:8 }}>
+                      Cambia las cantidades (0 quita el artículo). Se recalcula el monto con el descuento por volumen
+                      {pendiente ? ' y se ajusta la reserva de stock' : ' y se ajusta el stock ya descontado'}; el cliente recibe aviso.
+                    </div>
+                    {(selected.items||[]).map((it:any) => (
+                      <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6, fontSize:12 }}>
+                        <span style={{ flex:1, minWidth:0 }}>{it.nombre_producto || it.modelo} <span style={{ color:'var(--txt2)' }}>{it.color}</span></span>
+                        <input className="cinput" type="number" min={0} style={{ width:80, padding:'4px 6px', fontSize:12 }}
+                               value={editCant[it.id] ?? ''} onChange={e => setEditCant(m => ({ ...(m||{}), [it.id]: e.target.value }))} />
+                        <span style={{ color:'var(--txt3)', width:60 }}>antes {it.cantidad}</span>
+                      </div>
+                    ))}
+                    <input className="cinput" placeholder="Motivo de la edición (obligatorio)" value={editMotivo} onChange={e => setEditMotivo(e.target.value)} style={{ marginBottom:8 }} />
+                    {editError && <div style={{ fontSize:12, color:'#f87171', marginBottom:8 }}>⚠ {editError}</div>}
+                    <div style={{ display:'flex', gap:8 }}>
+                      <button className="cbtn cbtn-primary cbtn-sm" disabled={savingEdit} onClick={() => saveEdicion(selected.id)}>{savingEdit ? 'Guardando…' : 'Guardar cambios'}</button>
+                      <button className="cbtn cbtn-secondary cbtn-sm" disabled={savingEdit} onClick={() => { setEditCant(null); setEditError('') }}>Cancelar</button>
+                    </div>
                   </div>
                 )
               })()}
@@ -841,7 +891,7 @@ export default function OrdersPage() {
                     {selected.timeline.map((t:any,i:number) => {
                       const tipo = t.tipo_evento || 'ESTADO'
                       const esEstado = tipo === 'ESTADO'
-                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : tipo === 'MONTO' ? '💳' : tipo === 'UBICACION' ? '📦' : '📌'
+                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : tipo === 'MONTO' ? '💳' : tipo === 'UBICACION' ? '📦' : tipo === 'EDICION' ? '✏️' : '📌'
                       return (
                         <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'7px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
                           <div style={{ flex:1 }}>
