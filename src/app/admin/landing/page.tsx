@@ -82,13 +82,13 @@ export default function LandingPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
       setModal(null)
-      setMsg('✓ Promo guardada'); setTimeout(() => setMsg(''), 3000)
+      setMsg('Promo guardada'); setTimeout(() => setMsg(''), 3000)
       load()
     } catch (e: any) { setError(e.message) }
     finally { setSaving(false) }
   }
 
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
 
   return (
@@ -97,14 +97,14 @@ export default function LandingPage() {
 
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Landing</h1>
+          <h1 className="page-title">Landing</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Promociones e imágenes del carrusel principal del sitio</p>
         </div>
         <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nueva promo</button>
       </div>
 
       {msg && (
-        <div style={{ position:'fixed', bottom:24, right:24, zIndex:300, padding:'14px 20px', borderRadius:12, minWidth:220, background:'#16a34a', color:'white', boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600 }}>
+        <div style={{ position:'fixed', bottom:24, right:24, zIndex:300, padding:'14px 20px', borderRadius:12, minWidth:220, background:'var(--bg2)', color:'var(--txt)', border:'1px solid var(--border2)', borderLeft:'3px solid var(--ok)', boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600 }}>
           {msg}
         </div>
       )}
@@ -112,7 +112,7 @@ export default function LandingPage() {
       <div className="table-wrap">
         {loading ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48 }}>
-            <div style={{ width:24, height:24, borderRadius:'50%', border:'2.5px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
+            <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
           </div>
         ) : (
           <table className="ctable rtable">
@@ -145,20 +145,20 @@ export default function LandingPage() {
         <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setModal(null) }}>
           <div className="modal-box" style={{ maxWidth:460 }}>
             <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--txt)' }}>
                 {modal === 'edit' ? 'Editar promo' : 'Nueva promo'}
               </div>
             </div>
             <form onSubmit={handleSubmit}>
               <div style={{ padding:'18px 22px 22px' }}>
-                {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{error}</div>}
+                {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', color:'var(--err)', fontSize:13, marginBottom:14 }}>{error}</div>}
 
                 <div style={{ marginBottom:12 }}>
                   <label style={lbl}>Imagen *</label>
                   {form.imagen_url && <img src={form.imagen_url} alt="" style={{ width:'100%', maxHeight:120, objectFit:'cover', borderRadius:8, marginBottom:8 }} />}
                   <input ref={fileRef} type="file" accept="image/*" style={inp}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-                  {uploading && <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>Subiendo…</p>}
+                  {uploading && <p style={{ fontSize:12, color:'var(--txt3)', marginTop:4 }}>Subiendo…</p>}
                 </div>
 
                 <div style={{ marginBottom:12 }}>

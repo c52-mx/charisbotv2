@@ -1,4 +1,5 @@
 'use client'
+import { X, Truck } from 'lucide-react'
 import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
@@ -109,22 +110,22 @@ export default function ConfigPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al guardar')
-      setMsg('✓ Configuración guardada correctamente')
+      setMsg('Configuración guardada correctamente')
       setTimeout(() => setMsg(''), 4500)
     } catch (e: any) {
-      setMsg('⚠ ' + e.message)
+      setMsg('Error: ' + e.message)
     } finally {
       setSaving(false)
     }
   }
 
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
 
   if (loading) return (
     <div style={{ ...Object.fromEntries(Object.entries(tv)) as any, display:'flex', alignItems:'center', justifyContent:'center', padding:60 }}>
       <style>{SHARED_CSS}</style>
-      <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid rgba(26,143,227,0.2)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }}/>
+      <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border2)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }}/>
     </div>
   )
 
@@ -133,7 +134,7 @@ export default function ConfigPage() {
       <style>{SHARED_CSS}</style>
 
       <div style={{ marginBottom:20 }}>
-        <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Configuración del portal</h1>
+        <h1 className="page-title">Configuración del portal</h1>
         <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Mínimo de pedido, política de cancelación, datos de transferencia y reservas de stock</p>
       </div>
 
@@ -141,8 +142,9 @@ export default function ConfigPage() {
         <div style={{
           position:'fixed', bottom:24, right:24, zIndex:300,
           padding:'14px 20px', borderRadius:12, minWidth:260,
-          background: msg.startsWith('✓') ? '#16a34a' : '#dc2626', color:'white',
-          boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600,
+          background:'var(--bg2)', color:'var(--txt)', border:'1px solid var(--border2)',
+          borderLeft:`3px solid ${msg.startsWith('Error') ? 'var(--err)' : 'var(--ok)'}`,
+          boxShadow:'0 8px 24px rgba(0,0,0,.2)', fontSize:14, fontWeight:500,
           display:'flex', alignItems:'center', gap:8,
         }}>
           {msg}
@@ -152,10 +154,10 @@ export default function ConfigPage() {
       {/* ── Puntos de recolección (ilimitados) ── */}
       <div className="card" style={{ marginBottom:16 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:0 }}>🏢 Puntos de recolección</h2>
+          <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:0 }}>Puntos de recolección</h2>
           <button type="button"
             onClick={() => setPuntos(p => [...p, { nombre:'', dir:'' }])}
-            style={{ padding:'5px 12px', borderRadius:8, border:'1.5px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'5px 12px', borderRadius:8, border:'1px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
             + Agregar punto
           </button>
         </div>
@@ -183,9 +185,7 @@ export default function ConfigPage() {
             </div>
             <button type="button"
               onClick={() => setPuntos(ps => ps.filter((_, j) => j !== i))}
-              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}>
-              ✕
-            </button>
+              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg4)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:14, marginTop: i===0 ? 22 : 0 }}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
           </div>
         ))}
       </div>
@@ -193,10 +193,10 @@ export default function ConfigPage() {
       {/* ── Paqueterías ── */}
       <div className="card" style={{ marginBottom:16 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-          <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:0 }}>🚚 Paqueterías</h2>
+          <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:0 }}>Paqueterías</h2>
           <button type="button"
             onClick={() => setPaqueterias(p => [...p, { nombre:'', dias_estimados:'', logo_url:'' }])}
-            style={{ padding:'5px 12px', borderRadius:8, border:'1.5px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'5px 12px', borderRadius:8, border:'1px solid var(--blue)', background:'transparent', color:'var(--blue)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
             + Agregar
           </button>
         </div>
@@ -227,27 +227,27 @@ export default function ConfigPage() {
               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                 {p.logo_url
                   ? <img src={p.logo_url} alt={p.nombre} style={{ height:32, borderRadius:6, border:'1px solid var(--border)', objectFit:'contain', background:'white', padding:2 }} />
-                  : <span style={{ fontSize:22 }}>🚚</span>
+                  : <Truck size={22} strokeWidth={1.5} color="var(--txt3)" aria-hidden="true" />
                 }
-                <label style={{ cursor:'pointer', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg3)', fontSize:11, fontWeight:600, color:'var(--txt2)', whiteSpace:'nowrap' }}
+                <label style={{ cursor:'pointer', padding:'6px 10px', borderRadius:8, border:'1px solid var(--border)', background:'var(--bg3)', fontSize:12, fontWeight:600, color:'var(--txt2)', whiteSpace:'nowrap' }}
                   title="Formatos permitidos: PNG, JPG, WEBP, SVG">
                   {uploadingLogo === i ? 'Subiendo…' : 'Subir'}
                   <input type="file" accept=".png,.jpg,.jpeg,.webp,.svg,image/png,image/jpeg,image/webp,image/svg+xml" style={{ display:'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(i, f) }} />
                 </label>
-                <span style={{ fontSize:10, color:'var(--txt3)', whiteSpace:'nowrap' }}>PNG · JPG · WEBP · SVG</span>
+                <span style={{ fontSize:12, color:'var(--txt3)', whiteSpace:'nowrap' }}>PNG · JPG · WEBP · SVG</span>
                 {p.logo_url && (
                   <button type="button" onClick={() => setPaqueterias(ps => ps.map((x, j) => j===i ? {...x, logo_url:''} : x))}
                     title="Quitar logo"
-                    style={{ background:'none', border:'none', color:'var(--txt3)', cursor:'pointer', fontSize:10, padding:'2px 4px', borderRadius:4, fontWeight:600 }}>Quitar</button>
+                    style={{ background:'none', border:'none', color:'var(--txt3)', cursor:'pointer', fontSize:12, padding:'2px 4px', borderRadius:6, fontWeight:600 }}>Quitar</button>
                 )}
               </div>
             </div>
             <button type="button"
               onClick={() => setPaqueterias(ps => ps.filter((_, j) => j !== i))}
               title="Eliminar paquetería"
-              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--err-border,#fca5a5)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:13, marginTop: i===0 ? 22 : 0 }}>
-              🗑
+              style={{ padding:'8px 10px', borderRadius:8, border:'1px solid var(--border2)', background:'var(--err-bg)', color:'var(--err)', cursor:'pointer', fontFamily:'inherit', fontSize:13, marginTop: i===0 ? 22 : 0 }}>
+              
             </button>
           </div>
         ))}
@@ -255,16 +255,16 @@ export default function ConfigPage() {
 
       {/* ── Pedidos ── */}
       <div className="card" style={{ marginBottom:16 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 14px' }}>🛒 Pedidos</h2>
+        <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:'0 0 14px' }}>Pedidos</h2>
         <div className="g2" style={{ marginBottom:12 }}>
           <div>
             <label style={lbl}>Mínimo de pedido (piezas)</label>
             <input type="number" min={1} style={inp} value={form.minimo_pedido_piezas} onChange={set('minimo_pedido_piezas')} />
-            <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, fontSize:12, color:'var(--txt2)', textTransform:'none', letterSpacing:0, fontWeight:500, cursor:'pointer' }}>
+            <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, fontSize:12, color:'var(--txt2)',  fontWeight:500, cursor:'pointer' }}>
               <input type="checkbox" checked={form.minimo_pedido_bloquea !== 'false'} onChange={() => toggle('minimo_pedido_bloquea')} />
               Bloquear pedidos por debajo del mínimo
             </label>
-            <p style={{ fontSize:11, color:'var(--txt3)', margin:'4px 0 0' }}>
+            <p style={{ fontSize:12, color:'var(--txt3)', margin:'4px 0 0' }}>
               Activado: el cliente no puede continuar con menos piezas. Desactivado: el mínimo solo es sugerido (la cantidad de cada producto arranca en el mínimo, pero puede pedir menos).
             </p>
           </div>
@@ -281,7 +281,7 @@ export default function ConfigPage() {
 
       {/* ── Reservas de stock ── */}
       <div className="card" style={{ marginBottom:16 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>📦 Reserva de stock</h2>
+        <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:'0 0 6px' }}>Reserva de stock</h2>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
           Tiempo que se aparta el inventario antes de liberarse automáticamente.
         </p>
@@ -298,7 +298,7 @@ export default function ConfigPage() {
         <div style={{ marginTop:12 }}>
           <label style={lbl}>Avisar antes de cancelar (minutos antes de vencer)</label>
           <input type="number" min={1} style={inp} value={form.aviso_vencimiento_min} onChange={set('aviso_vencimiento_min')} />
-          <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
+          <p style={{ fontSize:12, color:'var(--txt3)', marginTop:4 }}>
             Se manda un WhatsApp al cliente avisando que su reserva está por vencer, antes de cancelarse automáticamente.
           </p>
         </div>
@@ -312,14 +312,14 @@ export default function ConfigPage() {
             <input type="number" min={1} style={inp} value={form.aviso_surtido_horas_antes} onChange={set('aviso_surtido_horas_antes')} />
           </div>
         </div>
-        <p style={{ fontSize:11, color:'var(--txt3)', marginTop:4 }}>
+        <p style={{ fontSize:12, color:'var(--txt3)', marginTop:4 }}>
           Si un pedido confirmado no avanza dentro de este tiempo, se manda un correo interno de atención antes de perder la venta.
         </p>
       </div>
 
       {/* ── Alertas ── */}
       <div className="card" style={{ marginBottom:16 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>🔔 Alertas</h2>
+        <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:'0 0 6px' }}>Alertas</h2>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
           Aviso visual en el catálogo y por correo cuando se cruzan estos umbrales.
         </p>
@@ -337,7 +337,7 @@ export default function ConfigPage() {
 
       {/* ── Pasarelas de pago ── */}
       <div className="card" style={{ marginBottom:20 }}>
-        <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>💳 Métodos de pago</h2>
+        <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:'0 0 6px' }}>Métodos de pago</h2>
         <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
           Cada método se puede activar o desactivar de forma independiente. El cliente solo ve, al pagar, los que estén activos aquí.
         </p>
@@ -364,7 +364,7 @@ export default function ConfigPage() {
         />
         <div style={{ marginTop:8, marginBottom:14 }}>
           <label style={lbl}>Datos de transferencia bancaria</label>
-          <textarea style={{ ...inp, resize:'vertical', fontFamily:'monospace' }} rows={4} value={form.datos_transferencia} onChange={set('datos_transferencia')} />
+          <textarea style={{ ...inp, resize:'vertical', fontFamily:'var(--font-mono)' }} rows={4} value={form.datos_transferencia} onChange={set('datos_transferencia')} />
         </div>
 
         <PagoToggle
@@ -385,7 +385,7 @@ export default function ConfigPage() {
       <DescuentosVolumen />
 
       <button className="cbtn cbtn-primary" onClick={save} disabled={saving}>
-        {saving ? 'Guardando…' : '💾 Guardar configuración'}
+        {saving ? 'Guardando…' : 'Guardar configuración'}
       </button>
     </div>
   )
@@ -396,8 +396,8 @@ function PagoToggle({ label, enabled, configurado, subtitle, onToggle }: { label
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:9, background:'var(--bg4)', border:'1px solid var(--border)' }}>
       <div>
         <div style={{ fontSize:13, fontWeight:600, color:'var(--txt)' }}>{label}</div>
-        <div style={{ fontSize:11, color: subtitle ? 'var(--txt3)' : configurado ? '#34d399' : 'var(--txt3)', marginTop:2 }}>
-          {subtitle ?? (configurado ? '✓ Credenciales detectadas en el servidor' : '⚠ Faltan variables de entorno — agrega las credenciales para habilitar')}
+        <div style={{ fontSize:12, color: subtitle ? 'var(--txt3)' : configurado ? 'var(--ok)' : 'var(--txt3)', marginTop:2 }}>
+          {subtitle ?? (configurado ? 'Credenciales detectadas en el servidor' : 'Faltan variables de entorno — agrega las credenciales para habilitar')}
         </div>
       </div>
       <button
@@ -407,7 +407,7 @@ function PagoToggle({ label, enabled, configurado, subtitle, onToggle }: { label
         title={!configurado ? 'Agrega las credenciales en el servidor antes de activar' : undefined}
         style={{
           width:44, height:24, borderRadius:100, border:'none', cursor: configurado ? 'pointer' : 'not-allowed',
-          background: enabled && configurado ? 'var(--blue)' : 'var(--border)',
+          background: enabled && configurado ? 'var(--blue)' : 'var(--border2)',
           position:'relative', flexShrink:0, opacity: configurado ? 1 : 0.5, transition:'background .15s',
         }}
       >
@@ -449,12 +449,12 @@ function DescuentosVolumen() {
     load()
   }
 
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
 
   return (
     <div className="card" style={{ marginBottom:20 }}>
-      <h2 style={{ fontSize:15, fontWeight:700, color:'var(--txt)', margin:'0 0 6px' }}>📦 Descuento por volumen</h2>
+      <h2 style={{ fontSize:15, fontWeight:600, color:'var(--txt)', margin:'0 0 6px' }}>Descuento por volumen</h2>
       <p style={{ fontSize:12, color:'var(--txt2)', margin:'0 0 14px' }}>
         A partir de cuántas piezas en el pedido se aplica cada porcentaje de descuento automático.
       </p>
@@ -465,15 +465,15 @@ function DescuentosVolumen() {
         <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
           {items.map(it => (
             <div key={it.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', borderRadius:9, background:'var(--bg4)', border:'1px solid var(--border)' }}>
-              <span style={{ fontSize:13, color:'var(--txt)' }}>{it.piezas_minimas}+ piezas → <strong>{it.porcentaje}%</strong></span>
-              <button type="button" onClick={() => removeTier(it.id)} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:13 }}>Eliminar</button>
+              <span style={{ fontSize:13, color:'var(--txt)' }}>{it.piezas_minimas}+ piezas: <strong>{it.porcentaje}%</strong></span>
+              <button type="button" onClick={() => removeTier(it.id)} style={{ background:'transparent', border:'none', color:'var(--err)', cursor:'pointer', fontSize:13 }}>Eliminar</button>
             </div>
           ))}
           {!items.length && <p style={{ fontSize:13, color:'var(--txt3)' }}>Sin franjas configuradas — no se aplicará ningún descuento.</p>}
         </div>
       )}
 
-      {error && <p style={{ color:'#f87171', fontSize:12, marginBottom:10 }}>⚠ {error}</p>}
+      {error && <p style={{ color:'var(--err)', fontSize:12, marginBottom:10 }}>{error}</p>}
 
       <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
         <div style={{ flex:1 }}>

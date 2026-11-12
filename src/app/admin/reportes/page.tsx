@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useContext, useMemo } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
+import { labelEstado } from '@/lib/estados'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 type Tab = 'pedidos' | 'inventario' | 'ventas'
@@ -101,7 +102,7 @@ export default function ReportesPage() {
     return buildAutoFilters(rows, EXCLUDE_COLS[tab] || [])
   }, [data, tab])
 
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
 
   return (
@@ -110,14 +111,14 @@ export default function ReportesPage() {
 
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Reportes</h1>
+          <h1 className="page-title">Reportes</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Pedidos, inventario y ventas, exportables a Excel</p>
         </div>
-        <button className="cbtn cbtn-primary" onClick={exportXlsx}>📊 Exportar a Excel</button>
+        <button className="cbtn cbtn-primary" onClick={exportXlsx}>Exportar a Excel</button>
       </div>
 
       <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-        {([['pedidos','📦 Pedidos'],['inventario','🗂️ Inventario'],['ventas','💰 Ventas']] as [Tab,string][]).map(([k,label]) => (
+        {([['pedidos','Pedidos'],['inventario','Inventario'],['ventas','Ventas']] as [Tab,string][]).map(([k,label]) => (
           <button key={k} className={tab===k ? 'cbtn cbtn-primary' : 'cbtn cbtn-secondary'} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>
@@ -136,7 +137,7 @@ export default function ReportesPage() {
           <>
             <div style={{ minWidth:180 }}>
               <label style={lbl}>Estado</label>
-              <Combo value={estado} onChange={setEstado} options={[{value:'',label:'Todos'}, ...ESTADOS.map(e=>({value:e,label:e.replace(/_/g,' ')}))]} />
+              <Combo value={estado} onChange={setEstado} options={[{value:'',label:'Todos'}, ...ESTADOS.map(e=>({value:e,label:labelEstado(e)}))]} />
             </div>
             <div style={{ minWidth:160 }}>
               <label style={lbl}>Teléfono</label>
@@ -150,18 +151,18 @@ export default function ReportesPage() {
             Solo stock bajo
           </label>
         )}
-        <button className="cbtn cbtn-secondary" onClick={load} disabled={loading}>{loading ? 'Cargando…' : '🔄 Aplicar'}</button>
+        <button className="cbtn cbtn-secondary" onClick={load} disabled={loading}>{loading ? 'Cargando…' : 'Aplicar'}</button>
       </div>
 
       {/* ── Auto-filtros por columna (client-side) ── */}
       {!loading && autoFilters.length > 0 && (
         <div className="ccard" style={{ padding:'14px 16px', marginBottom:12 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-            <span style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              🔍 Filtrar tabla
+            <span style={{ fontSize:12, fontWeight:600, color:'var(--txt2)', }}>
+              Filtrar tabla
             </span>
             {Object.values(colFilters).some(v => v) && (
-              <button className="cbtn cbtn-ghost" style={{ fontSize:11, padding:'4px 10px' }} onClick={() => setColFilters({})}>✕ Limpiar</button>
+              <button className="cbtn cbtn-ghost" style={{ fontSize:12, padding:'4px 10px' }} onClick={() => setColFilters({})}>Limpiar</button>
             )}
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px 12px' }}>
@@ -188,7 +189,7 @@ export default function ReportesPage() {
 
       {loading ? (
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48 }}>
-          <div style={{ width:24, height:24, borderRadius:'50%', border:'2.5px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
+          <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
         </div>
       ) : tab === 'pedidos' ? (
         <PedidosTab data={data} filteredRows={filteredRows} />
@@ -253,10 +254,10 @@ function PedidosTab({ data, filteredRows }: { data: any; filteredRows: any[] }) 
           <tbody>
             {filteredRows.map((r:any) => (
               <tr key={r.id}>
-                <td style={{ fontFamily:'monospace', fontSize:11, whiteSpace:'nowrap' }}>#{(r.numero_pedido||r.id.slice(0,8)).toUpperCase()}</td>
+                <td style={{ fontFamily:'var(--font-mono)', fontSize:12, whiteSpace:'nowrap' }}>#{(r.numero_pedido||r.id.slice(0,8)).toUpperCase()}</td>
                 <td style={{ maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.cliente_nombre || r.telefono}</td>
                 <td style={{ whiteSpace:'nowrap' }}>{r.tipo_case}</td>
-                <td><span className="badge badge-blue" style={{ fontSize:10, whiteSpace:'nowrap' }}>{r.estado.replace(/_/g,' ')}</span></td>
+                <td><span className="badge badge-blue" style={{ fontSize:12, whiteSpace:'nowrap' }}>{labelEstado(r.estado)}</span></td>
                 <td>{r.origen}</td>
                 <td style={{ maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.vendedor_nombre || '—'}</td>
                 <td style={{ whiteSpace:'nowrap' }}>{r.paqueteria || '—'}</td>
@@ -300,7 +301,7 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
     <>
       <div className="ccard" style={{ padding:16, marginBottom:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:10 }}>
-          <h3 style={{ fontSize:14, fontWeight:700, color:'var(--txt)', margin:0 }}>📈 Evolución del stock</h3>
+          <h3 style={{ fontSize:14, fontWeight:600, color:'var(--txt)', margin:0 }}>Evolución del stock</h3>
           <select className="cinput" style={{ maxWidth:260 }} value={prodActual} onChange={e => setProdSel(e.target.value)}>
             {productos.map(p => <option key={p.id} value={p.id}>{p.nombre} ({p.n} mov.)</option>)}
           </select>
@@ -310,15 +311,15 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
             <ResponsiveContainer>
               <LineChart data={serie}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="t" tick={{ fontSize:11, fill:'var(--txt2)' }} />
-                <YAxis tick={{ fontSize:11, fill:'var(--txt2)' }} allowDecimals={false} />
+                <XAxis dataKey="t" tick={{ fontSize:12, fill:'var(--txt2)' }} />
+                <YAxis tick={{ fontSize:12, fill:'var(--txt2)' }} allowDecimals={false} />
                 <Tooltip formatter={(v:any) => [`${v} pzas`, 'Stock']} labelFormatter={(_l:any, pl:any) => pl?.[0]?.payload ? `${pl[0].payload.hora} · ${pl[0].payload.tipo} ${pl[0].payload.delta > 0 ? '+' : ''}${pl[0].payload.delta ?? ''}` : ''} />
                 <Line type="stepAfter" dataKey="stock" stroke="var(--blue)" strokeWidth={2} dot={{ r:3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         ) : <p style={{ fontSize:12, color:'var(--txt2)', margin:0 }}>Sin movimientos en el rango para graficar.</p>}
-        <p style={{ fontSize:11, color:'var(--txt3)', margin:'8px 0 0' }}>Cada punto es un movimiento: entradas suben la línea, salidas (pedidos) la bajan y los ajustes la llevan al valor capturado.</p>
+        <p style={{ fontSize:12, color:'var(--txt3)', margin:'8px 0 0' }}>Cada punto es un movimiento: entradas suben la línea, salidas (pedidos) la bajan y los ajustes la llevan al valor capturado.</p>
       </div>
 
       <div className="table-wrap" style={{ marginBottom:20 }}>
@@ -337,7 +338,7 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
         </table>
       </div>
 
-      <h3 style={{ fontSize:14, fontWeight:700, color:'var(--txt)', margin:'0 0 10px' }}>Movimientos recientes</h3>
+      <h3 style={{ fontSize:14, fontWeight:600, color:'var(--txt)', margin:'0 0 10px' }}>Movimientos recientes</h3>
       <div className="table-wrap">
         <table className="ctable rtable">
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Cambio</th><th>Stock final</th><th>Motivo</th><th>Pedido</th><th>Por</th></tr></thead>
@@ -347,12 +348,12 @@ function InventarioTab({ data, filteredRows }: { data: any; filteredRows: any[] 
                 <td style={{ fontSize:12, color:'var(--txt2)' }}>{new Date(m.creado_en).toLocaleString('es-MX')}</td>
                 <td><span className={`badge ${m.tipo==='SALIDA'?'badge-red':m.tipo==='ENTRADA'?'badge-ok':'badge-warn'}`}>{m.tipo}</span></td>
                 <td>{m.modelo} {m.color}</td>
-                <td style={{ fontWeight:700, color: Number(m.delta) > 0 ? 'var(--ok, #16a34a)' : Number(m.delta) < 0 ? '#f87171' : 'var(--txt2)' }}>
+                <td style={{ fontWeight:600, color: Number(m.delta) > 0 ? 'var(--ok)' : Number(m.delta) < 0 ? 'var(--err)' : 'var(--txt2)' }}>
                   {m.delta == null ? m.cantidad : `${Number(m.delta) > 0 ? '+' : ''}${m.delta}`}
                 </td>
                 <td>{m.stock_resultante}</td>
                 <td style={{ fontSize:12 }}>{m.motivo || '—'}</td>
-                <td style={{ fontFamily:'monospace', fontSize:11 }}>{m.numero_pedido ? `#${m.numero_pedido.toUpperCase()}` : '—'}</td>
+                <td style={{ fontFamily:'var(--font-mono)', fontSize:12 }}>{m.numero_pedido ? `#${m.numero_pedido.toUpperCase()}` : '—'}</td>
                 <td style={{ fontSize:12 }}>{m.realizado_por_nombre || 'Sistema'}</td>
               </tr>
             ))}
@@ -374,7 +375,7 @@ function VentasTab({ data }: { data: any }) {
       </div>
       <div className="dash-bottom" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
         <div className="ccard" style={{ padding:16 }}>
-          <h3 style={{ fontSize:13, fontWeight:700, color:'var(--txt)', margin:'0 0 10px' }}>Top clientes</h3>
+          <h3 style={{ fontSize:13, fontWeight:600, color:'var(--txt)', margin:'0 0 10px' }}>Top clientes</h3>
           {(data.topClientes||[]).map((c:any,i:number) => (
             <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:12, borderTop:i>0?'1px solid var(--border)':'none' }}>
               <span>{c.cliente_nombre || c.telefono}</span>
@@ -384,7 +385,7 @@ function VentasTab({ data }: { data: any }) {
           {!data.topClientes?.length && <p style={{ fontSize:12, color:'var(--txt2)' }}>Sin datos</p>}
         </div>
         <div className="ccard" style={{ padding:16 }}>
-          <h3 style={{ fontSize:13, fontWeight:700, color:'var(--txt)', margin:'0 0 10px' }}>Top modelos</h3>
+          <h3 style={{ fontSize:13, fontWeight:600, color:'var(--txt)', margin:'0 0 10px' }}>Top modelos</h3>
           {(data.topModelos||[]).map((m:any,i:number) => (
             <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:12, borderTop:i>0?'1px solid var(--border)':'none' }}>
               <span>{m.producto} <span style={{ color:'var(--txt2)' }}>({m.categoria})</span></span>

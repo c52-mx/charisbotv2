@@ -1,10 +1,12 @@
 'use client'
+import { X, Package, UserRound, StickyNote, Store, CreditCard, MapPin, Pencil, Pin, Truck } from 'lucide-react'
 import { useEffect, useState, useCallback, useContext } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Combo, NumInput, ImageUploader, SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
 import { can, type SessionLike } from '@/lib/auth-shared'
+import { labelEstado } from '@/lib/estados'
 
 // Vocabulario unificado con el seguimiento que ve el cliente
 // (client/orders/[id]/page.tsx) — antes este admin solo ofrecía estados
@@ -27,15 +29,15 @@ function Ayuda({ text }: { text: string }) {
   return (
     <span title={text} aria-label={text} tabIndex={0}
           style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:14, height:14, marginLeft:6, borderRadius:'50%',
-                   border:'1px solid var(--txt3)', color:'var(--txt3)', fontSize:9, fontWeight:700, cursor:'help', verticalAlign:'middle', textTransform:'none', letterSpacing:0 }}>?</span>
+                   border:'1px solid var(--txt3)', color:'var(--txt3)', fontSize:9, fontWeight:600, cursor:'help', verticalAlign:'middle', }}>?</span>
   )
 }
 
-function Sec({ icon, title, hint, children }: { icon: string; title: string; hint?: string; children: React.ReactNode }) {
+function Sec({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom:18, paddingTop:14, borderTop:'1px solid var(--border)' }}>
-      <h3 style={{ fontSize:11, fontWeight:700, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 10px' }}>
-        {icon} {title}{hint && <Ayuda text={hint} />}
+    <section style={{ marginBottom:24, paddingTop:16, borderTop:'1px solid var(--border)' }}>
+      <h3 style={{ fontSize:14, fontWeight:500, color:'var(--txt)', margin:'0 0 12px' }}>
+        {title}{hint && <Ayuda text={hint} />}
       </h3>
       {children}
     </section>
@@ -342,12 +344,12 @@ export default function OrdersPage() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,system-ui,sans-serif', fontSize:26, fontWeight:700, color:'var(--txt)', margin:0 }}>Pedidos</h1>
+          <h1 className="page-title">Pedidos</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>{total} pedidos en total</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button className="cbtn cbtn-secondary" onClick={() => load()} disabled={loading} title="Refrescar lista">
-            🔄 Refrescar
+            Refrescar
           </button>
           {can(userRol,'pedidos_crear') && <button className="cbtn cbtn-primary" onClick={() => setShowCreate(true)}>+ Nuevo pedido</button>}
         </div>
@@ -361,7 +363,7 @@ export default function OrdersPage() {
           <Combo
             value={filters.estado}
             onChange={v => setFilters(f => ({ ...f, estado: v }))}
-            options={[{ value:'', label:'Todos los estados' }, ...ESTADOS.map(e => ({ value:e, label:e.replace(/_/g,' ') }))]}
+            options={[{ value:'', label:'Todos los estados' }, ...ESTADOS.map(e => ({ value:e, label:labelEstado(e) }))]}
           />
         </div>
         <div style={{ width:160 }}>
@@ -370,8 +372,8 @@ export default function OrdersPage() {
             onChange={v => setFilters(f => ({ ...f, origen: v }))}
             options={[
               { value:'', label:'Todos los orígenes' },
-              { value:'WHATSAPP', label:'📱 WhatsApp' },
-              { value:'PORTAL', label:'🌐 Portal' },
+              { value:'WHATSAPP', label:'WhatsApp' },
+              { value:'PORTAL', label:'Portal' },
             ]}
           />
         </div>
@@ -381,7 +383,7 @@ export default function OrdersPage() {
       <div className="table-wrap" style={{ marginBottom:14 }}>
         {loading ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48 }}>
-            <div style={{ width:24, height:24, borderRadius:'50%', border:'2.5px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
+            <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
           </div>
         ) : orders.length === 0 ? (
           <div style={{ padding:48, textAlign:'center', color:'var(--txt2)', fontSize:13 }}>Sin pedidos que coincidan</div>
@@ -394,38 +396,34 @@ export default function OrdersPage() {
             <tbody>
               {orders.map(o => (
                 <tr key={o.id}>
-                  <td><span style={{ fontFamily:'monospace', fontSize:11, color:'var(--txt2)' }}>#{o.id.slice(0,8).toUpperCase()}</span></td>
+                  <td><span className="mono" style={{ fontSize:12, color:'var(--txt2)' }}>#{o.id.slice(0,8).toUpperCase()}</span></td>
                   <td>
                     {o.cliente_nombre && <div style={{ fontWeight:500 }}>{o.cliente_nombre}</div>}
-                    <div style={{ fontSize:11, color:'var(--txt2)', marginTop: o.cliente_nombre ? 2 : 0 }}>{o.telefono}</div>
+                    <div style={{ fontSize:12, color:'var(--txt2)', marginTop: o.cliente_nombre ? 2 : 0 }}>{o.telefono}</div>
                   </td>
-                  <td><span style={{ fontSize:11, background:'rgba(26,143,227,0.1)', color:'var(--blue3)', padding:'2px 8px', borderRadius:4, fontWeight:500 }}>{o.tipo_case || '—'}</span></td>
-                  <td style={{ fontWeight:600 }}>{o.total_piezas || 0}</td>
+                  <td><span className="badge badge-gray">{o.tipo_case || '—'}</span></td>
+                  <td className="num" style={{ fontWeight:500 }}>{o.total_piezas || 0}</td>
                   <td>
-                    <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, fontWeight:500,
-                      background: o.origen==='PORTAL' ? 'rgba(26,143,227,0.1)' : 'rgba(129,140,248,0.1)',
-                      color: o.origen==='PORTAL' ? 'var(--blue3)' : '#a5b4fc' }}>
-                      {o.origen==='PORTAL'?'🌐':'📱'} {o.origen}
-                    </span>
+                    <span className={`badge ${o.origen==='PORTAL' ? 'badge-blue' : 'badge-gray'}`}>{o.origen==='PORTAL' ? 'Portal' : 'WhatsApp'}</span>
                   </td>
                   <td>
-                    <span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{o.estado.replace(/_/g,' ')}</span>
-                    {necesitaAtencion(o) && <span className="badge badge-red" style={{ marginLeft:6 }} title="Cerca de su límite de surtido">⏰ Atención</span>}
+                    <span className={`badge ${BADGE[o.estado]||'badge-warn'}`}>{labelEstado(o.estado)}</span>
+                    {necesitaAtencion(o) && <span className="badge badge-red" style={{ marginLeft:6 }} title="Cerca de su límite de surtido">Atención</span>}
                   </td>
                   <td className="no-mob" style={{ fontSize:12, color:'var(--txt2)' }}>{format(new Date(o.creado_en),'dd MMM HH:mm',{locale:es})}</td>
                   <td>
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                       <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => loadDetail(o.id)}>Ver</button>
                       {o.estado === 'CANCELADO' ? (
-                        <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => reactivate(o.id)} disabled={reactivating}>♻️ Reactivar</button>
+                        <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => reactivate(o.id)} disabled={reactivating}>Reactivar</button>
                       ) : o.estado === 'ENTREGADO' && userRol.rol !== 'ADMIN' ? (
-                        <span style={{ fontSize:11, color:'var(--txt3)' }}>🔒 Entregado</span>
+                        <span style={{ fontSize:12, color:'var(--txt3)' }}>Entregado</span>
                       ) : ESTADOS_GATEADOS.includes(o.estado) && !can(userRol,'pagos_confirmar') ? (
-                        <span style={{ fontSize:11, color:'var(--txt3)' }}>⏳ Esperando validación</span>
+                        <span style={{ fontSize:12, color:'var(--txt3)' }}>Esperando validación</span>
                       ) : (
-                        <select className="cinput" style={{ width:'auto', fontSize:11, padding:'4px 6px', borderRadius:6 }}
+                        <select className="cinput" style={{ width:'auto', fontSize:12, padding:'4px 6px', borderRadius:6 }}
                                 value={o.estado} onChange={e => requestStatusChange(o.id, e.target.value, o.estado)} disabled={updating}>
-                          {ESTADOS.map(e => <option key={e} value={e}>{e.replace(/_/g,' ')}</option>)}
+                          {ESTADOS.map(e => <option key={e} value={e}>{labelEstado(e)}</option>)}
                         </select>
                       )}
                     </div>
@@ -441,8 +439,8 @@ export default function OrdersPage() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, color:'var(--txt2)' }}>
           <span>Página {page} de {pages} · {total} resultados</span>
           <div style={{ display:'flex', gap:8 }}>
-            <button className="cbtn cbtn-ghost" onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1}>← Anterior</button>
-            <button className="cbtn cbtn-ghost" onClick={() => setPage(p => Math.min(pages,p+1))} disabled={page===pages}>Siguiente →</button>
+            <button className="cbtn cbtn-ghost" onClick={() => setPage(p => Math.max(1,p-1))} disabled={page===1}>Anterior</button>
+            <button className="cbtn cbtn-ghost" onClick={() => setPage(p => Math.min(pages,p+1))} disabled={page===pages}>Siguiente</button>
           </div>
         </div>
       )}
@@ -453,17 +451,17 @@ export default function OrdersPage() {
           <div className="modal-box" style={{ maxWidth:680 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
               <div>
-                <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>Pedido #{selected.id.slice(0,8).toUpperCase()}</div>
-                <div style={{ fontSize:11, color:'var(--txt2)', marginTop:3 }}>{format(new Date(selected.creado_en),"dd 'de' MMMM yyyy · HH:mm",{locale:es})}</div>
+                <div style={{ fontSize:16, fontWeight:600, color:'var(--txt)' }}>Pedido #{selected.id.slice(0,8).toUpperCase()}</div>
+                <div style={{ fontSize:12, color:'var(--txt2)', marginTop:3 }}>{format(new Date(selected.creado_en),"dd 'de' MMMM yyyy · HH:mm",{locale:es})}</div>
               </div>
-              <button onClick={() => setSelected(null)} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+              <button className="icon-btn" aria-label="Cerrar" onClick={() => setSelected(null)}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
             </div>
             <div style={{ padding:'18px 22px 22px' }}>
-              <Sec icon="👤" title="Datos del cliente y entrega" hint="Quién compró y a dónde se entrega.">
+              <Sec title="Datos del cliente y entrega" hint="Quién compró y a dónde se entrega.">
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                {[['Teléfono',selected.telefono],['Estado',selected.estado.replace(/_/g,' ')],['Origen',selected.origen],['Tipo',selected.tipo_case || '—']].map(([l,v])=>(
+                {[['Teléfono',selected.telefono],['Estado',labelEstado(selected.estado)],['Origen',selected.origen],['Tipo',selected.tipo_case || '—']].map(([l,v])=>(
                   <div key={l}>
-                    <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{l}</div>
+                    <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:4 }}>{l}</div>
                     <div style={{ fontSize:13,color:'var(--txt)' }}>{v}</div>
                   </div>
                 ))}
@@ -471,16 +469,16 @@ export default function OrdersPage() {
               {selected.direccion_entrega && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)' }}>
                   {selected.direccion_entrega.tipo === 'pickup' ? (
-                    <>🏬 Recoger en tienda{selected.direccion_entrega.nombre ? ` — ${selected.direccion_entrega.nombre}` : ''}</>
+                    <>Recoger en tienda{selected.direccion_entrega.nombre ? ` — ${selected.direccion_entrega.nombre}` : ''}</>
                   ) : (
-                    <>📍 {selected.direccion_entrega.nombre_contacto || selected.direccion_entrega.nombre} — {selected.direccion_entrega.calle}, {selected.direccion_entrega.colonia}, {selected.direccion_entrega.ciudad}, {selected.direccion_entrega.estado_mx} {selected.direccion_entrega.cp}
-                      {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>ℹ️ {selected.direccion_entrega.instrucciones_entrega}</div>}
+                    <>{selected.direccion_entrega.nombre_contacto || selected.direccion_entrega.nombre} — {selected.direccion_entrega.calle}, {selected.direccion_entrega.colonia}, {selected.direccion_entrega.ciudad}, {selected.direccion_entrega.estado_mx} {selected.direccion_entrega.cp}
+                      {selected.direccion_entrega.instrucciones_entrega && <div style={{ marginTop:4 }}>{selected.direccion_entrega.instrucciones_entrega}</div>}
                       <div style={{ marginTop:4 }}>
                         <a target="_blank" rel="noreferrer" style={{ color:'var(--blue)', textDecoration:'underline' }}
                            href={selected.direccion_entrega.lat != null && selected.direccion_entrega.lng != null
                              ? `https://www.openstreetmap.org/?mlat=${selected.direccion_entrega.lat}&mlon=${selected.direccion_entrega.lng}#map=18/${selected.direccion_entrega.lat}/${selected.direccion_entrega.lng}`
                              : `https://www.openstreetmap.org/search?query=${encodeURIComponent([selected.direccion_entrega.calle, selected.direccion_entrega.colonia, selected.direccion_entrega.ciudad, selected.direccion_entrega.estado_mx, selected.direccion_entrega.cp].filter(Boolean).join(', '))}`}>
-                          🗺️ {selected.direccion_entrega.lat != null ? 'Ver punto exacto en el mapa' : 'Buscar en el mapa'}
+                          {selected.direccion_entrega.lat != null ? 'Ver punto exacto en el mapa' : 'Buscar en el mapa'}
                         </a>
                       </div>
                     </>
@@ -488,20 +486,20 @@ export default function OrdersPage() {
                 </div>
               )}
               </Sec>
-              <Sec icon="🧾" title="Resumen del pedido" hint="Descripción general y notas capturadas al crear el pedido.">
+              <Sec title="Resumen del pedido" hint="Descripción general y notas capturadas al crear el pedido.">
               {selected.resumen && <div style={{ marginBottom:14,padding:'9px 12px',borderRadius:8,background:'var(--bg4)',fontSize:12,color:'var(--txt2)' }}>{selected.resumen}</div>}
               {selected.notas && (
                 <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--bg4)', fontSize:12, color:'var(--txt2)', borderLeft:`3px solid var(--blue)` }}>
-                  📝 {selected.notas}
+                  {selected.notas}
                 </div>
               )}
               {selected.estado === 'CANCELADO' && selected.motivo_cancelacion && (
-                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
-                  ✕ Motivo de cancelación: {selected.motivo_cancelacion}
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', fontSize:12, color:'var(--err)', borderLeft:'3px solid var(--err)' }}>
+                  Motivo de cancelación: {selected.motivo_cancelacion}
                 </div>
               )}
               </Sec>
-              <Sec icon="🛒" title="Artículos del pedido" hint="Clave, tipo y cantidad de cada artículo. Quien surte puede capturar cuántas piezas surtió y por qué no se completó.">
+              <Sec title="Artículos del pedido" hint="Clave, tipo y cantidad de cada artículo. Quien surte puede capturar cuántas piezas surtió y por qué no se completó.">
               <div style={{ borderRadius:10, overflow:'hidden', border:'1px solid var(--border)', marginBottom:4 }}>
                 {(selected.items||[]).map((it:any,i:number)=>{
                   const surtido = Number(it.cantidad_surtida || 0)
@@ -510,9 +508,9 @@ export default function OrdersPage() {
                   <div key={it.id||i} style={{ padding:'9px 12px', fontSize:12, borderTop:i>0?'1px solid var(--border)':'none' }}>
                     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:8 }}>
                       <div style={{ minWidth:0 }}>
-                        {it.clave && <span style={{ fontFamily:'monospace', fontSize:11, fontWeight:700, color:'var(--blue3)', marginRight:8 }}>{it.clave}</span>}
+                        {it.clave && <span style={{ fontFamily:'var(--font-mono)', fontSize:12, fontWeight:600, color:'var(--blue3)', marginRight:8 }}>{it.clave}</span>}
                         <span style={{ fontWeight:600 }}>{it.nombre_producto || it.modelo}</span>
-                        <span style={{ marginLeft:8, fontSize:10, padding:'1px 6px', borderRadius:4, background:'rgba(26,143,227,0.1)', color:'var(--blue3)', fontWeight:600 }}>
+                        <span style={{ marginLeft:8, fontSize:12, padding:'1px 6px', borderRadius:6, background:'var(--info-bg)', color:'var(--blue3)', fontWeight:600 }}>
                           {[it.categoria, it.serie ?? it.tipo_case].filter(Boolean).join(' · ') || '—'}
                         </span>
                       </div>
@@ -520,18 +518,18 @@ export default function OrdersPage() {
                     </div>
                     {puedeSurtir && (
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:7, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:11, color:'var(--txt2)' }}>Surtido:</span>
+                        <span style={{ fontSize:12, color:'var(--txt2)' }}>Surtido:</span>
                         <input className="cinput" type="number" min={0} max={it.cantidad} style={{ width:70, padding:'4px 6px', fontSize:12 }}
                                value={surtidoEdit[it.id]?.cant ?? String(surtido)}
                                onChange={e => setSurtidoEdit(m => ({ ...m, [it.id]: { cant: e.target.value, motivo: m[it.id]?.motivo ?? (it.motivo_surtido || '') } }))} />
-                        <span style={{ fontSize:11, color:'var(--txt3)' }}>de {it.cantidad}</span>
+                        <span style={{ fontSize:12, color:'var(--txt3)' }}>de {it.cantidad}</span>
                         <input className="cinput" style={{ flex:1, minWidth:120, padding:'4px 8px', fontSize:12 }} placeholder="Motivo si no se surtió completo"
                                value={surtidoEdit[it.id]?.motivo ?? (it.motivo_surtido || '')}
                                onChange={e => setSurtidoEdit(m => ({ ...m, [it.id]: { cant: m[it.id]?.cant ?? String(surtido), motivo: e.target.value } }))} />
                       </div>
                     )}
                     {!puedeSurtir && (surtido > 0 || it.motivo_surtido) && (
-                      <div style={{ fontSize:11, color:'var(--txt2)', marginTop:5 }}>
+                      <div style={{ fontSize:12, color:'var(--txt2)', marginTop:5 }}>
                         Surtido {surtido}/{it.cantidad} ({pct}%){it.motivo_surtido ? ` — ${it.motivo_surtido}` : ''}
                       </div>
                     )}
@@ -542,14 +540,14 @@ export default function OrdersPage() {
                 const tot = (selected.items||[]).reduce((a:number,it:any)=>a+Number(it.cantidad||0),0)
                 const sur = (selected.items||[]).reduce((a:number,it:any)=>a+Math.min(Number(it.cantidad_surtida||0), Number(it.cantidad||0)),0)
                 return (
-                  <div style={{ fontSize:11, color:'var(--txt2)', marginBottom:4 }}>
+                  <div style={{ fontSize:12, color:'var(--txt2)', marginBottom:4 }}>
                     Avance de surtido: <b style={{ color:'var(--txt)' }}>{sur}/{tot} pzas ({tot ? Math.round(sur/tot*100) : 0}%)</b>
                     {puedeSurtir && (
                       <button className="cbtn cbtn-secondary cbtn-sm" style={{ marginLeft:10 }} disabled={savingSurtido || !Object.keys(surtidoEdit).length} onClick={() => saveSurtido(selected.id)}>
                         {savingSurtido ? 'Guardando…' : 'Guardar surtido'}
                       </button>
                     )}
-                    {surtidoError && <span style={{ color:'#f87171', marginLeft:8 }}>{surtidoError}</span>}
+                    {surtidoError && <span style={{ color:'var(--err)', marginLeft:8 }}>{surtidoError}</span>}
                   </div>
                 )
               })()}
@@ -560,12 +558,12 @@ export default function OrdersPage() {
                 if (!editCant) return (
                   <button className="cbtn cbtn-secondary cbtn-sm" style={{ marginTop:8 }}
                           onClick={() => setEditCant(Object.fromEntries((selected.items||[]).map((it:any) => [it.id, String(it.cantidad)])))}>
-                    ✏️ Editar cantidades
+                    Editar cantidades
                   </button>
                 )
                 return (
                   <div style={{ marginTop:10, padding:12, border:'1px dashed var(--border)', borderRadius:10 }}>
-                    <div style={{ fontSize:11, color:'var(--txt2)', marginBottom:8 }}>
+                    <div style={{ fontSize:12, color:'var(--txt2)', marginBottom:8 }}>
                       Cambia las cantidades (0 quita el artículo). Se recalcula el monto con el descuento por volumen
                       {pendiente ? ' y se ajusta la reserva de stock' : ' y se ajusta el stock ya descontado'}; el cliente recibe aviso.
                     </div>
@@ -578,7 +576,7 @@ export default function OrdersPage() {
                       </div>
                     ))}
                     <input className="cinput" placeholder="Motivo de la edición (obligatorio)" value={editMotivo} onChange={e => setEditMotivo(e.target.value)} style={{ marginBottom:8 }} />
-                    {editError && <div style={{ fontSize:12, color:'#f87171', marginBottom:8 }}>⚠ {editError}</div>}
+                    {editError && <div style={{ fontSize:12, color:'var(--err)', marginBottom:8 }}>{editError}</div>}
                     <div style={{ display:'flex', gap:8 }}>
                       <button className="cbtn cbtn-primary cbtn-sm" disabled={savingEdit} onClick={() => saveEdicion(selected.id)}>{savingEdit ? 'Guardando…' : 'Guardar cambios'}</button>
                       <button className="cbtn cbtn-secondary cbtn-sm" disabled={savingEdit} onClick={() => { setEditCant(null); setEditError('') }}>Cancelar</button>
@@ -587,7 +585,7 @@ export default function OrdersPage() {
                 )
               })()}
               </Sec>
-              <Sec icon="💳" title="Cobro" hint="Monto en MXN que se cobra al cliente. Cualquier cambio exige un motivo y queda en la bitácora.">
+              <Sec title="Cobro" hint="Monto en MXN que se cobra al cliente. Cualquier cambio exige un motivo y queda en la bitácora.">
               <div style={{ display:'flex', gap:8, marginBottom:8, flexWrap:'wrap' }}>
                 <input
                   type="number" min={0} step="0.01"
@@ -608,14 +606,14 @@ export default function OrdersPage() {
                   </>
                 )}
               </div>
-              {montoError && <div style={{ fontSize:12, color:'#f87171', marginBottom:8 }}>⚠ {montoError}</div>}
-              {!can(userRol,'pagos_confirmar') && <p style={{ fontSize:11, color:'var(--txt3)', marginBottom:8 }}>Solo ventas/administración puede modificar el monto.</p>}
+              {montoError && <div style={{ fontSize:12, color:'var(--err)', marginBottom:8 }}>{montoError}</div>}
+              {!can(userRol,'pagos_confirmar') && <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:8 }}>Solo ventas/administración puede modificar el monto.</p>}
               </Sec>
-              <Sec icon="🏭" title="Almacén y surtido" hint="Ubicación física, orden de surtido y evidencias del pedido.">
+              <Sec title="Almacén y surtido" hint="Ubicación física, orden de surtido y evidencias del pedido.">
               {!['ENTREGADO','CANCELADO'].includes(selected.estado) && (
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
-                    📦 Ubicación física (caja/tarima)
+                  <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
+                    Ubicación física (caja/tarima)
                     <Ayuda text="Dónde quedó el pedido surtido dentro del almacén (tarima, caja, carrito). Ayuda a localizarlo al despachar." />
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
@@ -639,18 +637,18 @@ export default function OrdersPage() {
                   <a className="cbtn cbtn-secondary" href={`/api/orders/${selected.id}/picking`} target="_blank" rel="noreferrer"
                      style={{ display:'inline-block', textDecoration:'none' }}
                      onClick={() => setTimeout(() => { loadDetail(selected.id); load() }, 1500)}>
-                    📋 Exportar orden de surtido
+                    Exportar orden de surtido
                   </a>
                   {selected.estado === 'CONFIRMADO' && (
-                    <p style={{ fontSize:11, color:'var(--txt3)', marginTop:6 }}>Al exportarla, el pedido pasa a "En preparación" automáticamente.</p>
+                    <p style={{ fontSize:12, color:'var(--txt3)', marginTop:6 }}>Al exportarla, el pedido pasa a "En preparación" automáticamente.</p>
                   )}
                 </div>
               )}
 
               {/* Evidencias — siempre visibles, permite agregar */}
               <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
-                  📎 Evidencias {selected.evidencias?.length ? `(${selected.evidencias.length})` : ''}
+                <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',marginBottom:6 }}>
+                  Evidencias {selected.evidencias?.length ? `(${selected.evidencias.length})` : ''}
                   <Ayuda text="Fotos o archivos que respaldan el pedido: comprobante de pago, foto del surtido, empaque, etc." />
                 </div>
                 <ImageUploader
@@ -662,7 +660,7 @@ export default function OrdersPage() {
               </Sec>
               {/* ── Panel: datos de envío / guía (solo pedidos de envío) ── */}
               {selected.metodo_entrega === 'envio' && (
-                <Sec icon="🚚" title="Datos de envío" hint="Paquetería elegida por el cliente, guía y rastreo.">
+                <Sec title="Datos de envío" hint="Paquetería elegida por el cliente, guía y rastreo.">
 
                   {/* Paquetería elegida por el cliente */}
                   {selected.paqueteria && (
@@ -671,9 +669,9 @@ export default function OrdersPage() {
                         const p = paqueteriasList.find(x => x.nombre === selected.paqueteria)
                         return p?.logo_url
                           ? <img src={p.logo_url} alt={p.nombre} style={{ height:20, objectFit:'contain' }} />
-                          : <span>🚚</span>
+                          : <Truck size={16} strokeWidth={1.5} color="var(--txt3)" aria-hidden="true" />
                       })()}
-                      <span style={{ fontWeight:700, color:'var(--txt)' }}>{selected.paqueteria}</span>
+                      <span style={{ fontWeight:600, color:'var(--txt)' }}>{selected.paqueteria}</span>
                       {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados &&
                         <span style={{ color:'var(--txt3)' }}>· {paqueteriasList.find(x=>x.nombre===selected.paqueteria)?.dias_estimados}</span>}
                     </div>
@@ -681,43 +679,43 @@ export default function OrdersPage() {
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                       <div>
-                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>N° de guía <Ayuda text="Número de rastreo que asigna la paquetería." /></label>
+                        <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>N° de guía <Ayuda text="Número de rastreo que asigna la paquetería." /></label>
                         <input className="cinput" value={envioGuia} onChange={e=>setEnvioGuia(e.target.value)} placeholder="Ej: 1234567890" />
                       </div>
                       <div>
-                        <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Costo de envío (MXN)</label>
+                        <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Costo de envío (MXN)</label>
                         <input className="cinput" type="number" min="0" step="0.01" value={envioCosto} onChange={e=>setEnvioCosto(e.target.value)} placeholder="0.00" />
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>URL de rastreo</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>URL de rastreo</label>
                       <input className="cinput" value={envioRastreo} onChange={e=>setEnvioRastreo(e.target.value)} placeholder="https://rastreo.paqueteria.com/..." />
                     </div>
                     <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Observaciones de envío</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Observaciones de envío</label>
                       <input className="cinput" value={envioObs} onChange={e=>setEnvioObs(e.target.value)} placeholder="Instrucciones especiales, notas de entrega…" />
                     </div>
                     <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía <Ayuda text="PDF o imagen de la guía de la paquetería; queda en el pedido y se adjunta al correo que recibe el cliente cuando el pedido pasa a En reparto. Súbela antes de cambiar el estado." /></label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Archivo de guía <Ayuda text="PDF o imagen de la guía de la paquetería; queda en el pedido y se adjunta al correo que recibe el cliente cuando el pedido pasa a En reparto. Súbela antes de cambiar el estado." /></label>
                       {selected.envio_archivo_url && (
                         <a href={selected.envio_archivo_url} target="_blank" rel="noreferrer"
-                           style={{ display:'inline-block', marginBottom:6, fontSize:11, color:'var(--blue)', textDecoration:'underline' }}>
-                          📎 Ver archivo actual
+                           style={{ display:'inline-block', marginBottom:6, fontSize:12, color:'var(--blue)', textDecoration:'underline' }}>
+                          Ver archivo actual
                         </a>
                       )}
                       <input type="file" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={e=>setEnvioArchivo(e.target.files?.[0]||null)}
-                        style={{ fontSize:11, color:'var(--txt2)' }} />
+                        style={{ fontSize:12, color:'var(--txt2)' }} />
                     </div>
                     <button className="cbtn cbtn-secondary" style={{ alignSelf:'flex-start' }}
                       disabled={savingEnvio} onClick={() => saveEnvio(selected.id)}>
-                      {savingEnvio ? 'Guardando…' : '💾 Guardar datos de envío'}
+                      {savingEnvio ? 'Guardando…' : 'Guardar datos de envío'}
                     </button>
                   </div>
                 </Sec>
               )}
 
-              <Sec icon="✏️" title="Información interna" hint="Vendedor, sede de recolección y observaciones del equipo.">
+              <Sec title="Información interna" hint="Vendedor, sede de recolección y observaciones del equipo.">
               {/* ── Panel: editar información del pedido ─────────────── */}
               <div style={{ marginBottom:16 }}>
 
@@ -725,8 +723,8 @@ export default function OrdersPage() {
 
                   {/* Vendedor — texto libre con sugerencias de usuarios del sistema */}
                   <div>
-                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>👤 Vendedor <Ayuda text="Quién atiende el pedido. Puedes escribir cualquier nombre o elegir un usuario del sistema." /></label>
-                    <p style={{ fontSize:10,color:'var(--txt3)',marginBottom:5 }}>
+                    <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Vendedor <Ayuda text="Quién atiende el pedido. Puedes escribir cualquier nombre o elegir un usuario del sistema." /></label>
+                    <p style={{ fontSize:12,color:'var(--txt3)',marginBottom:5 }}>
                       Escribe cualquier nombre o elige un usuario del sistema. No requiere cuenta.
                     </p>
                     <div style={{ display:'flex', gap:8 }}>
@@ -753,7 +751,7 @@ export default function OrdersPage() {
                   {/* Sede pickup (solo si el pedido es de recolección) */}
                   {selected.metodo_entrega === 'pickup' && puntosList.filter(p=>p.nombre).length > 0 && (
                     <div>
-                      <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>🏬 Sede de recolección</label>
+                      <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Sede de recolección</label>
                       <div style={{ display:'flex', gap:8 }}>
                         <select className="cinput" style={{ flex:1 }} value={editPickup} onChange={e => setEditPickup(e.target.value)}>
                           <option value="">— Seleccionar —</option>
@@ -768,7 +766,7 @@ export default function OrdersPage() {
 
                   {/* Nota interna */}
                   <div>
-                    <label style={{ fontSize:11,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>📝 Agregar observación interna <Ayuda text="Solo la ve el equipo (bitácora). El cliente no la ve; para avisarle algo usa la 'Nota para el cliente' al cambiar el estado." /></label>
+                    <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)',display:'block',marginBottom:4 }}>Agregar observación interna <Ayuda text="Solo la ve el equipo (bitácora). El cliente no la ve; para avisarle algo usa la 'Nota para el cliente' al cambiar el estado." /></label>
                     <div style={{ display:'flex', gap:8 }}>
                       <input className="cinput" style={{ flex:1 }} placeholder="Observación visible solo para el equipo…"
                              value={editNota} onChange={e => setEditNota(e.target.value)}
@@ -784,19 +782,19 @@ export default function OrdersPage() {
               {/* ──────────────────────────────────────────────────── */}
 
               </Sec>
-              <Sec icon="🔄" title="Estado y acciones" hint="Cambia el estado del pedido. Se avisa al cliente por WhatsApp y correo (excepto Por validar surtido, que es interno).">
+              <Sec title="Estado y acciones" hint="Cambia el estado del pedido. Se avisa al cliente por WhatsApp y correo (excepto Por validar surtido, que es interno).">
               {selected.motivo_rechazo_surtido && selected.estado === 'EN_PREPARACION' && (
-                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
-                  ✕ Surtido rechazado: {selected.motivo_rechazo_surtido}
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', fontSize:12, color:'var(--err)', borderLeft:'3px solid var(--err)' }}>
+                  Surtido rechazado: {selected.motivo_rechazo_surtido}
                 </div>
               )}
 
               {selected.estado === 'CANCELADO' ? (
                 <>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Reactivar pedido</div>
+                  <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:8 }}>Reactivar pedido</div>
                   {reactivateError && (
-                    <div style={{ marginBottom:10, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
-                      ⚠ {reactivateError.msg}
+                    <div style={{ marginBottom:10, padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', fontSize:12, color:'var(--err)' }}>
+                      {reactivateError.msg}
                       {reactivateError.faltantes?.length ? (
                         <div style={{ marginTop:4 }}>
                           {reactivateError.faltantes.map((f:any,i:number)=>(
@@ -807,7 +805,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                   <button className="cbtn cbtn-primary" disabled={reactivating} onClick={() => reactivate(selected.id)}>
-                    {reactivating ? 'Reactivando…' : '♻️ Reactivar pedido'}
+                    {reactivating ? 'Reactivando…' : 'Reactivar pedido'}
                   </button>
                 </>
               ) : (
@@ -815,7 +813,7 @@ export default function OrdersPage() {
                   {selected.estado === 'EN_PREPARACION' && (
                     <div style={{ marginBottom:12 }}>
                       <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'POR_VALIDAR_SURTIDO', selected.estado)}>
-                        📦 Terminé de surtir
+                        Terminé de surtir
                       </button>
                     </div>
                   )}
@@ -823,41 +821,41 @@ export default function OrdersPage() {
                     <div style={{ display:'flex', gap:8, marginBottom:12 }}>
                       <button className="cbtn cbtn-primary" disabled={updating}
                               onClick={() => requestStatusChange(selected.id, selected.metodo_entrega === 'pickup' ? 'LISTO_PARA_RECOGER' : 'EN_REPARTO', selected.estado)}>
-                        {selected.metodo_entrega === 'pickup' ? '✅ Listo para recoger' : '✅ Validar y despachar'}
+                        {selected.metodo_entrega === 'pickup' ? 'Listo para recoger' : 'Validar y despachar'}
                       </button>
                       <button className="cbtn cbtn-secondary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_PREPARACION', selected.estado)}>
-                        ✕ Rechazar surtido
+                        Rechazar surtido
                       </button>
                     </div>
                   )}
                   {selected.estado === 'POR_VALIDAR_SURTIDO' && !can(userRol,'pagos_confirmar') && (
-                    <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:12 }}>⏳ Esperando que ventas/admin valide el surtido.</p>
+                    <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:12 }}>Esperando que ventas/admin valide el surtido.</p>
                   )}
 
                   {selected.estado === 'EN_REPARTO' && (
-                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'rgba(26,143,227,0.06)', border:'1px solid rgba(26,143,227,0.15)', fontSize:12, color:'var(--blue)' }}>
-                      📦 Pedido en camino — en manos de la paquetería
+                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'var(--info-bg)', border:'1px solid var(--border2)', fontSize:12, color:'var(--blue)' }}>
+                      Pedido en camino — en manos de la paquetería
                     </div>
                   )}
                   {/* Nota visible al cliente */}
                   {verNotaCliente && selected.notas_cliente && (
-                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'#eff6ff', border:'1px solid #bfdbfe', fontSize:12 }}>
-                      <span style={{ fontWeight:700, color:'#1d4ed8' }}>📝 Nota al cliente:</span>{' '}
-                      <span style={{ color:'#1e40af' }}>{selected.notas_cliente}</span>
+                    <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'var(--info-bg)', border:'1px solid var(--border2)', fontSize:12 }}>
+                      <span style={{ fontWeight:600, color:'var(--info)' }}>Nota al cliente:</span>{' '}
+                      <span style={{ color:'var(--info)' }}>{selected.notas_cliente}</span>
                     </div>
                   )}
 
                   {selected.estado === 'ENTREGA_FALLIDA' && (
                     <>
                       {selected.motivo_entrega_fallida && (
-                        <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171', borderLeft:'3px solid #f87171' }}>
-                          ✕ Entrega fallida: {selected.motivo_entrega_fallida}
+                        <div style={{ marginBottom:12, padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', fontSize:12, color:'var(--err)', borderLeft:'3px solid var(--err)' }}>
+                          Entrega fallida: {selected.motivo_entrega_fallida}
                         </div>
                       )}
                       {can(userRol,'pagos_confirmar') && (
                         <div style={{ marginBottom:12 }}>
                           <button className="cbtn cbtn-primary" disabled={updating} onClick={() => requestStatusChange(selected.id, 'EN_REPARTO', selected.estado)}>
-                            🔁 Reintentar reparto
+                            Reintentar reparto
                           </button>
                         </div>
                       )}
@@ -866,14 +864,14 @@ export default function OrdersPage() {
 
                   {!(ESTADOS_GATEADOS.includes(selected.estado) && !can(userRol,'pagos_confirmar')) && (
                     <>
-                      <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Cambiar estado</div>
+                      <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:8 }}>Cambiar estado</div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                         {ESTADOS.map(e => (
                           <button key={e} onClick={() => requestStatusChange(selected.id, e, selected.estado)} disabled={updating || selected.estado===e}
-                                  style={{ fontSize:11,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'all 0.15s',
-                                    background:selected.estado===e?'var(--blue)':'var(--bg4)',color:selected.estado===e?'white':'var(--txt2)',
+                                  style={{ fontSize:12,padding:'5px 12px',borderRadius:6,cursor:selected.estado===e?'default':'pointer',fontFamily:'inherit',fontWeight:500,transition:'background-color .15s, border-color .15s, color .15s',
+                                    background:selected.estado===e?'var(--sel)':'var(--bg3)',color:selected.estado===e?'var(--txt)':'var(--txt2)',
                                     border:`1px solid ${selected.estado===e?'var(--blue)':'var(--border)'}`,opacity:updating?0.5:1 }}>
-                            {e.replace(/_/g,' ')}
+                            {labelEstado(e)}
                           </button>
                         ))}
                       </div>
@@ -886,25 +884,26 @@ export default function OrdersPage() {
 
               {selected.timeline?.length > 0 && (
                 <div style={{ marginTop:18 }}>
-                  <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>Bitácora del pedido</div>
+                  <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:8 }}>Bitácora del pedido</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {selected.timeline.map((t:any,i:number) => {
                       const tipo = t.tipo_evento || 'ESTADO'
                       const esEstado = tipo === 'ESTADO'
-                      const icon = esEstado ? '📦' : tipo === 'VENDEDOR' ? '👤' : tipo === 'NOTA' ? '📝' : tipo === 'PICKUP' ? '🏬' : tipo === 'MONTO' ? '💳' : tipo === 'UBICACION' ? '📦' : tipo === 'EDICION' ? '✏️' : '📌'
+                      const EvIcon = esEstado ? Package : tipo === 'VENDEDOR' ? UserRound : tipo === 'NOTA' ? StickyNote : tipo === 'PICKUP' ? Store : tipo === 'MONTO' ? CreditCard : tipo === 'UBICACION' ? MapPin : tipo === 'EDICION' ? Pencil : Pin
+                      const icon = <EvIcon size={14} strokeWidth={1.5} style={{ verticalAlign:'-2px', marginRight:8, color:'var(--txt3)' }} aria-hidden="true" />
                       return (
                         <div key={t.id||i} style={{ fontSize:12, color:'var(--txt2)', display:'flex', justifyContent:'space-between', gap:8, padding:'7px 0', borderTop: i>0 ? '1px solid var(--border)' : 'none' }}>
                           <div style={{ flex:1 }}>
                             {esEstado ? (
                               <>
-                                <span style={{ fontWeight:600, color:'var(--txt)' }}>{icon} {(t.estado||'').replace(/_/g,' ')}</span>
+                                <span style={{ fontWeight:600, color:'var(--txt)' }}>{icon} {labelEstado(t.estado||'')}</span>
                                 {t.nota ? <span style={{ color:'var(--txt2)' }}> — {t.nota}</span> : null}
                               </>
                             ) : (
                               <span>{icon} {t.nota || tipo}</span>
                             )}
                           </div>
-                          <div style={{ textAlign:'right', flexShrink:0, fontSize:11 }}>
+                          <div style={{ textAlign:'right', flexShrink:0, fontSize:12 }}>
                             <div>{format(new Date(t.creado_en),'dd MMM HH:mm',{locale:es})}</div>
                             <div style={{ color:'var(--txt3)' }}>{t.realizado_por_nombre || 'Sistema'}</div>
                           </div>
@@ -924,14 +923,14 @@ export default function OrdersPage() {
         <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setPendingChange(null) }}>
           <div className="modal-box" style={{ maxWidth:420 }}>
             <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>
-                ¿Cambiar estado a {pendingChange.estado.replace(/_/g,' ')}?
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--txt)' }}>
+                ¿Cambiar estado a {labelEstado(pendingChange.estado)}?
               </div>
             </div>
             <div style={{ padding:'18px 22px 22px' }}>
               {pendingChange.estado === 'CANCELADO' && (
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>
                     Motivo de cancelación *
                   </label>
                   <textarea className="cinput" style={{ minHeight:64 }} value={motivoCancel} onChange={e => setMotivoCancel(e.target.value)} placeholder="¿Por qué se cancela este pedido?" />
@@ -939,28 +938,28 @@ export default function OrdersPage() {
               )}
               {pendingChange.desde === 'POR_VALIDAR_SURTIDO' && pendingChange.estado === 'EN_PREPARACION' && (
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>
                     Motivo de rechazo *
                   </label>
                   <textarea className="cinput" style={{ minHeight:64 }} value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)} placeholder="¿Qué está mal con el surtido?" />
                 </div>
               )}
               {pendingChange.estado === 'EN_REPARTO' && (
-                <div style={{ marginBottom:14, padding:'10px 12px', borderRadius:8, background:'rgba(26,143,227,0.06)', border:'1px solid rgba(26,143,227,0.15)' }}>
-                  <p style={{ fontSize:11, color:'var(--blue)', fontWeight:600, marginBottom:4 }}>📦 Pedido en camino vía paquetería</p>
-                  <p style={{ fontSize:11, color:'var(--txt3)' }}>Agrega abajo el número de guía o instrucciones para el cliente.</p>
+                <div style={{ marginBottom:14, padding:'10px 12px', borderRadius:8, background:'var(--info-bg)', border:'1px solid var(--border2)' }}>
+                  <p style={{ fontSize:12, color:'var(--blue)', fontWeight:600, marginBottom:4 }}>Pedido en camino vía paquetería</p>
+                  <p style={{ fontSize:12, color:'var(--txt3)' }}>Agrega abajo el número de guía o instrucciones para el cliente.</p>
                 </div>
               )}
               {verNotaCliente && <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>
-                  📝 Nota para el cliente <span style={{ fontWeight:400, textTransform:'none', fontSize:9 }}>(visible en su portal)</span>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>
+                  Nota para el cliente <span style={{ fontWeight:400,  fontSize:9 }}>(visible en su portal)</span>
                 </label>
                 <textarea className="cinput" style={{ minHeight:70 }} value={notasCliente} onChange={e => setNotasCliente(e.target.value)}
                   placeholder={pendingChange.estado==='EN_REPARTO' ? 'Ej: Tu pedido va con Estafeta, guía: 1234567890. Entrega estimada: 2-3 días.' : 'Instrucción, aclaración o nota para el cliente...'} />
               </div>}
               {confirmError && (
-                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', fontSize:12, color:'#f87171' }}>
-                  ⚠ {confirmError}
+                <div style={{ marginBottom:14, padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', fontSize:12, color:'var(--err)' }}>
+                  {confirmError}
                 </div>
               )}
               <div style={{ display:'flex', gap:10 }}>
@@ -1085,11 +1084,11 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
       <style>{SHARED_CSS}</style>
       <div className="modal-box" style={{ maxWidth:440 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>📎 Evidencias del pedido</div>
-          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+          <div style={{ fontSize:16,fontWeight:600,color:'var(--txt)' }}>Evidencias del pedido</div>
+          <button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
         </div>
         <div style={{ padding:'18px 22px 22px' }}>
-          <p style={{ fontSize:13,color:'var(--txt2)',marginBottom:14 }}>Pedido creado ✅. Puedes adjuntar hasta 3 imágenes de evidencia (capturas, fotos del pedido).</p>
+          <p style={{ fontSize:13,color:'var(--txt2)',marginBottom:14 }}>Pedido creado . Puedes adjuntar hasta 3 imágenes de evidencia (capturas, fotos del pedido).</p>
           <ImageUploader pedidoId={pedidoId} />
           <div style={{ marginTop:20 }}>
             <button className="cbtn cbtn-primary" style={{ width:'100%' }} onClick={onClose}>Listo</button>
@@ -1122,15 +1121,15 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
       `}</style>
       <div className="modal-box" style={{ maxWidth:680 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>Nuevo Pedido</div>
-          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+          <div style={{ fontSize:16,fontWeight:600,color:'var(--txt)' }}>Nuevo Pedido</div>
+          <button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
         </div>
         <div style={{ padding:'18px 22px 22px', maxHeight:'80vh', overflowY:'auto' }}>
-          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
+          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'var(--err-bg)',color:'var(--err)',border:'1px solid var(--border2)',fontSize:13,marginBottom:14 }}>{error}</div>}
           <form onSubmit={handleSubmit}>
             {/* Cliente / teléfono */}
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Cliente / Teléfono *</label>
+              <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Cliente / Teléfono *</label>
               <Combo
                 value={telefono}
                 onChange={setTelefono}
@@ -1143,12 +1142,12 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
             {/* Items */}
             <div style={{ marginBottom:14 }}>
               <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em' }}>Items del pedido</label>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', }}>Items del pedido</label>
                 <button type="button" className="cbtn cbtn-ghost" onClick={() => setItems(p=>[...p,{serie:tiposList[0]||'',modelo:'',color:'NEGRO',cantidad:1}])}>+ Fila</button>
               </div>
               {/* Header — hidden on mobile */}
               <div className="item-hdr-row" style={{ display:'grid',gridTemplateColumns:'120px 1fr 100px 70px 28px',gap:8,marginBottom:5 }}>
-                {['Tipo','Modelo','Color','Cant.',''].map(h=><div key={h} style={{ fontSize:10,fontWeight:700,color:'var(--txt3)',textTransform:'uppercase' }}>{h}</div>)}
+                {['Tipo','Modelo','Color','Cant.',''].map(h=><div key={h} style={{ fontSize:12,fontWeight:600,color:'var(--txt3)', }}>{h}</div>)}
               </div>
               <div style={{ display:'flex',flexDirection:'column',gap:7 }}>
                 {items.map((item,i)=>(
@@ -1173,7 +1172,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
                     />
                     <NumInput value={item.cantidad} onChange={v=>updateItem(i,'cantidad',v)} min={1} />
                     <button type="button" onClick={()=>setItems(p=>p.filter((_,idx)=>idx!==i))} disabled={items.length===1}
-                            style={{ background:'transparent',border:'none',color:'#f87171',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',opacity:items.length===1?0.3:1 }}>✕</button>
+                            style={{ background:'transparent',border:'none',color:'var(--err)',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center',opacity:items.length===1?0.3:1 }}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
                   </div>
                 ))}
               </div>
@@ -1181,30 +1180,30 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
 
             {/* Notas */}
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Notas (opcional)</label>
+              <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Notas (opcional)</label>
               <textarea className="cinput" placeholder="Comentarios, referencias del cliente, aclaraciones..." value={notas} onChange={e=>setNotas(e.target.value)} style={{ minHeight:64 }} />
             </div>
 
             {/* Método de entrega */}
             <div style={{ marginBottom:20 }}>
-              <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:8 }}>Método de entrega *</label>
+              <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:8 }}>Método de entrega *</label>
               <div style={{ display:'flex',gap:8,marginBottom:12 }}>
                 {(['pickup','envio'] as const).map(m => (
                   <button key={m} type="button"
                     onClick={() => { setMetodoEntregaC(m); setPuntoPickupC(''); setPaqueteriaC('') }}
-                    style={{ flex:1,padding:'9px 0',borderRadius:8,fontSize:13,fontWeight:700,cursor:'pointer',transition:'all .15s',
-                      border: metodoEntregaC === m ? '2px solid var(--accent,#6366f1)' : '1px solid var(--border)',
+                    style={{ flex:1,padding:'9px 0',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',transition:'background-color .15s, border-color .15s, color .15s',
+                      border: metodoEntregaC === m ? '2px solid var(--blue)' : '1px solid var(--border)',
                       background: metodoEntregaC === m ? 'transparent' : 'var(--bg3)',
-                      color: metodoEntregaC === m ? 'var(--accent,#6366f1)' : 'var(--txt2)',
-                      boxShadow: metodoEntregaC === m ? 'inset 0 0 0 1px var(--accent,#6366f1)' : 'none' }}>
-                    {m === 'pickup' ? '🏪 Pick Up' : '📦 Envío'}
+                      color: metodoEntregaC === m ? 'var(--blue)' : 'var(--txt2)',
+                      boxShadow: metodoEntregaC === m ? 'inset 0 0 0 1px var(--blue)' : 'none' }}>
+                    {m === 'pickup' ? 'Pick Up' : 'Envío'}
                   </button>
                 ))}
               </div>
 
               {metodoEntregaC === 'pickup' && (
                 <div>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Punto de recolección *</label>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Punto de recolección *</label>
                   {puntosC.length === 0
                     ? <p style={{ fontSize:12,color:'var(--txt2)',fontStyle:'italic' }}>No hay puntos configurados. Agrega puntos en Configuración.</p>
                     : <select className="cinput" value={puntoPickupC} onChange={e=>setPuntoPickupC(e.target.value)}>
@@ -1219,14 +1218,14 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
 
               {metodoEntregaC === 'envio' && (
                 <div>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:8 }}>Paquetería *</label>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:8 }}>Paquetería *</label>
                   {paqueteriasC.length === 0
                     ? <p style={{ fontSize:12,color:'var(--txt2)',fontStyle:'italic' }}>No hay paqueterías configuradas. Agrega en Configuración.</p>
                     : <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
                         {paqueteriasC.map((pk,i) => (
                           <label key={i} style={{ display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,cursor:'pointer',
                             border: paqueteriaC === pk.nombre ? '2px solid var(--accent)' : '1px solid var(--border)',
-                            background: paqueteriaC === pk.nombre ? 'rgba(var(--accent-rgb,99,102,241),0.08)' : 'var(--bg3)' }}>
+                            background: paqueteriaC === pk.nombre ? 'var(--sel)' : 'var(--bg3)' }}>
                             <input type="radio" name="paq-create" value={pk.nombre} checked={paqueteriaC === pk.nombre}
                               onChange={()=>setPaqueteriaC(pk.nombre)} style={{ accentColor:'var(--accent)' }} />
                             {pk.logo_url && <img src={pk.logo_url} alt={pk.nombre} style={{ height:24,objectFit:'contain' }} />}
@@ -1243,7 +1242,7 @@ function CreateModal({ dark, onClose, onCreated }: { dark:boolean; onClose:()=>v
             <div style={{ display:'flex',gap:10 }}>
               <button type="button" className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={onClose}>Cancelar</button>
               <button type="submit" className="cbtn cbtn-primary" style={{ flex:1 }} disabled={loading}>
-                {loading ? 'Creando...' : '✓ Crear pedido'}
+                {loading ? 'Creando...' : 'Crear pedido'}
               </button>
             </div>
           </form>

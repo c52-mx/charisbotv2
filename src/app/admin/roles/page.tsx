@@ -1,4 +1,5 @@
 'use client'
+import { X } from 'lucide-react'
 import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
@@ -90,7 +91,7 @@ export default function RolesPage() {
   }
 
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
 
   return (
     <div style={{ ...Object.fromEntries(Object.entries(tv)) as any }}>
@@ -98,18 +99,18 @@ export default function RolesPage() {
 
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:8, flexWrap:'wrap' }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Roles y permisos</h1>
+          <h1 className="page-title">Roles y permisos</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Quién puede hacer qué dentro del panel</p>
         </div>
         <button className="cbtn cbtn-primary" onClick={() => { setShowCreate(true); setErr('') }}>+ Nuevo rol</button>
       </div>
       <p style={{ fontSize:12, color:'var(--txt3)', marginBottom:16 }}>
-        ⏳ Los cambios de permisos aplican la próxima vez que ese usuario inicie sesión.
+        Los cambios de permisos aplican la próxima vez que ese usuario inicie sesión.
       </p>
 
       {loading ? (
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:60 }}>
-          <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid rgba(26,143,227,0.2)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }} />
+          <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border2)', borderTopColor:'var(--blue)', animation:'spin .7s linear infinite' }} />
         </div>
       ) : (
         <div className="tw">
@@ -119,9 +120,9 @@ export default function RolesPage() {
               {roles.map(r => (
                 <tr key={r.id}>
                   <td style={{ fontWeight:600 }}>
-                    {r.nombre} {r.sistema && <span className="badge badge-blue" style={{ marginLeft:6, fontSize:10 }}>Sistema</span>}
+                    {r.nombre} {r.sistema && <span className="badge badge-blue" style={{ marginLeft:6, fontSize:12 }}>Sistema</span>}
                   </td>
-                  <td><span style={{ fontFamily:'monospace', fontSize:12, color:'var(--txt2)' }}>{r.clave}</span></td>
+                  <td><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--txt2)' }}>{r.clave}</span></td>
                   <td>{r.usuarios}</td>
                   <td style={{ display:'flex', gap:6 }}>
                     <button className="cbtn cbtn-ghost" onClick={() => openRol(r)}>
@@ -145,23 +146,23 @@ export default function RolesPage() {
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setSelected(null) }}>
           <div className="modal-box" style={{ maxWidth:560 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-              <h2 style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)', margin:0 }}>
+              <h2 style={{ fontSize:16, fontWeight:600, color:'var(--txt)', margin:0 }}>
                 Permisos — {selected.nombre}
               </h2>
-              <button onClick={() => setSelected(null)} style={{ background:'none', border:'none', color:'var(--txt2)', fontSize:20, cursor:'pointer', lineHeight:1 }}>✕</button>
+              <button onClick={() => setSelected(null)} style={{ background:'none', border:'none', color:'var(--txt2)', fontSize:20, cursor:'pointer', lineHeight:1 }}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
             </div>
 
             {selected.clave === 'ADMIN' && (
-              <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(245,158,11,0.1)', color:'#f59e0b', fontSize:12, marginBottom:14 }}>
+              <div style={{ padding:'9px 12px', borderRadius:8, background:'var(--warn-bg)', color:'var(--warn)', fontSize:12, marginBottom:14 }}>
                 Los permisos de ADMIN no son editables — evita quedar sin acceso al panel.
               </div>
             )}
             {selected.tipo === 'REPARTIDOR' && (
-              <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(245,158,11,0.1)', color:'#f59e0b', fontSize:12, marginBottom:14 }}>
+              <div style={{ padding:'9px 12px', borderRadius:8, background:'var(--warn-bg)', color:'var(--warn)', fontSize:12, marginBottom:14 }}>
                 REPARTIDOR no usa esta matriz de permisos — sus acciones están controladas por su propio portal en /repartidor.
               </div>
             )}
-            {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{err}</div>}
+            {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'var(--err-bg)', color:'var(--err)', fontSize:13, marginBottom:14 }}>{err}</div>}
 
             {(() => {
               const locked = selected.clave === 'ADMIN' || selected.tipo === 'REPARTIDOR'
@@ -204,10 +205,10 @@ export default function RolesPage() {
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowCreate(false) }}>
           <div className="modal-box">
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-              <h2 style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)', margin:0 }}>Nuevo rol</h2>
-              <button onClick={() => setShowCreate(false)} style={{ background:'none', border:'none', color:'var(--txt2)', fontSize:20, cursor:'pointer', lineHeight:1 }}>✕</button>
+              <h2 style={{ fontSize:16, fontWeight:600, color:'var(--txt)', margin:0 }}>Nuevo rol</h2>
+              <button onClick={() => setShowCreate(false)} style={{ background:'none', border:'none', color:'var(--txt2)', fontSize:20, cursor:'pointer', lineHeight:1 }}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
             </div>
-            {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{err}</div>}
+            {err && <div style={{ padding:'8px 12px', borderRadius:8, background:'var(--err-bg)', color:'var(--err)', fontSize:13, marginBottom:14 }}>{err}</div>}
             <form onSubmit={crearRol}>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 <div>
@@ -215,8 +216,8 @@ export default function RolesPage() {
                   <input style={inp} value={nuevoNombre} onChange={e => setNuevoNombre(e.target.value)} placeholder="ej. Supervisor" required />
                 </div>
                 <div>
-                  <label style={lbl}>Clave * <span style={{ fontWeight:400, textTransform:'none' }}>— interna, sin espacios, no se puede cambiar después</span></label>
-                  <input style={{ ...inp, fontFamily:'monospace' }} value={nuevaClave} onChange={e => setNuevaClave(e.target.value)} placeholder="ej. SUPERVISOR" required />
+                  <label style={lbl}>Clave * <span style={{ fontWeight:400, }}>— interna, sin espacios, no se puede cambiar después</span></label>
+                  <input style={{ ...inp, fontFamily:'var(--font-mono)' }} value={nuevaClave} onChange={e => setNuevaClave(e.target.value)} placeholder="ej. SUPERVISOR" required />
                 </div>
               </div>
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:18 }}>

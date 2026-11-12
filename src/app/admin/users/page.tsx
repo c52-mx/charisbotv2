@@ -1,4 +1,5 @@
 'use client'
+import { X } from 'lucide-react'
 import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
@@ -11,10 +12,10 @@ const ROL_STYLE: Record<string,{badgeClass:string}> = {
   CLIENTE:   {badgeClass:'badge-gray'},
 }
 const ROL_DESC: Record<string,string> = {
-  ADMIN:      '🛡️ Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
-  VENDEDOR:   '🛒 Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.',
-  ALMACEN:    '📦 Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.',
-  REPARTIDOR: '🛵 Entra a su propio portal en /repartidor — solo ve y entrega los pedidos que se le asignen.',
+  ADMIN:      'Acceso total: dashboard, pedidos, catálogo, clientes y usuarios.',
+  VENDEDOR:   'Puede crear pedidos, ver catálogo y clientes. Sin acceso a dashboard ni usuarios.',
+  ALMACEN:    'Gestiona catálogo (crear/editar/desactivar) y cambia estado de pedidos confirmados. Sin acceso a clientes.',
+  REPARTIDOR: 'Entra a su propio portal en /repartidor — solo ve y entrega los pedidos que se le asignen.',
 }
 const empty = {nombre:'',email:'',password:'',rol:''}
 
@@ -77,7 +78,7 @@ export default function UsersPage() {
   )
 
   const inp: React.CSSProperties = {width:'100%',padding:'9px 12px',background:'var(--bg4)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:13,fontFamily:'inherit',outline:'none',boxSizing:'border-box'}
-  const lbl: React.CSSProperties = {display:'block',fontSize:11,fontWeight:600,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5}
+  const lbl: React.CSSProperties = {display:'block',fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:5}
 
   return (
     <div style={{...Object.fromEntries(Object.entries(tv)) as any}}>
@@ -86,7 +87,7 @@ export default function UsersPage() {
       {/* Header */}
       <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:20,flexWrap:'wrap'}}>
         <div>
-          <h1 style={{fontFamily:'Syne,sans-serif',fontSize:22,fontWeight:700,color:'var(--txt)',margin:0}}>Usuarios</h1>
+          <h1 className="page-title">Usuarios</h1>
           <p style={{fontSize:13,color:'var(--txt2)',marginTop:3}}>Gestión de accesos y roles del portal</p>
         </div>
         <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nuevo usuario</button>
@@ -101,7 +102,7 @@ export default function UsersPage() {
       {/* Table */}
       {loading ? (
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:60}}>
-          <div style={{width:24,height:24,borderRadius:'50%',border:'2px solid rgba(26,143,227,0.2)',borderTopColor:'var(--blue)',animation:'spin .7s linear infinite'}}/>
+          <div style={{width:24,height:24,borderRadius:'50%',border:'2px solid var(--border2)',borderTopColor:'var(--blue)',animation:'spin .7s linear infinite'}}/>
         </div>
       ) : (
         <div className="tw">
@@ -153,13 +154,13 @@ export default function UsersPage() {
         <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)setModal(null)}}>
           <div className="modal-box">
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
-              <h2 style={{fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)',margin:0}}>
+              <h2 style={{fontSize:16,fontWeight:600,color:'var(--txt)',margin:0}}>
                 {modal==='create' ? 'Nuevo usuario' : 'Editar usuario'}
               </h2>
-              <button onClick={()=>setModal(null)} style={{background:'none',border:'none',color:'var(--txt2)',fontSize:20,cursor:'pointer',lineHeight:1}}>✕</button>
+              <button onClick={()=>setModal(null)} style={{background:'none',border:'none',color:'var(--txt2)',fontSize:20,cursor:'pointer',lineHeight:1}}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
             </div>
 
-            {err && <div style={{padding:'8px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14}}>{err}</div>}
+            {err && <div style={{padding:'8px 12px',borderRadius:8,background:'var(--err-bg)',color:'var(--err)',border:'1px solid var(--border2)',fontSize:13,marginBottom:14}}>{err}</div>}
 
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               <div>

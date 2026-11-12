@@ -1,48 +1,69 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
+import { Camera, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────────────
 // THEME VARS
+// Rampa neutra (grafito) para superficies, bordes y texto; un solo acento
+// azul de marca. Los colores semánticos (ok/warn/err/info) existen en ambos
+// temas con contraste suficiente sobre su propio fondo.
 // ─────────────────────────────────────────────────────────────────────
 export function getThemeVars(dark: boolean) {
   return dark ? {
-    // Backgrounds — menos negro puro, más azul profundo con más contraste entre capas
-    '--bg':      '#060d18',   // base (ligeramente más azulado)
-    '--bg2':     '#0c1628',   // sidebar / cards
-    '--bg3':     '#111f38',   // inputs, hover rows
-    '--bg4':     '#172540',   // hover states, badges bg
-    // Borders — más visibles para definir mejor las secciones
-    '--border':  'rgba(75,174,240,0.12)',
-    '--border2': 'rgba(75,174,240,0.35)',
-    // Text — más contraste en el texto principal
-    '--txt':     '#eef4fc',
-    '--txt2':    '#7fb3d4',
-    '--txt3':    '#3d6080',
-    // Blues
-    '--blue':    '#1a8fe3',
-    '--blue2':   '#0d5fa3',
-    '--blue3':   '#4baef0',
-    '--glow':    'rgba(26,143,227,0.22)',
-    // Surface — para stat cards, modales
-    '--surface': '#0e1d34',
-    '--surface2':'#13243e',
+    // Superficies: cada capa sube un escalón
+    '--bg':      '#0e0f11',   // base
+    '--bg2':     '#141517',   // sidebar / paneles
+    '--bg3':     '#1a1b1e',   // inputs, encabezados de tabla
+    '--bg4':     '#222327',   // hover, chips
+    // Bordes: hairlines del color de texto
+    '--border':  'rgba(255,255,255,0.08)',
+    '--border2': 'rgba(255,255,255,0.16)',
+    // Texto: primario, secundario, tenue
+    '--txt':     '#ececee',
+    '--txt2':    '#a1a5ad',
+    '--txt3':    '#80848c',
+    // Acento (selección, enlaces, foco)
+    '--blue':    '#5aa9ee',
+    '--blue2':   '#2f6fb3',
+    '--blue3':   '#5aa9ee',
+    '--glow':    'transparent',
+    '--sel':     'rgba(90,169,238,0.12)', // fila/ítem seleccionado
+    // Acción primaria: en oscuro, blanco roto con texto oscuro
+    '--primary':       '#ececee',
+    '--primary-ink':   '#0e0f11',
+    '--primary-hover': '#ffffff',
+    // Semánticos
+    '--ok':   '#6fcf97', '--ok-bg':   'rgba(111,207,151,0.12)',
+    '--warn': '#e0b252', '--warn-bg': 'rgba(224,178,82,0.12)',
+    '--err':  '#ef8a8a', '--err-bg':  'rgba(239,138,138,0.12)',
+    '--info': '#5aa9ee', '--info-bg': 'rgba(90,169,238,0.12)',
+    // Superficies elevadas
+    '--surface': '#141517',
+    '--surface2':'#1a1b1e',
   } : {
-    // Claro — más cálido y aireado, menos frío
-    '--bg':      '#f5f8fc',
+    '--bg':      '#f6f7f8',
     '--bg2':     '#ffffff',
-    '--bg3':     '#edf2f8',
-    '--bg4':     '#e2eaf4',
-    '--border':  'rgba(26,100,180,0.14)',
-    '--border2': 'rgba(26,100,180,0.38)',
-    '--txt':     '#0a1e35',
-    '--txt2':    '#3a6080',
-    '--txt3':    '#8aaac4',
-    '--blue':    '#1a7fd4',
-    '--blue2':   '#0d5fa3',
-    '--blue3':   '#1a7fd4',
-    '--glow':    'rgba(26,127,212,0.15)',
+    '--bg3':     '#f1f2f4',
+    '--bg4':     '#e8eaed',
+    '--border':  'rgba(13,17,23,0.09)',
+    '--border2': 'rgba(13,17,23,0.20)',
+    '--txt':     '#14171c',
+    '--txt2':    '#4a5260',
+    '--txt3':    '#6b7280',
+    '--blue':    '#1565c0',
+    '--blue2':   '#0d4f99',
+    '--blue3':   '#1565c0',
+    '--glow':    'transparent',
+    '--sel':     'rgba(21,101,192,0.08)',
+    '--primary':       '#1565c0',
+    '--primary-ink':   '#ffffff',
+    '--primary-hover': '#1976d2',
+    '--ok':   '#15803d', '--ok-bg':   'rgba(21,128,61,0.10)',
+    '--warn': '#a15c07', '--warn-bg': 'rgba(161,92,7,0.10)',
+    '--err':  '#b42318', '--err-bg':  'rgba(180,35,24,0.08)',
+    '--info': '#1565c0', '--info-bg': 'rgba(21,101,192,0.08)',
     '--surface': '#ffffff',
-    '--surface2':'#f0f5fb',
+    '--surface2':'#f1f2f4',
   }
 }
 
@@ -50,26 +71,27 @@ export function getThemeVars(dark: boolean) {
 // SHARED CSS
 // ─────────────────────────────────────────────────────────────────────
 export const SHARED_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root { --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; --ease: cubic-bezier(.2,0,0,1); }
 
   @keyframes spin    { to { transform: rotate(360deg) } }
-  @keyframes fadeUp  { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
-  @keyframes dropIn  { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
-  @keyframes pulse   { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+  @keyframes fadeUp  { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes dropIn  { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:translateY(0) } }
 
   *, *::before, *::after { box-sizing: border-box; }
 
-  .page-anim { animation: fadeUp 0.28s ease-out; }
+  .page-anim { animation: fadeUp .24s var(--ease); }
+  @media (prefers-reduced-motion: reduce) { .page-anim { animation: none; } }
 
-  /* ── Page titles (fix tenue on dark/light) ── */
-  h1, h2, h3, h4 { color: var(--txt); margin: 0; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .num  { font-variant-numeric: tabular-nums; }
+
+  /* ── Page titles ── */
+  h1, h2, h3, h4 { color: var(--txt); margin: 0; font-weight: 600; }
   p               { margin: 0; }
-  .page-title     {
-    font-family: 'Syne', system-ui, sans-serif;
-    font-size: 24px; font-weight: 800;
-    color: var(--txt); letter-spacing: -.01em;
-  }
-  .page-subtitle  { font-size: 13px; color: var(--txt2); margin-top: 3px; }
+  .page-title     { font-size: 24px; font-weight: 600; line-height: 1.2; color: var(--txt); letter-spacing: -.01em; }
+  .page-subtitle  { font-size: 14px; color: var(--txt2); margin-top: 4px; }
   .page-header    {
     display: flex; align-items: flex-start;
     justify-content: space-between; gap: 12px;
@@ -77,116 +99,113 @@ export const SHARED_CSS = `
   }
 
   /* ── Scrollbar ── */
-  ::-webkit-scrollbar       { width: 5px; height: 5px; }
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
 
+  /* ── Focus visible ── */
+  .cbtn:focus-visible, .nl:focus-visible, .cbtn2:focus-visible, .cinput:focus-visible, .field-input:focus-visible {
+    outline: 2px solid var(--blue); outline-offset: 2px;
+  }
+
   /* ── Nav link ── */
   .nl {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 12px; border-radius: 10px;
-    text-decoration: none; font-size: 13.5px; font-weight: 500;
-    color: var(--txt2); transition: all .15s;
+    display: flex; align-items: center; gap: 12px;
+    height: 36px; padding: 0 12px; border-radius: 8px;
+    text-decoration: none; font-size: 14px; font-weight: 500;
+    color: var(--txt2);
     white-space: nowrap; overflow: hidden;
     border: 1px solid transparent; cursor: pointer;
+    transition: background-color .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
   }
-  .nl:hover { background: var(--bg4); color: var(--txt); }
-  .nl.act   {
-    background: rgba(26,143,227,0.13); color: var(--blue3);
-    border-color: var(--border2); font-weight: 600;
-  }
+  .nl:hover { background: var(--bg3); color: var(--txt); }
+  .nl.act   { background: var(--bg4); color: var(--txt); border-color: var(--border); }
 
   /* ── Buttons ── */
   .cbtn {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; padding: 9px 18px; border-radius: 9px;
-    font-size: 13px; font-weight: 600; font-family: inherit;
-    cursor: pointer; transition: all .15s; border: none;
-    white-space: nowrap; letter-spacing: .01em;
+    gap: 8px; padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; border: none; white-space: nowrap;
+    transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .15s var(--ease);
   }
-  .cbtn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+  .cbtn:active:not(:disabled) { transform: scale(.98); }
+  .cbtn:disabled { opacity: .45; cursor: not-allowed; }
 
-  .cbtn-primary { background: var(--blue); color: #fff; }
-  .cbtn-primary:hover:not(:disabled) {
-    background: var(--blue3);
-    box-shadow: 0 4px 20px var(--glow);
-    transform: translateY(-1px);
-  }
+  .cbtn-primary { background: var(--primary); color: var(--primary-ink); font-weight: 600; }
+  .cbtn-primary:hover:not(:disabled) { background: var(--primary-hover); }
   .cbtn-secondary {
-    background: var(--bg4); color: var(--txt);
+    background: var(--bg3); color: var(--txt);
     border: 1px solid var(--border) !important;
   }
-  .cbtn-secondary:hover:not(:disabled) {
-    background: var(--bg3); border-color: var(--border2) !important;
-  }
+  .cbtn-secondary:hover:not(:disabled) { background: var(--bg4); border-color: var(--border2) !important; }
   .cbtn-ghost {
     background: transparent; color: var(--txt2);
     border: 1px solid var(--border) !important;
-    padding: 5px 12px; font-size: 12px; font-weight: 500;
+    padding: 4px 12px; font-size: 12px; font-weight: 500;
   }
-  .cbtn-ghost:hover:not(:disabled) { background: var(--bg4); color: var(--txt); }
-  .cbtn-danger { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2) !important; }
-  .cbtn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
-  .cbtn-sm { padding: 6px 12px; font-size: 12px; border-radius: 7px; }
+  .cbtn-ghost:hover:not(:disabled) { background: var(--bg3); color: var(--txt); }
+  .cbtn-danger { background: var(--err-bg); color: var(--err); border: 1px solid transparent !important; }
+  .cbtn-danger:hover:not(:disabled) { border-color: var(--err) !important; }
+  .cbtn-sm { padding: 4px 12px; font-size: 12px; border-radius: 6px; }
 
   /* ── Card ── */
   .card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 20px 22px;
+    border-radius: 12px; padding: 20px 24px;
   }
-  .card-sm { border-radius: 10px; padding: 14px 16px; }
+  .card-sm { border-radius: 8px; padding: 12px 16px; }
 
-  /* ── Stat card ── */
+  /* ── Stat card: etiqueta, cifra grande, sin adornos ── */
   .stat-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 18px 20px;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  .stat-card:hover {
-    border-color: var(--border2);
-    box-shadow: 0 4px 24px var(--glow);
+    border-radius: 12px; padding: 16px 20px;
   }
 
   /* ── Table ── */
   .tw  { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
   table { width: 100%; border-collapse: collapse; }
   th {
-    font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .07em; padding: 11px 14px;
+    font-size: 12px; font-weight: 500;
+    padding: 8px 16px; height: 36px;
     color: var(--txt3); text-align: left;
     border-bottom: 1px solid var(--border);
     background: var(--bg3);
   }
   td {
-    font-size: 13px; padding: 11px 14px;
+    font-size: 13px; padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     color: var(--txt); vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--bg4); transition: background .1s; }
+  tr:hover td { background: var(--bg3); }
+  tr.sel td { background: var(--sel); }
+  tr:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
-  /* ── Badge ── */
+  /* ── Badge: estado en texto con fondo tenue ── */
   .badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px; border-radius: 20px;
-    font-size: 11px; font-weight: 700; letter-spacing: .02em;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 12px; font-weight: 500;
   }
-  .badge-ok     { background: rgba(52,211,153,0.15); color: #34d399; }
-  .badge-warn   { background: rgba(251,191,36,0.15);  color: #fbbf24; }
-  .badge-red    { background: rgba(239,68,68,0.12);   color: #f87171; }
-  .badge-blue   { background: rgba(75,174,240,0.15);  color: #4baef0; }
-  .badge-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
-  .badge-gray   { background: rgba(148,163,184,0.12); color: #94a3b8; }
+  .badge-ok     { background: var(--ok-bg);   color: var(--ok); }
+  .badge-warn   { background: var(--warn-bg); color: var(--warn); }
+  .badge-red    { background: var(--err-bg);  color: var(--err); }
+  .badge-blue   { background: var(--info-bg); color: var(--info); }
+  .badge-purple { background: var(--bg4);     color: var(--txt); }   /* estado final: neutro y tranquilo */
+  .badge-gray   { background: var(--bg4);     color: var(--txt2); }
 
   /* ── Inputs ── */
   .cinput {
-    width: 100%; padding: 9px 12px;
+    width: 100%; padding: 8px 12px;
     background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--txt); font-size: 13px;
-    font-family: inherit; outline: none; transition: border-color .15s;
+    border-radius: 8px; color: var(--txt); font-size: 14px;
+    font-family: inherit; outline: none;
+    transition: border-color .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease);
     box-sizing: border-box;
   }
-  .cinput:focus { border-color: var(--border2); background: var(--bg4); }
+  .cinput:focus { border-color: var(--blue); background: var(--bg2); box-shadow: 0 0 0 3px var(--sel); }
+  .cinput::placeholder, .field-input::placeholder { color: var(--txt3); }
 
   /* ── Card variants ── */
   .ccard {
@@ -201,7 +220,7 @@ export const SHARED_CSS = `
   /* ── Modal ── */
   .modal-mask, .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+    background: rgba(0,0,0,.6);
     z-index: 200; display: flex; align-items: center;
     justify-content: center; padding: 16px;
   }
@@ -209,35 +228,36 @@ export const SHARED_CSS = `
     background: var(--bg2); border: 1px solid var(--border);
     border-radius: 16px; width: 100%; max-width: 560px;
     max-height: 90dvh; overflow-y: auto; padding: 24px;
-    box-shadow: 0 24px 60px rgba(0,0,0,.4);
+    box-shadow: 0 16px 48px rgba(0,0,0,.28);
   }
 
   /* ── Form ── */
-  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .field-label {
-    display: block; font-size: 11px; font-weight: 700;
-    color: var(--txt3); text-transform: uppercase;
-    letter-spacing: .07em; margin-bottom: 5px;
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--txt2); margin-bottom: 8px;
   }
   .field-input {
-    width: 100%; padding: 9px 12px;
+    width: 100%; padding: 8px 12px;
     background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--txt); font-size: 13px;
-    font-family: inherit; outline: none; transition: border-color .15s;
+    border-radius: 8px; color: var(--txt); font-size: 14px;
+    font-family: inherit; outline: none;
+    transition: border-color .15s var(--ease), background-color .15s var(--ease), box-shadow .15s var(--ease);
     box-sizing: border-box;
   }
-  .field-input:focus { border-color: var(--border2); background: var(--bg4); }
+  .field-input:focus { border-color: var(--blue); background: var(--bg2); box-shadow: 0 0 0 3px var(--sel); }
 
   /* ── Sidebar nav helper btn ── */
   .cbtn2 {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px; border-radius: 9px;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--txt2); font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: all .14s; font-family: inherit;
+    display: flex; align-items: center; gap: 12px;
+    height: 36px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent;
+    color: var(--txt2); font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
     white-space: nowrap; overflow: hidden;
+    transition: background-color .15s var(--ease), color .15s var(--ease);
   }
-  .cbtn2:hover { background: var(--bg4); color: var(--txt); }
+  .cbtn2:hover { background: var(--bg3); color: var(--txt); }
 
   /* ── Divider ── */
   .divider { height: 1px; background: var(--border); margin: 16px 0; }
@@ -245,42 +265,40 @@ export const SHARED_CSS = `
   /* ── Empty state ── */
   .empty-state {
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 56px 24px; gap: 10px;
+    justify-content: center; padding: 56px 24px; gap: 8px;
     color: var(--txt3); text-align: center;
   }
-  .empty-state-icon { font-size: 36px; opacity: .5; }
-  .empty-state-title { font-size: 15px; font-weight: 600; color: var(--txt2); }
-  .empty-state-sub   { font-size: 13px; }
+  .empty-state-icon { color: var(--txt3); display: flex; }
+  .empty-state-title { font-size: 16px; font-weight: 500; color: var(--txt2); }
+  .empty-state-sub   { font-size: 14px; }
 
-  /* ── Timeline ── */
+  /* ── Timeline: línea de ruta con puntos de estado ── */
   .timeline { display: flex; flex-direction: column; gap: 0; }
-  .tl-item  { display: flex; gap: 14px; position: relative; padding-bottom: 18px; }
+  .tl-item  { display: flex; gap: 16px; position: relative; padding-bottom: 20px; }
   .tl-item:last-child { padding-bottom: 0; }
   .tl-dot   {
     width: 12px; height: 12px; border-radius: 50%;
-    background: var(--blue); flex-shrink: 0; margin-top: 3px;
-    box-shadow: 0 0 0 3px rgba(26,143,227,0.2);
+    background: var(--blue); flex-shrink: 0; margin-top: 4px;
   }
-  .tl-dot.done { background: #34d399; box-shadow: 0 0 0 3px rgba(52,211,153,0.2); }
-  .tl-dot.gray { background: var(--txt3); box-shadow: none; }
+  .tl-dot.done { background: var(--ok); }
+  .tl-dot.gray { background: var(--txt3); }
   .tl-item:not(:last-child) .tl-dot::after {
     content: ''; position: absolute;
-    left: 5px; top: 15px; bottom: 0;
-    width: 2px; background: var(--border);
+    left: 5px; top: 16px; bottom: 0;
+    width: 1px; background: var(--border2);
   }
   .tl-content { flex: 1; min-width: 0; }
-  .tl-title   { font-size: 13px; font-weight: 600; color: var(--txt); }
-  .tl-time    { font-size: 11px; color: var(--txt3); margin-top: 2px; }
-  .tl-desc    { font-size: 12px; color: var(--txt2); margin-top: 3px; }
+  .tl-title   { font-size: 14px; font-weight: 500; color: var(--txt); }
+  .tl-time    { font-size: 12px; color: var(--txt3); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tl-desc    { font-size: 13px; color: var(--txt2); margin-top: 4px; }
 
-  /* ── Order number chip ── */
+  /* ── Folio de pedido ── */
   .order-num {
-    font-family: 'DM Mono', monospace, system-ui;
-    font-size: 12px; font-weight: 600;
-    background: var(--bg4); color: var(--blue3);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px; font-weight: 500;
+    background: var(--bg4); color: var(--txt);
     padding: 2px 8px; border-radius: 6px;
-    border: 1px solid var(--border2);
-    letter-spacing: .03em;
   }
 
   /* ─────── RESPONSIVE ─────── */
@@ -301,7 +319,7 @@ export const SHARED_CSS = `
   @media(max-width:639px) {
     .modal-mask, .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
     .modal-box  {
-      border-radius: 20px 20px 0 0 !important;
+      border-radius: 16px 16px 0 0 !important;
       max-height: 92dvh !important;
       width: 100% !important; max-width: 100% !important;
     }
@@ -316,10 +334,10 @@ export const SHARED_CSS = `
       display: grid !important; grid-template-columns: 1fr 1fr;
       gap: 4px 8px; padding: 12px !important;
       border: 1px solid var(--border) !important;
-      border-radius: 10px !important; background: var(--surface) !important;
+      border-radius: 8px !important; background: var(--surface) !important;
     }
-    .rtable td           { padding: 3px 4px !important; font-size: 12px !important; border: none !important; }
-    .rtable td:first-child { grid-column: 1/-1; font-weight: 600; font-size: 13px !important; }
+    .rtable td           { padding: 4px !important; font-size: 12px !important; border: none !important; }
+    .rtable td:first-child { grid-column: 1/-1; font-weight: 500; font-size: 13px !important; }
     .rtable td:last-child  { grid-column: 1/-1; }
     .no-mob { display: none !important; }
   }
@@ -355,55 +373,55 @@ export function Combo({ value, onChange, options, placeholder = 'Seleccionar...'
         disabled={disabled}
         onClick={() => { setOpen(o => !o); setQuery('') }}
         style={{
-          width: '100%', padding: '9px 12px',
+          width: '100%', padding: '8px 12px',
           background: 'var(--bg3)', border: '1px solid var(--border)',
           borderRadius: 8, color: selected ? 'var(--txt)' : 'var(--txt3)',
-          fontSize: 13, fontFamily: 'inherit', cursor: 'pointer',
+          fontSize: 14, fontFamily: 'inherit', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          transition: 'border-color .15s',
+          transition: 'border-color .15s var(--ease)',
         }}
       >
         <span>{selected?.label ?? placeholder}</span>
-        <span style={{ fontSize: 10, opacity: .6 }}>{open ? '▲' : '▼'}</span>
+        {open ? <ChevronUp size={14} strokeWidth={1.5} color="var(--txt3)" /> : <ChevronDown size={14} strokeWidth={1.5} color="var(--txt3)" />}
       </button>
 
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 300,
           marginTop: 4, background: 'var(--bg2)', border: '1px solid var(--border2)',
-          borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,.3)',
-          overflow: 'hidden', animation: 'dropIn .15s ease-out',
+          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.2)',
+          overflow: 'hidden', animation: 'dropIn .15s var(--ease)',
         }}>
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
             <input
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar..."
+              placeholder="Buscar"
               style={{
-                width: '100%', padding: '6px 8px',
+                width: '100%', padding: '4px 8px',
                 background: 'var(--bg3)', border: '1px solid var(--border)',
-                borderRadius: 6, color: 'var(--txt)', fontSize: 12,
+                borderRadius: 6, color: 'var(--txt)', fontSize: 13,
                 fontFamily: 'inherit', outline: 'none',
               }}
             />
           </div>
           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
             {filtered.length === 0
-              ? <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--txt3)' }}>Sin resultados</div>
+              ? <div style={{ padding: '8px 12px', fontSize: 13, color: 'var(--txt3)' }}>Sin resultados</div>
               : filtered.map(o => (
                   <button
                     key={o.value}
                     type="button"
                     onClick={() => { onChange(o.value); setOpen(false); setQuery('') }}
                     style={{
-                      width: '100%', padding: '9px 12px', textAlign: 'left',
-                      background: o.value === value ? 'rgba(26,143,227,0.12)' : 'transparent',
-                      color: o.value === value ? 'var(--blue3)' : 'var(--txt)',
-                      border: 'none', fontSize: 13, fontFamily: 'inherit',
+                      width: '100%', padding: '8px 12px', textAlign: 'left',
+                      background: o.value === value ? 'var(--sel)' : 'transparent',
+                      color: 'var(--txt)', fontWeight: o.value === value ? 500 : 400,
+                      border: 'none', fontSize: 14, fontFamily: 'inherit',
                       cursor: 'pointer', display: 'block',
                     }}
-                    onMouseEnter={e => { if (o.value !== value) (e.currentTarget as HTMLElement).style.background = 'var(--bg4)' }}
+                    onMouseEnter={e => { if (o.value !== value) (e.currentTarget as HTMLElement).style.background = 'var(--bg3)' }}
                     onMouseLeave={e => { if (o.value !== value) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                   >
                     {o.label}
@@ -429,36 +447,30 @@ interface NumInputProps {
 }
 
 export function NumInput({ value, onChange, min = 0, max = 9999, style }: NumInputProps): JSX.Element {
+  const stepBtn: React.CSSProperties = {
+    width: 36, height: 36, border: '1px solid var(--border)', background: 'var(--bg3)',
+    color: 'var(--txt)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+  }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, ...style }}>
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        style={{
-          width: 32, height: 34, borderRadius: '8px 0 0 8px',
-          border: '1px solid var(--border)', background: 'var(--bg4)',
-          color: 'var(--txt)', cursor: 'pointer', fontSize: 16, lineHeight: 1,
-        }}
-      >−</button>
+      <button type="button" aria-label="Restar" onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ ...stepBtn, borderRadius: '8px 0 0 8px' }}>
+        <Minus size={14} strokeWidth={1.5} />
+      </button>
       <input
         type="number" value={value} min={min} max={max}
         onChange={e => onChange(Math.max(min, Math.min(max, Number(e.target.value) || 0)))}
         style={{
-          width: 52, height: 34, textAlign: 'center',
+          width: 52, height: 36, textAlign: 'center',
           border: '1px solid var(--border)', borderLeft: 'none', borderRight: 'none',
-          background: 'var(--bg3)', color: 'var(--txt)',
-          fontSize: 13, fontFamily: 'inherit', outline: 'none',
+          background: 'var(--bg2)', color: 'var(--txt)',
+          fontSize: 14, fontFamily: 'inherit', outline: 'none', fontVariantNumeric: 'tabular-nums',
         }}
       />
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        style={{
-          width: 32, height: 34, borderRadius: '0 8px 8px 0',
-          border: '1px solid var(--border)', background: 'var(--bg4)',
-          color: 'var(--txt)', cursor: 'pointer', fontSize: 16, lineHeight: 1,
-        }}
-      >+</button>
+      <button type="button" aria-label="Sumar" onClick={() => onChange(Math.min(max, value + 1))}
+        style={{ ...stepBtn, borderRadius: '0 8px 8px 0' }}>
+        <Plus size={14} strokeWidth={1.5} />
+      </button>
     </div>
   )
 }
@@ -484,6 +496,15 @@ export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, ini
   const [error, setError] = useState('')
 
   useEffect(() => { setUrls(initialUrls || []) }, [pedidoId])
+
+  const dropStyle: React.CSSProperties = {
+    border: '1px dashed var(--border2)', borderRadius: 8,
+    padding: 16, textAlign: 'center',
+    background: 'var(--bg3)',
+    display: 'flex', alignItems: 'center',
+    justifyContent: 'center', flexDirection: 'column', gap: 8,
+    transition: 'border-color .15s var(--ease)',
+  }
 
   // ── Modo pedido: sube archivos reales a /api/upload ──
   if (pedidoId) {
@@ -522,18 +543,12 @@ export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, ini
         )}
         <div
           onClick={() => !uploading && inp.current?.click()}
-          style={{
-            border: '2px dashed var(--border2)', borderRadius: 10,
-            padding: '16px', textAlign: 'center', cursor: uploading ? 'wait' : 'pointer',
-            background: 'var(--bg3)', transition: 'border-color .15s',
-            minHeight: 60, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', flexDirection: 'column', gap: 6,
-          }}
+          style={{ ...dropStyle, cursor: uploading ? 'wait' : 'pointer', minHeight: 64 }}
         >
-          <span style={{ fontSize: 20 }}>📷</span>
-          <span style={{ fontSize: 12, color: 'var(--txt3)' }}>{uploading ? 'Subiendo…' : 'Clic para subir imagen(es)'}</span>
+          <Camera size={20} strokeWidth={1.5} color="var(--txt3)" />
+          <span style={{ fontSize: 13, color: 'var(--txt3)' }}>{uploading ? 'Subiendo…' : 'Clic para subir imágenes'}</span>
         </div>
-        {error && <p style={{ fontSize: 11, color: '#f87171', marginTop: 6 }}>⚠ {error}</p>}
+        {error && <p style={{ fontSize: 12, color: 'var(--err)', marginTop: 8 }}>{error}</p>}
         <input ref={inp} type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={uploading}
                onChange={e => handleFiles(e.target.files)} />
       </div>
@@ -546,19 +561,13 @@ export function ImageUploader({ value, onChange, label = 'Imagen', pedidoId, ini
       <label className="field-label">{label}</label>
       <div
         onClick={() => inp.current?.click()}
-        style={{
-          border: '2px dashed var(--border2)', borderRadius: 10,
-          padding: '16px', textAlign: 'center', cursor: 'pointer',
-          background: 'var(--bg3)', transition: 'border-color .15s',
-          minHeight: 80, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', flexDirection: 'column', gap: 6,
-        }}
+        style={{ ...dropStyle, cursor: 'pointer', minHeight: 80 }}
       >
         {value
           ? <img src={value} alt="" style={{ maxHeight: 80, maxWidth: '100%', borderRadius: 6 }} />
           : <>
-              <span style={{ fontSize: 22 }}>📷</span>
-              <span style={{ fontSize: 12, color: 'var(--txt3)' }}>Clic para subir imagen</span>
+              <Camera size={20} strokeWidth={1.5} color="var(--txt3)" />
+              <span style={{ fontSize: 13, color: 'var(--txt3)' }}>Clic para subir imagen</span>
             </>
         }
       </div>

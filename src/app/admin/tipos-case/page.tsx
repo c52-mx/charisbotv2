@@ -6,14 +6,11 @@ import { ThemeContext } from '@/lib/theme-context'
 interface TipoCase {
   id: string
   nombre: string
-  emoji: string
   orden: number
   activo: boolean
 }
 
-const EMPTY = { nombre: '', emoji: '📦', orden: '0' }
-
-const EMOJI_SUGERIDOS = ['📦','🛡️','💎','⚡','🔒','🌟','🎯','🔰','💪','🌈','🦋','🔥','❄️','🌺','🎨']
+const EMPTY = { nombre: '', orden: '0' }
 
 export default function TiposCasePage() {
   const { dark }  = useContext(ThemeContext)
@@ -47,18 +44,18 @@ export default function TiposCasePage() {
     try {
       const res = await fetch('/api/admin/tipos-case', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: form.nombre, emoji: form.emoji, orden: parseInt(form.orden) || 0 }),
+        body: JSON.stringify({ nombre: form.nombre, orden: parseInt(form.orden) || 0 }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al crear')
       setModal(false); setForm(EMPTY)
-      setMsg('✓ Tipo de case creado'); setTimeout(() => setMsg(''), 3000)
+      setMsg('Tipo de case creado'); setTimeout(() => setMsg(''), 3000)
       load()
     } catch (e: any) { setError(e.message) }
     finally { setSaving(false) }
   }
 
-  const lbl: React.CSSProperties = { display:'block', fontSize:11, fontWeight:600, color:'var(--txt2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }
+  const lbl: React.CSSProperties = { display:'block', fontSize:12, fontWeight:600, color:'var(--txt2)',  marginBottom:5 }
   const inp: React.CSSProperties = { width:'100%', padding:'9px 12px', background:'var(--bg4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--txt)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }
 
   return (
@@ -67,14 +64,14 @@ export default function TiposCasePage() {
 
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:700, color:'var(--txt)', margin:0 }}>Tipos de case</h1>
+          <h1 className="page-title">Tipos de case</h1>
           <p style={{ fontSize:13, color:'var(--txt2)', marginTop:3 }}>Categorías disponibles para el catálogo (3 en 1, Escudo, Blindaje, Anillo, etc.)</p>
         </div>
         <button className="cbtn cbtn-primary" onClick={() => { setForm(EMPTY); setError(''); setModal(true) }}>+ Nuevo tipo</button>
       </div>
 
       {msg && (
-        <div style={{ position:'fixed', bottom:24, right:24, zIndex:300, padding:'14px 20px', borderRadius:12, minWidth:220, background:'#16a34a', color:'white', boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600 }}>
+        <div style={{ position:'fixed', bottom:24, right:24, zIndex:300, padding:'14px 20px', borderRadius:12, minWidth:220, background:'var(--bg2)', color:'var(--txt)', border:'1px solid var(--border2)', borderLeft:'3px solid var(--ok)', boxShadow:'0 10px 30px rgba(0,0,0,.25)', fontSize:14, fontWeight:600 }}>
           {msg}
         </div>
       )}
@@ -82,17 +79,16 @@ export default function TiposCasePage() {
       <div className="table-wrap">
         {loading ? (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:48 }}>
-            <div style={{ width:24, height:24, borderRadius:'50%', border:'2.5px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
+            <div style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--border)', borderTopColor:'var(--blue)', animation:'spin 0.7s linear infinite' }} />
           </div>
         ) : (
           <table className="ctable rtable">
-            <thead><tr><th>Emoji</th><th>Nombre</th><th>Orden</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Orden</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
               {items.map(t => (
                 <tr key={t.id}>
-                  <td style={{ fontSize:18 }}>{t.emoji}</td>
-                  <td style={{ fontWeight:600 }}>{t.nombre}</td>
-                  <td>{t.orden}</td>
+                  <td style={{ fontWeight:500 }}>{t.nombre}</td>
+                  <td className="num">{t.orden}</td>
                   <td><span className={`badge ${t.activo ? 'badge-ok' : 'badge-red'}`}>{t.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
                     <button className="cbtn cbtn-secondary cbtn-sm" onClick={() => toggleActivo(t)}>
@@ -102,7 +98,7 @@ export default function TiposCasePage() {
                 </tr>
               ))}
               {!items.length && (
-                <tr><td colSpan={5} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin tipos registrados</td></tr>
+                <tr><td colSpan={4} style={{ textAlign:'center', padding:32, color:'var(--txt2)' }}>Sin tipos registrados</td></tr>
               )}
             </tbody>
           </table>
@@ -113,35 +109,14 @@ export default function TiposCasePage() {
         <div className="modal-mask" onClick={e => { if (e.target===e.currentTarget) setModal(false) }}>
           <div className="modal-box" style={{ maxWidth:380 }}>
             <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid var(--border)' }}>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>Nuevo tipo de case</div>
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--txt)' }}>Nuevo tipo de case</div>
             </div>
             <form onSubmit={handleCreate}>
               <div style={{ padding:'18px 22px 22px' }}>
-                {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{error}</div>}
+                {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', color:'var(--err)', fontSize:13, marginBottom:14 }}>{error}</div>}
                 <div style={{ marginBottom:12 }}>
                   <label style={lbl}>Nombre *</label>
                   <input className="cinput" style={inp} value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Ej. FUNDA TRANSPARENTE" required />
-                </div>
-                <div style={{ marginBottom:12 }}>
-                  <label style={lbl}>Emoji</label>
-                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                    <div style={{ fontSize:28, width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:10, background:'var(--bg4)', border:'1px solid var(--border)', flexShrink:0 }}>
-                      {form.emoji || '📦'}
-                    </div>
-                    <input className="cinput" style={{ ...inp, flex:1 }} value={form.emoji}
-                           onChange={e => setForm(f => ({ ...f, emoji: e.target.value }))}
-                           maxLength={4} placeholder="Escribe o pega un emoji" />
-                  </div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
-                    {EMOJI_SUGERIDOS.map(e => (
-                      <button key={e} type="button"
-                              onClick={() => setForm(f => ({ ...f, emoji: e }))}
-                              style={{ fontSize:18, width:34, height:34, borderRadius:8, border:`1px solid ${form.emoji===e?'var(--blue)':'var(--border)'}`, background:form.emoji===e?'rgba(26,143,227,0.15)':'var(--bg4)', cursor:'pointer' }}>
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                  <p style={{ fontSize:10, color:'var(--txt3)', marginTop:5 }}>Selecciona uno o escribe/pega cualquier emoji en el campo de texto.</p>
                 </div>
                 <div style={{ marginBottom:18 }}>
                   <label style={lbl}>Orden</label>

@@ -2,22 +2,27 @@
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import {
+  LayoutDashboard, Package, Boxes, UserRound, BarChart3, Users, KeyRound,
+  Settings, GalleryHorizontal, Sun, Moon, Menu, LogOut, PanelLeftClose, PanelLeftOpen,
+  type LucideIcon,
+} from 'lucide-react'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { CharisAppIcon, CharisLogotipo } from '@/components/CharisLogo'
 import { can, type UserRol, type Permiso } from '@/lib/auth-shared'
 import { ThemeContext } from '@/lib/theme-context'
 import { NotifBell } from '@/components/NotifBell'
 
-const NAV_ITEMS: { href:string; label:string; icon:string; exact:boolean; perm:Permiso }[] = [
-  { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  perm:'dashboard' },
-  { href:'/admin/orders',  label:'Pedidos',   icon:'📦', exact:false, perm:'pedidos_ver' },
-  { href:'/admin/catalog', label:'Catálogo',  icon:'🗂️', exact:false, perm:'catalogo_ver' },
-  { href:'/admin/clients', label:'Clientes',  icon:'👤', exact:false, perm:'clientes_ver' },
-  { href:'/admin/reportes', label:'Reportes', icon:'📈', exact:false, perm:'reportes_ver' },
-  { href:'/admin/users',   label:'Usuarios',  icon:'👥', exact:false, perm:'usuarios' },
-  { href:'/admin/roles',   label:'Roles',     icon:'🔐', exact:false, perm:'roles_editar' },
-  { href:'/admin/config',  label:'Configuración', icon:'⚙️', exact:false, perm:'config_editar' },
-  { href:'/admin/landing', label:'Landing',   icon:'🎠', exact:false, perm:'landing_editar' },
+const NAV_ITEMS: { href:string; label:string; Icon:LucideIcon; exact:boolean; perm:Permiso }[] = [
+  { href:'/admin',          label:'Dashboard',     Icon:LayoutDashboard,   exact:true,  perm:'dashboard' },
+  { href:'/admin/orders',   label:'Pedidos',       Icon:Package,           exact:false, perm:'pedidos_ver' },
+  { href:'/admin/catalog',  label:'Catálogo',      Icon:Boxes,             exact:false, perm:'catalogo_ver' },
+  { href:'/admin/clients',  label:'Clientes',      Icon:UserRound,         exact:false, perm:'clientes_ver' },
+  { href:'/admin/reportes', label:'Reportes',      Icon:BarChart3,         exact:false, perm:'reportes_ver' },
+  { href:'/admin/users',    label:'Usuarios',      Icon:Users,             exact:false, perm:'usuarios' },
+  { href:'/admin/roles',    label:'Roles',         Icon:KeyRound,          exact:false, perm:'roles_editar' },
+  { href:'/admin/config',   label:'Configuración', Icon:Settings,          exact:false, perm:'config_editar' },
+  { href:'/admin/landing',  label:'Landing',       Icon:GalleryHorizontal, exact:false, perm:'landing_editar' },
 ]
 
 const ROL_STYLE: Record<string,{label:string;badgeClass:string}> = {
@@ -28,7 +33,7 @@ const ROL_STYLE: Record<string,{label:string;badgeClass:string}> = {
 // Roles personalizados (creados desde /admin/roles) no tienen un estilo
 // dedicado — se muestran con un badge neutro y su clave tal cual.
 function rolStyle(rol: string) {
-  return ROL_STYLE[rol] || { label: rol, badgeClass: 'badge-blue' }
+  return ROL_STYLE[rol] || { label: rol, badgeClass: 'badge-gray' }
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -78,15 +83,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   height:'100vh', background: tv['--bg'] }}>
       <div style={{ textAlign:'center' }}>
         <div style={{ width:32, height:32, borderRadius:'50%', margin:'0 auto 12px',
-                      border:'2.5px solid rgba(26,143,227,0.15)',
+                      border:`2px solid ${tv['--border2']}`,
                       borderTopColor:tv['--blue3'], animation:'spin .7s linear infinite' }}/>
-        <span style={{ fontSize:12, color:tv['--blue3'], fontFamily:'system-ui' }}>Cargando…</span>
+        <span style={{ fontSize:13, color:tv['--txt3'], fontFamily:'system-ui' }}>Cargando…</span>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
-  const SW = collapsed ? 60 : 224
+  const SW = collapsed ? 64 : 240
 
   return (
     <div style={{
@@ -97,63 +102,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       overflow: 'hidden', display: 'flex', flexDirection: 'column',
     }}>
       <style>{SHARED_CSS + `
-        @keyframes spin { to { transform: rotate(360deg) } }
-
-        /* ── Force title visibility ── */
-        h1, h2, h3, h4, h5, h6 {
-          color: var(--txt) !important;
-          font-family: 'Syne', system-ui, sans-serif;
-        }
-        p { color: inherit; }
-        .page-title {
-          font-size: 22px; font-weight: 800;
-          color: var(--txt) !important;
-          letter-spacing: -.01em;
-        }
-        .page-sub {
-          font-size: 13px;
-          color: var(--txt2) !important;
-          margin-top: 3px;
-        }
-
         /* ── Shell ── */
         .shell        { display:flex; flex:1; overflow:hidden; min-height:0; }
         .sidebar      {
           display:flex; flex-direction:column; height:100%;
           background: var(--bg2); border-right: 1px solid var(--border);
-          overflow: hidden; transition: width .22s ease; flex-shrink: 0;
+          overflow: hidden; transition: width .2s var(--ease); flex-shrink: 0;
         }
         .main-scroll  { flex:1; overflow-y:auto; overflow-x:hidden; min-width:0; }
-        .main-pad     { padding:26px 30px; max-width:1320px; margin:0 auto; }
+        .main-pad     { padding:24px 32px; max-width:1440px; margin:0 auto; }
 
         /* ── Topbar (mobile/tablet) ── */
         .topbar {
           display: none; align-items: center; justify-content: space-between;
-          padding: 11px 16px; background: var(--bg2);
+          height: 52px; padding: 0 16px; background: var(--bg2);
           border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 50;
         }
+        .icon-btn {
+          display:inline-flex; align-items:center; justify-content:center;
+          width:36px; height:36px; border-radius:8px; border:1px solid transparent;
+          background:transparent; color:var(--txt2); cursor:pointer;
+          transition: background-color .15s var(--ease), color .15s var(--ease);
+        }
+        .icon-btn:hover { background:var(--bg3); color:var(--txt); }
+        .icon-btn:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 
         /* ── Drawer ── */
         .drawer-mask {
           display:none; position:fixed; inset:0;
-          background:rgba(0,0,0,.55); backdrop-filter:blur(2px); z-index:90;
+          background:rgba(0,0,0,.55); z-index:90;
         }
         .drawer {
-          position:fixed; top:0; left:0; bottom:0; width:236px;
+          position:fixed; top:0; left:0; bottom:0; width:256px;
           background:var(--bg2); border-right:1px solid var(--border);
           z-index:100; display:flex; flex-direction:column;
-          transform:translateX(-100%); transition:transform .22s ease;
+          transform:translateX(-100%); transition:transform .2s var(--ease);
         }
         .shell.mob-open .drawer-mask { display:block; }
         .shell.mob-open .drawer      { transform:translateX(0); }
 
-        /* ── Nav active indicator ── */
-        .nl.act::before {
-          content:''; position:absolute; left:0; top:50%;
-          transform:translateY(-50%); width:3px; height:60%;
-          background:var(--blue3); border-radius:0 3px 3px 0;
-        }
-        .nl { position:relative; }
         .bell-strip { display:flex; justify-content:flex-end; padding:8px 24px 0; flex-shrink:0; }
         @media(max-width:1023px) { .bell-strip { display:none; } }
 
@@ -162,10 +149,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           .sidebar     { display:none !important; }
           .topbar      { display:flex; }
           .main-scroll { height:calc(100dvh - 52px); }
-          .main-pad    { padding:18px 20px; }
+          .main-pad    { padding:16px 20px; }
         }
         @media(max-width:639px) {
-          .main-pad { padding: 14px 14px; }
+          .main-pad { padding: 16px; }
         }
         @media(min-width:640px) and (max-width:1023px) {
           .main-pad { padding: 20px 24px; }
@@ -174,27 +161,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* ── TOPBAR (mobile/tablet) ── */}
       <header className="topbar">
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <CharisLogotipo height={28} variant={dark ? 'white' : 'color'} />
           {user && (
-            <span className={`badge ${rolStyle(rol).badgeClass}`} style={{ padding:'2px 7px', borderRadius:10 }}>
+            <span className={`badge ${rolStyle(rol).badgeClass}`}>
               {rolStyle(rol).label}
             </span>
           )}
         </div>
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
           <NotifBell />
-          <button onClick={toggleTheme}
-                  style={{ background:'transparent', border:'none', fontSize:17,
-                           cursor:'pointer', padding:4, color:'var(--txt)' }}>
-            {dark ? '☀️' : '🌙'}
+          <button className="icon-btn" onClick={toggleTheme} aria-label={dark ? 'Modo claro' : 'Modo oscuro'}>
+            {dark ? <Sun size={18} strokeWidth={1.5}/> : <Moon size={18} strokeWidth={1.5}/>}
           </button>
-          <button onClick={() => setMobile(o => !o)}
-                  style={{
-                    background:'var(--bg4)', border:'1px solid var(--border)',
-                    borderRadius:8, padding:'5px 10px', cursor:'pointer',
-                    color:'var(--txt)', fontSize:17, lineHeight:1,
-                  }}>☰</button>
+          <button className="icon-btn" onClick={() => setMobile(o => !o)} aria-label="Menú">
+            <Menu size={18} strokeWidth={1.5}/>
+          </button>
         </div>
       </header>
 
@@ -247,91 +229,80 @@ function SidebarContent({
   collapsed, setCollapsed, navItems, isActive,
   dark, toggleTheme, user, rol, logout, rolStyle, showCollapse
 }: any) {
+  const center = { justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? 0 : undefined } as const
   return (
     <>
       {/* Logo */}
       <div style={{
-        display:'flex', alignItems:'center', gap:10,
-        padding: collapsed ? '16px 12px' : '16px 14px',
+        display:'flex', alignItems:'center',
+        height:64, padding: collapsed ? '0 12px' : '0 16px',
         borderBottom:'1px solid var(--border)', flexShrink:0,
         justifyContent: collapsed ? 'center' : 'flex-start',
       }}>
         {collapsed
-          ? <CharisAppIcon size={36} />
-          : <CharisLogotipo height={36} variant={dark ? 'white' : 'color'} />
+          ? <CharisAppIcon size={32} />
+          : <CharisLogotipo height={32} variant={dark ? 'white' : 'color'} />
         }
       </div>
 
       {/* Nav */}
-      <nav style={{ flex:1, padding:'10px 8px', display:'flex', flexDirection:'column',
-                    gap:3, overflowY:'auto' }}>
+      <nav style={{ flex:1, padding:'16px 12px', display:'flex', flexDirection:'column',
+                    gap:2, overflowY:'auto' }}>
         {navItems.map((item: any) => (
           <Link
             key={item.href} href={item.href}
             className={`nl${isActive(item.href, item.exact) ? ' act' : ''}`}
             title={collapsed ? item.label : undefined}
-            style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
+            aria-current={isActive(item.href, item.exact) ? 'page' : undefined}
+            style={center}
           >
-            <span style={{ fontSize:16, flexShrink:0, width:20, textAlign:'center' }}>
-              {item.icon}
-            </span>
-            {!collapsed && <span style={{ fontSize:13.5 }}>{item.label}</span>}
+            <item.Icon size={18} strokeWidth={1.5} style={{ flexShrink:0 }} />
+            {!collapsed && <span>{item.label}</span>}
           </Link>
         ))}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding:'10px 8px', borderTop:'1px solid var(--border)',
-                    display:'flex', flexDirection:'column', gap:5, flexShrink:0 }}>
+      <div style={{ padding:'12px', borderTop:'1px solid var(--border)',
+                    display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
 
-        {/* Theme toggle */}
-        <button className="cbtn2" onClick={toggleTheme}
-                style={{ width:'100%', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-          <span style={{ fontSize:14 }}>{dark ? '☀️' : '🌙'}</span>
-          {!collapsed && <span style={{ fontSize:12 }}>{dark ? 'Modo claro' : 'Modo oscuro'}</span>}
-        </button>
-
-        {/* User card */}
+        {/* User */}
         {!collapsed && user && (
-          <div style={{
-            padding:'10px 12px', borderRadius:10,
-            background:'var(--bg4)', border:'1px solid var(--border)',
-          }}>
+          <div style={{ padding:'8px 12px 12px', minWidth:0 }}>
             <div style={{ display:'flex', alignItems:'center',
-                          justifyContent:'space-between', marginBottom:3 }}>
+                          justifyContent:'space-between', gap:8, marginBottom:4 }}>
               <span style={{
-                fontSize:12, fontWeight:600, color:'var(--txt)',
-                overflow:'hidden', textOverflow:'ellipsis',
-                whiteSpace:'nowrap', maxWidth:120,
+                fontSize:13, fontWeight:500, color:'var(--txt)',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
               }}>{user.nombre}</span>
-              <span className={`badge ${rolStyle(rol).badgeClass}`} style={{ padding:'2px 7px', borderRadius:10, flexShrink:0, marginLeft:4 }}>
+              <span className={`badge ${rolStyle(rol).badgeClass}`} style={{ flexShrink:0 }}>
                 {rolStyle(rol).label}
               </span>
             </div>
             <div style={{
-              fontSize:11, color:'var(--txt3)', overflow:'hidden',
+              fontSize:12, color:'var(--txt3)', overflow:'hidden',
               textOverflow:'ellipsis', whiteSpace:'nowrap',
             }}>{user.email}</div>
           </div>
         )}
 
+        {/* Theme toggle */}
+        <button className="cbtn2" onClick={toggleTheme} style={center}>
+          {dark ? <Sun size={18} strokeWidth={1.5} style={{flexShrink:0}}/> : <Moon size={18} strokeWidth={1.5} style={{flexShrink:0}}/>}
+          {!collapsed && <span>{dark ? 'Modo claro' : 'Modo oscuro'}</span>}
+        </button>
+
         {/* Collapse (desktop only) */}
         {showCollapse && (
-          <button className="cbtn2"
-                  onClick={() => setCollapsed((c: boolean) => !c)}
-                  style={{ width:'100%', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-            <span style={{ fontSize:13 }}>{collapsed ? '→' : '←'}</span>
-            {!collapsed && <span style={{ fontSize:12 }}>Colapsar</span>}
+          <button className="cbtn2" onClick={() => setCollapsed((c: boolean) => !c)} style={center}>
+            {collapsed ? <PanelLeftOpen size={18} strokeWidth={1.5} style={{flexShrink:0}}/> : <PanelLeftClose size={18} strokeWidth={1.5} style={{flexShrink:0}}/>}
+            {!collapsed && <span>Colapsar</span>}
           </button>
         )}
 
         {/* Logout */}
-        <button
-          onClick={logout}
-          className="cbtn cbtn-danger cbtn-sm"
-          style={{ width:'100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
-        >
-          <span>↩</span>
+        <button className="cbtn2" onClick={logout} style={center}>
+          <LogOut size={18} strokeWidth={1.5} style={{flexShrink:0}}/>
           {!collapsed && <span>Salir</span>}
         </button>
       </div>
