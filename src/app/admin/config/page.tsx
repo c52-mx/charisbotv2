@@ -5,6 +5,7 @@ import { ThemeContext } from '@/lib/theme-context'
 
 interface ConfigForm {
   minimo_pedido_piezas: string
+  minimo_pedido_bloquea: string
   politica_cancelacion: string
   datos_transferencia: string
   whatsapp_soporte: string
@@ -26,6 +27,7 @@ interface ConfigForm {
 
 const EMPTY: ConfigForm = {
   minimo_pedido_piezas: '1',
+  minimo_pedido_bloquea: 'true',
   politica_cancelacion: '',
   datos_transferencia: '',
   whatsapp_soporte: '',
@@ -93,7 +95,7 @@ export default function ConfigPage() {
       setForm(f => ({ ...f, [k]: e.target.value }))
   }
 
-  function toggle(k: 'pago_stripe_habilitado' | 'pago_mercadopago_habilitado' | 'pago_efectivo_habilitado' | 'pago_transferencia_habilitado') {
+  function toggle(k: 'pago_stripe_habilitado' | 'pago_mercadopago_habilitado' | 'pago_efectivo_habilitado' | 'pago_transferencia_habilitado' | 'minimo_pedido_bloquea') {
     setForm(f => ({ ...f, [k]: f[k] === 'true' ? 'false' : 'true' }))
   }
 
@@ -258,6 +260,13 @@ export default function ConfigPage() {
           <div>
             <label style={lbl}>Mínimo de pedido (piezas)</label>
             <input type="number" min={1} style={inp} value={form.minimo_pedido_piezas} onChange={set('minimo_pedido_piezas')} />
+            <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, fontSize:12, color:'var(--txt2)', textTransform:'none', letterSpacing:0, fontWeight:500, cursor:'pointer' }}>
+              <input type="checkbox" checked={form.minimo_pedido_bloquea !== 'false'} onChange={() => toggle('minimo_pedido_bloquea')} />
+              Bloquear pedidos por debajo del mínimo
+            </label>
+            <p style={{ fontSize:11, color:'var(--txt3)', margin:'4px 0 0' }}>
+              Activado: el cliente no puede continuar con menos piezas. Desactivado: el mínimo solo es sugerido (la cantidad de cada producto arranca en el mínimo, pero puede pedir menos).
+            </p>
           </div>
           <div>
             <label style={lbl}>WhatsApp de soporte</label>

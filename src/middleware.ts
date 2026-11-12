@@ -11,7 +11,7 @@ export async function middleware(req: NextRequest) {
   const isApi    = pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/track')
                     && pathname !== '/api/landing-promos' && pathname !== '/api/internal/cron'
                     && !pathname.startsWith('/api/webhooks/') && pathname !== '/api/health'
-                    && pathname !== '/api/public/config'
+                    && pathname !== '/api/public/config' && pathname !== '/api/csp-report'
   const isTrack  = pathname.startsWith('/track')
 
   // /track y /api/landing-promos son públicos — no requieren auth
