@@ -236,6 +236,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </ThemeContext.Provider>
           </div>
         </main>
+        </div>
       </div>
     </div>
   )
