@@ -4,6 +4,7 @@ import { queryOne } from '@/lib/db'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { UUID_RE, validarImagen } from '@/lib/uploads'
+import { crearNotificacion } from '@/lib/notificaciones'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
      WHERE id = $2`,
     [JSON.stringify(savedUrls), pedidoId, [tipo], tipo]
   )
+
+  if (tipo === 'comprobante_pago' && tipoSesion(session) === 'CLIENTE') {
+    const ped = await queryOne<{ numero_pedido: string | null }>(`SELECT numero_pedido FROM public.pedidos WHERE id = $1`, [pedidoId])
+    await crearNotificacion({
+      permiso: 'pagos_confirmar', tipo: 'COMPROBANTE', pedido_id: pedidoId,
+      titulo: `Comprobante de pago recibido · #${(ped?.numero_pedido || pedidoId.slice(0, 8)).toUpperCase()}`,
+    })
+  }
 
   return NextResponse.json({ ok: true, urls: savedUrls })
 }

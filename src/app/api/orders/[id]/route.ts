@@ -3,6 +3,7 @@ import { query, queryOne } from '@/lib/db'
 import { getSession, can, tipoSesion } from '@/lib/auth'
 import { UUID_RE, urlSegura } from '@/lib/uploads'
 import { notificarCliente } from '@/lib/notify'
+import { crearNotificacion, notificacionPorEstado } from '@/lib/notificaciones'
 import { finalizarPedido, liberarPedido, restaurarStockPedido } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -339,6 +340,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (ESTADOS_CON_STOCK_DESCONTADO.includes(before.estado)) {
       await restaurarStockPedido(params.id, session.sub).catch(e => console.error('[restaurarStock]', e))
     }
+  }
+
+  // Campanita interna (solo si el estado realmente cambió)
+  if (before.estado !== estado) {
+    const nn = notificacionPorEstado(estado, (updated.numero_pedido || String(updated.id).slice(0, 8)).toUpperCase())
+    if (nn) await crearNotificacion({ ...nn, tipo: estado, pedido_id: updated.id, mensaje: updated.resumen || undefined })
   }
 
   // Notificar al cliente — "por validar surtido" es un estado interno, no se

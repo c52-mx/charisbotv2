@@ -126,6 +126,13 @@ export default function OrdersPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Abrir un pedido directo desde un enlace (campanita de notificaciones): /admin/orders?pedido=<id>
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('pedido')
+    if (id) loadDetail(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function loadDetail(id: string) {
     const r = await fetch(`/api/orders/${id}`)
     const data = await r.json()
