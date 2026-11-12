@@ -123,7 +123,9 @@ export default function CheckoutPage() {
 
   const { subtotal, descuentoPct: desc, total } = calcularTotal(cart, tiers)
   const totalPiezas = cart.reduce((s, i) => s + i.cantidad, 0)
-  const minimoOk    = totalPiezas >= (parseInt(config.minimo_pedido_piezas) || 1)
+  const minimoBloquea = config.minimo_pedido_bloquea !== 'false'
+  const bajoMinimo  = totalPiezas < (parseInt(config.minimo_pedido_piezas) || 1)
+  const minimoOk    = !bajoMinimo || !minimoBloquea
 
   async function handleConfirm() {
     setPlacing(true); setError('')
@@ -212,9 +214,9 @@ export default function CheckoutPage() {
           {step === 0 && (
             <div className="section-card">
               <p className="section-title">🛒 Resumen del pedido</p>
-              {!minimoOk && (
+              {bajoMinimo && (
                 <div style={{ padding:'10px 14px', borderRadius:10, background:'#fef3c7', color:'#92400e', border:'1px solid #fde68a', fontSize:13, marginBottom:14 }}>
-                  ⚠ Mínimo de pedido: {config.minimo_pedido_piezas} piezas. Actualmente tienes {totalPiezas}.
+                  ⚠ {minimoBloquea ? 'Mínimo de pedido' : 'Pedido mínimo sugerido'}: {config.minimo_pedido_piezas} piezas. Actualmente tienes {totalPiezas}.
                 </div>
               )}
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>

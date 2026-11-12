@@ -275,8 +275,9 @@ export default function ProductDetailPage() {
   const [qty,          setQty]         = useState(1)
   const [minimoPedido, setMinimoPedido] = useState(1)
   const [configListo, setConfigListo] = useState(false)
+  const [minimoBloquea, setMinimoBloquea] = useState(true)
   useEffect(() => {
-    fetch('/api/client/config').then(r => r.json()).then(d => { const n = parseInt(d?.minimo_pedido_piezas); if (n > 1) setMinimoPedido(n) }).catch(() => {}).finally(() => setConfigListo(true))
+    fetch('/api/client/config').then(r => r.json()).then(d => { const n = parseInt(d?.minimo_pedido_piezas); if (n > 1) setMinimoPedido(n); setMinimoBloquea(d?.minimo_pedido_bloquea !== 'false') }).catch(() => {}).finally(() => setConfigListo(true))
   }, [])
   // La caja de cantidad arranca en el mínimo configurado (solo visual: se puede pedir menos).
   const qtyInicialDe = useRef<string | null>(null)
@@ -517,7 +518,7 @@ export default function ProductDetailPage() {
           <div style={{ marginBottom:14 }}>
             <p style={{ fontSize:12, color:'#999', marginBottom:8, fontWeight:500 }}>Cantidad</p>
             {minimoPedido > 1 && (
-              <p style={{ fontSize:11, color:'#b45309', marginBottom:8 }}>Pedido mínimo sugerido: {minimoPedido} piezas en total (puedes combinar varios productos).</p>
+              <p style={{ fontSize:11, color:'#b45309', marginBottom:8 }}>{minimoBloquea ? 'Pedido mínimo' : 'Pedido mínimo sugerido'}: {minimoPedido} piezas en total (puedes combinar varios productos).</p>
             )}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12, flexWrap:'wrap' }}>
               <div className="pd-qty">

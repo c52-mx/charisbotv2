@@ -20,6 +20,7 @@ const securityHeaders = [
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      "report-uri /api/csp-report",
     ].join('; '),
   },
 ]

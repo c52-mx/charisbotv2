@@ -79,9 +79,12 @@ export async function POST(req: NextRequest) {
     const totalPiezas = items.reduce((s: number, i: any) => s + (i.cantidad || 0), 0)
 
     // Verificar mínimo de pedido
-    const [cfg] = await query(`SELECT valor FROM public.config_portal WHERE clave = 'minimo_pedido_piezas'`, []).catch(() => [null])
-    const minimo = parseInt(cfg?.valor || '1')
-    if (totalPiezas < minimo) {
+    const cfgMin = await query<{ clave: string; valor: string }>(
+      `SELECT clave, valor FROM public.config_portal WHERE clave IN ('minimo_pedido_piezas','minimo_pedido_bloquea')`, []
+    ).catch(() => [])
+    const minimo = parseInt(cfgMin.find(r => r.clave === 'minimo_pedido_piezas')?.valor || '1')
+    const minimoBloquea = cfgMin.find(r => r.clave === 'minimo_pedido_bloquea')?.valor !== 'false'
+    if (minimoBloquea && totalPiezas < minimo) {
       return NextResponse.json({ error: `El mínimo de pedido es ${minimo} piezas` }, { status: 400 })
     }
 
