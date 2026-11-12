@@ -1,4 +1,5 @@
 'use client'
+import { X, Package } from 'lucide-react'
 import { useState, useEffect, useContext } from 'react'
 import { SHARED_CSS, getThemeVars, Combo } from '@/components/shared'
 import { can, type SessionLike } from '@/lib/auth-shared'
@@ -357,15 +358,15 @@ export default function CatalogPage() {
         .inp:focus { border-color: var(--border2) !important; }
         .tw { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; }
-        th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-             padding: 10px 12px; color: var(--txt2); text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-size: 12px; font-weight: 500; height: 36px;
+             padding: 8px 12px; color: var(--txt3); text-align: left; border-bottom: 1px solid var(--border); background: var(--bg3); }
         td { font-size: 13px; padding: 10px 12px; border-bottom: 1px solid var(--border);
              color: var(--txt); vertical-align: middle; }
         tr:last-child td { border-bottom: none; }
         tr:hover td { background: var(--bg4); }
-        .badge { display: inline-flex; align-items: center; padding: 2px 9px;
-                 border-radius: 20px; font-size: 11px; font-weight: 600; }
-        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200;
+        .badge { display: inline-flex; align-items: center; padding: 2px 8px;
+                 border-radius: 6px; font-size: 12px; font-weight: 500; }
+        .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200;
                       display: flex; align-items: center; justify-content: center; padding: 16px; }
         .modal-box  { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
                       width: 100%; max-width: 560px; max-height: 90dvh; overflow-y: auto; padding: 24px; }
@@ -377,19 +378,19 @@ export default function CatalogPage() {
           .modal-box  { border-radius: 18px 18px 0 0 !important; max-width: 100% !important; }
         }
         .section-label {
-          font-size: 11px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: .07em; color: var(--txt3); margin: 16px 0 10px;
+          font-size: 12px; font-weight: 600; 
+           color: var(--txt3); margin: 16px 0 10px;
           padding-bottom: 6px; border-bottom: 1px solid var(--border);
         }
         .attr-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; align-items: center; }
         .price-calc { background: var(--bg4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
         .price-calc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .margen-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; }
-        .margen-ok   { background: rgba(34,197,94,.12);  color: #16a34a; }
-        .margen-warn { background: rgba(234,179,8,.12);  color: #ca8a04; }
-        .margen-bad  { background: rgba(239,68,68,.12);  color: #dc2626; }
+        .margen-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .margen-ok   { background: var(--ok-bg);  color: var(--ok); }
+        .margen-warn { background: var(--warn-bg);  color: var(--warn); }
+        .margen-bad  { background: var(--err-bg);  color: var(--err); }
         .act-menu-wrap { position: relative; display: inline-block; }
-        .act-menu-btn { padding: 4px 10px; font-size: 18px; font-weight: 700; line-height: 1; border-radius: 6px; }
+        .act-menu-btn { padding: 4px 10px; font-size: 18px; font-weight: 600; line-height: 1; border-radius: 6px; }
         .act-menu-drop { position: absolute; right: 0; top: calc(100% + 4px); background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,.15); z-index: 100; min-width: 150px; padding: 4px 0; }
         .act-menu-item { display: block; width: 100%; padding: 8px 14px; background: none; border: none; text-align: left; font-size: 13px; color: var(--txt); cursor: pointer; font-family: inherit; }
         .act-menu-item:hover { background: var(--bg4); }
@@ -404,17 +405,17 @@ export default function CatalogPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Catálogo de Productos</h1>
+          <h1 className="page-title">Catálogo de Productos</h1>
           <p style={{ fontSize: 13, color: 'var(--txt2)', margin: '3px 0 0' }}>
             {total.toLocaleString()} productos registrados
           </p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           {canEdit && (
-            <button className="cbtn cbtn-danger" onClick={() => setShowDeleteAll(true)}>🗑 Limpiar inventario</button>
+            <button className="cbtn cbtn-danger" onClick={() => setShowDeleteAll(true)}>Limpiar inventario</button>
           )}
           {canCreate && (
-            <button className="cbtn cbtn-secondary" onClick={() => setShowImport(true)}>📥 Importar inventario</button>
+            <button className="cbtn cbtn-secondary" onClick={() => setShowImport(true)}>Importar inventario</button>
           )}
           {canCreate && (
             <button className="cbtn cbtn-primary" onClick={openCreate}>+ Nuevo producto</button>
@@ -426,7 +427,7 @@ export default function CatalogPage() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           className="inp" style={inp({ maxWidth: 260 })}
-          placeholder="🔍 Buscar nombre, modelo, color, SKU..."
+          placeholder="Buscar nombre, modelo, color, SKU..."
           value={search} onChange={e => setSearch(e.target.value)}
         />
         <div style={{ maxWidth: 160, width: 160 }}>
@@ -476,26 +477,26 @@ export default function CatalogPage() {
                   <td style={{ padding: '6px 8px' }}>
                     {p.foto_url
                       ? <img src={p.foto_url} alt="" style={{ width: 36, height: 36, objectFit: 'contain', borderRadius: 6, background: 'var(--bg4)', border: '1px solid var(--border)' }} />
-                      : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                          {p.categoria === 'FUNDA' ? '📱' : p.categoria === 'CARGADOR' ? '🔌' : p.categoria === 'MICA' ? '🛡️' : '📦'}
+                      : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--bg4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txt3)' }}>
+                          <Package size={18} strokeWidth={1.5} aria-hidden="true" />
                         </div>
                     }
                   </td>
                   <td>
                     <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--txt)' }}>{p.nombre}</div>
-                    {p.marca && <div style={{ fontSize: 11, color: 'var(--txt3)' }}>{p.marca}</div>}
-                    {p.descripcion && <div style={{ fontSize: 11, color: 'var(--txt3)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.descripcion}</div>}
+                    {p.marca && <div style={{ fontSize:12, color: 'var(--txt3)' }}>{p.marca}</div>}
+                    {p.descripcion && <div style={{ fontSize:12, color: 'var(--txt3)', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.descripcion}</div>}
                   </td>
                   <td>
-                    <span style={{ fontSize: 11, background: 'rgba(26,143,227,0.1)',
+                    <span style={{ fontSize:12, background: 'var(--info-bg)',
                                    color: 'var(--blue3)', padding: '2px 8px',
-                                   borderRadius: 4, fontWeight: 600 }}>
+                                   borderRadius:6, fontWeight: 600 }}>
                       {p.categoria}
                     </span>
                   </td>
                   <td>
                     {p.serie
-                      ? <span style={{ fontSize: 12, background: 'var(--bg4)', padding: '2px 7px', borderRadius: 4 }}>{p.serie}</span>
+                      ? <span style={{ fontSize: 12, background: 'var(--bg4)', padding: '2px 7px', borderRadius:6 }}>{p.serie}</span>
                       : <span style={{ color: 'var(--txt3)', fontSize: 12 }}>—</span>
                     }
                   </td>
@@ -508,12 +509,12 @@ export default function CatalogPage() {
                     </span>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>${Number(p.precio ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontWeight:600, fontSize: 13 }}>${Number(p.precio ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
                     {p.precio_compra != null && (
-                      <div style={{ fontSize: 11, color: 'var(--txt3)' }}>
+                      <div style={{ fontSize:12, color: 'var(--txt3)' }}>
                         Costo: ${Number(p.precio_compra).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                         {p.precio > 0 && p.precio_compra > 0 && (
-                          <span style={{ marginLeft: 4, color: '#16a34a', fontWeight: 600 }}>
+                          <span style={{ marginLeft: 4, color: 'var(--ok)', fontWeight: 600 }}>
                             ({((p.precio - p.precio_compra) / p.precio_compra * 100).toFixed(0)}%)
                           </span>
                         )}
@@ -534,14 +535,14 @@ export default function CatalogPage() {
                         </button>
                         {actMenu === p.producto_id && (
                           <div className="act-menu-drop" onClick={e => e.stopPropagation()}>
-                            <button className="act-menu-item" onClick={() => { openEdit(p); setActMenu(null) }}>✏️ Editar</button>
-                            <button className="act-menu-item" onClick={() => { setEntradaProd(p as Product); setEntradaCant(''); setEntradaMotivo(''); setEntradaError(''); setActMenu(null) }}>📥 Registrar entrada de stock</button>
+                            <button className="act-menu-item" onClick={() => { openEdit(p); setActMenu(null) }}>Editar</button>
+                            <button className="act-menu-item" onClick={() => { setEntradaProd(p as Product); setEntradaCant(''); setEntradaMotivo(''); setEntradaError(''); setActMenu(null) }}>Registrar entrada de stock</button>
                             {canCreate && (
-                              <button className="act-menu-item" onClick={() => { openDuplicate(p); setActMenu(null) }}>📋 Duplicar</button>
+                              <button className="act-menu-item" onClick={() => { openDuplicate(p); setActMenu(null) }}>Duplicar</button>
                             )}
                             <div className="act-menu-sep" />
                             <button className="act-menu-item"
-                                    style={{ color: p.activo ? '#f87171' : '#34d399' }}
+                                    style={{ color: p.activo ? 'var(--err)' : 'var(--ok)' }}
                                     onClick={() => { toggleActivo(p as Product); setActMenu(null) }}>
                               {p.activo ? '○ Desactivar' : '● Activar'}
                             </button>
@@ -561,12 +562,12 @@ export default function CatalogPage() {
       {totalPages > 1 && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
           <button className="cbtn cbtn-ghost" disabled={page <= 1}
-                  onClick={() => { setPage(p => p - 1); fetchItems(page - 1) }}>← Anterior</button>
+                  onClick={() => { setPage(p => p - 1); fetchItems(page - 1) }}>Anterior</button>
           <span style={{ padding: '6px 12px', fontSize: 13, color: 'var(--txt2)' }}>
             {page} / {totalPages}
           </span>
           <button className="cbtn cbtn-ghost" disabled={page >= totalPages}
-                  onClick={() => { setPage(p => p + 1); fetchItems(page + 1) }}>Siguiente →</button>
+                  onClick={() => { setPage(p => p + 1); fetchItems(page + 1) }}>Siguiente</button>
         </div>
       )}
 
@@ -574,16 +575,16 @@ export default function CatalogPage() {
       {entradaProd && (
         <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setEntradaProd(null) }}>
           <div className="modal-box" style={{ maxWidth: 420 }}>
-            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>Registrar entrada de stock</h2>
+            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight:600 }}>Registrar entrada de stock</h2>
             <p style={{ fontSize: 12, color: 'var(--txt2)', margin: '0 0 14px' }}>
               {entradaProd.nombre || entradaProd.modelo} {entradaProd.color ? `· ${entradaProd.color}` : ''} — stock actual: <b>{entradaProd.stock}</b>.
               Las piezas se suman al stock y quedan en el historial de movimientos.
             </p>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Piezas que ingresan</label>
+            <label style={{ fontSize:12, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Piezas que ingresan</label>
             <input className="cinput" type="number" min={1} value={entradaCant} onChange={e => setEntradaCant(e.target.value)} placeholder="Ej. 100" style={{ marginBottom: 10 }} />
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Motivo / referencia (opcional)</label>
+            <label style={{ fontSize:12, fontWeight: 600, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>Motivo / referencia (opcional)</label>
             <input className="cinput" value={entradaMotivo} onChange={e => setEntradaMotivo(e.target.value)} placeholder="Ej. Compra a proveedor, factura 123" style={{ marginBottom: 12 }} />
-            {entradaError && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 10 }}>⚠ {entradaError}</p>}
+            {entradaError && <p style={{ color: 'var(--err)', fontSize: 13, marginBottom: 10 }}>{entradaError}</p>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="cbtn cbtn-secondary" onClick={() => setEntradaProd(null)}>Cancelar</button>
               <button className="cbtn cbtn-primary" disabled={entradaSaving || !(parseInt(entradaCant) > 0)} onClick={registrarEntrada}>
@@ -598,7 +599,7 @@ export default function CatalogPage() {
       {modal && (
         <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div className="modal-box">
-            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 17, fontWeight:600 }}>
               {modal === 'create' ? 'Nuevo producto' : modal === 'duplicate' ? 'Nueva variante (copia)' : 'Editar producto'}
             </h2>
             {modal === 'duplicate' && (
@@ -634,7 +635,7 @@ export default function CatalogPage() {
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                 Nombre{!esFunda ? ' *' : ''}
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                <span style={{ marginLeft: 6, fontSize:12, color: 'var(--txt3)' }}>
                   {esFunda ? '(se autogenera de serie+modelo+color si se deja vacío)' : '(nombre visible en tienda)'}
                 </span>
               </label>
@@ -647,7 +648,7 @@ export default function CatalogPage() {
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                 Descripción
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--txt3)' }}>
+                <span style={{ marginLeft: 6, fontSize:12, color: 'var(--txt3)' }}>
                   (texto que ve el cliente al ver el producto)
                 </span>
               </label>
@@ -752,7 +753,7 @@ export default function CatalogPage() {
                   <span style={{ fontSize: 12, color: 'var(--txt2)', flexShrink: 0 }}>Margen %:</span>
                   {[10, 20, 30, 40, 50].map(pct => (
                     <button key={pct} type="button" className="cbtn cbtn-ghost"
-                            style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                            style={{ padding: '3px 9px', fontSize:12, borderRadius: 6 }}
                             onClick={() => aplicarMargen(String(pct))}>
                       +{pct}%
                     </button>
@@ -761,10 +762,10 @@ export default function CatalogPage() {
                     type="number" min={1} step={1} placeholder="otro %"
                     value={customPct}
                     onChange={e => setCustomPct(e.target.value)}
-                    style={{ width: 68, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize: 11, fontFamily: 'inherit' }}
+                    style={{ width: 68, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize:12, fontFamily: 'inherit' }}
                   />
                   <button type="button" className="cbtn cbtn-ghost"
-                          style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                          style={{ padding: '3px 9px', fontSize:12, borderRadius: 6 }}
                           onClick={() => { aplicarMargen(customPct); setCustomPct('') }}>
                     Aplicar %
                   </button>
@@ -775,10 +776,10 @@ export default function CatalogPage() {
                     type="number" min={0} step={1} placeholder="monto $"
                     value={customAmt}
                     onChange={e => setCustomAmt(e.target.value)}
-                    style={{ width: 90, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize: 11, fontFamily: 'inherit' }}
+                    style={{ width: 90, padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--txt)', fontSize:12, fontFamily: 'inherit' }}
                   />
                   <button type="button" className="cbtn cbtn-ghost"
-                          style={{ padding: '3px 9px', fontSize: 11, borderRadius: 6 }}
+                          style={{ padding: '3px 9px', fontSize:12, borderRadius: 6 }}
                           onClick={() => { aplicarMonto(customAmt); setCustomAmt('') }}>
                     Aplicar $
                   </button>
@@ -802,7 +803,7 @@ export default function CatalogPage() {
                        onChange={e => setForm(f => ({ ...f, foto_url: e.target.value }))} />
                 <label style={{ cursor: uploadingImg ? 'default' : 'pointer', flexShrink: 0 }}>
                   <span className="cbtn cbtn-secondary" style={{ pointerEvents: 'none', opacity: uploadingImg ? .5 : 1 }}>
-                    {uploadingImg ? '…' : '📷 Subir'}
+                    {uploadingImg ? '…' : 'Subir'}
                   </span>
                   <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImg}
                     onChange={async e => {
@@ -859,7 +860,7 @@ export default function CatalogPage() {
                          }} />
                   <label style={{ cursor: uploadingImg ? 'default' : 'pointer', flexShrink: 0 }}>
                     <span className="cbtn cbtn-secondary" style={{ pointerEvents: 'none', opacity: uploadingImg ? .5 : 1, padding: '6px 8px' }}>
-                      📷
+                      
                     </span>
                     <input type="file" accept="image/*" style={{ display: 'none' }} disabled={uploadingImg}
                       onChange={async e => {
@@ -876,10 +877,8 @@ export default function CatalogPage() {
                       }} />
                   </label>
                   <button type="button" className="cbtn cbtn-ghost"
-                          style={{ color: '#f87171', padding: '5px 8px', flexShrink: 0 }}
-                          onClick={() => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))}>
-                    ✕
-                  </button>
+                          style={{ color: 'var(--err)', padding: '5px 8px', flexShrink: 0 }}
+                          onClick={() => setForm(f => ({ ...f, fotos: f.fotos.filter((_, j) => j !== i) }))}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
                 </div>
               ))}
               <button type="button" className="cbtn cbtn-secondary"
@@ -894,7 +893,7 @@ export default function CatalogPage() {
               <label style={{ fontSize: 12, color: 'var(--txt2)', display: 'block', marginBottom: 4 }}>
                 SKU / Código de barras
               </label>
-              <input className="inp" style={inp({ fontFamily: 'monospace', letterSpacing: '0.03em' })}
+              <input className="inp" style={inp({ fontFamily:'var(--font-mono)', })}
                      placeholder="Ej: 7501234567890"
                      value={form.identificador}
                      onChange={e => setForm(f => ({ ...f, identificador: e.target.value }))} />
@@ -938,11 +937,11 @@ export default function CatalogPage() {
                          setForm(f => ({ ...f, atributos: a }))
                        }} />
                 <button type="button" className="cbtn cbtn-ghost"
-                        style={{ color: '#f87171', padding: '5px 8px', flexShrink: 0 }}
+                        style={{ color: 'var(--err)', padding: '5px 8px', flexShrink: 0 }}
                         onClick={() => {
                           const a = form.atributos.filter((_, j) => j !== i)
                           setForm(f => ({ ...f, atributos: a }))
-                        }}>✕</button>
+                        }}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
               </div>
             ))}
             <button type="button" className="cbtn cbtn-secondary"
@@ -952,7 +951,7 @@ export default function CatalogPage() {
             </button>
 
             {error && (
-              <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>
+              <p style={{ color: 'var(--err)', fontSize: 13, marginBottom: 12 }}>{error}</p>
             )}
 
             {/* ── Actions ── */}
@@ -973,20 +972,20 @@ export default function CatalogPage() {
         <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) setShowDeleteAll(false) }}>
           <div className="modal-box" style={{ maxWidth: 420 }}>
             <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:16, fontWeight:700, color:'var(--txt)' }}>
-                ⚠️ Limpiar inventario completo
+              <div style={{ fontSize:16, fontWeight:600, color:'var(--txt)' }}>
+                Limpiar inventario completo
               </div>
             </div>
             <div style={{ padding: '18px 22px 22px' }}>
-              {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'rgba(239,68,68,0.1)', color:'#f87171', fontSize:13, marginBottom:14 }}>{error}</div>}
+              {error && <div style={{ padding:'9px 12px', borderRadius:8, background:'var(--err-bg)', color:'var(--err)', fontSize:13, marginBottom:14 }}>{error}</div>}
               <p style={{ fontSize:13, color:'var(--txt2)', marginBottom:16 }}>
                 Esto eliminará <strong style={{ color:'var(--txt)' }}>todos</strong> los productos del catálogo.
-                Esta acción <strong style={{ color:'#f87171' }}>no se puede deshacer</strong>.
+                Esta acción <strong style={{ color:'var(--err)' }}>no se puede deshacer</strong>.
               </p>
               <div style={{ display:'flex', gap:10 }}>
                 <button className="cbtn cbtn-secondary" style={{ flex:1 }} onClick={() => setShowDeleteAll(false)}>Cancelar</button>
                 <button className="cbtn cbtn-danger" style={{ flex:1 }} onClick={deleteAll} disabled={deletingAll}>
-                  {deletingAll ? 'Borrando…' : '🗑 Sí, borrar todo'}
+                  {deletingAll ? 'Borrando…' : 'Sí, borrar todo'}
                 </button>
               </div>
             </div>
@@ -1021,7 +1020,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
   return (
     <div className="modal-mask" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal-box" style={{ maxWidth: 460 }}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight: 700 }}>📥 Importar inventario</h2>
+        <h2 style={{ margin: '0 0 14px', fontSize: 17, fontWeight:600 }}>Importar inventario</h2>
         <p style={{ fontSize: 13, color: 'var(--txt2)', marginBottom: 12 }}>
           Sube un archivo .xlsx con columnas: <code>categoria, serie, nombre, marca, modelo, color, stock, precio, identificador, ubicacion</code>.
           Para fundas: <code>serie + modelo + color</code> obligatorios.
@@ -1029,17 +1028,17 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
         </p>
         <a href="/api/admin/catalog/import/template"
            style={{ fontSize: 13, color: 'var(--blue3)', display: 'inline-block', marginBottom: 14 }}>
-          ⬇ Descargar plantilla Excel
+          Descargar plantilla Excel
         </a>
         <input type="file" accept=".xlsx" className="inp" style={{ width: '100%', marginBottom: 14 }}
           onChange={e => { setFile(e.target.files?.[0] || null); setResultado(null) }} />
-        {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>⚠ {error}</p>}
+        {error && <p style={{ color: 'var(--err)', fontSize: 13, marginBottom: 12 }}>{error}</p>}
         {resultado && (
           <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'var(--bg4)', fontSize: 13 }}>
-            <p>✅ {resultado.creados} creados · {resultado.actualizados} actualizados</p>
+            <p>{resultado.creados} creados · {resultado.actualizados} actualizados</p>
             {resultado.errores.length > 0 && (
-              <div style={{ marginTop: 8, color: '#f87171' }}>
-                <p style={{ fontWeight: 700 }}>{resultado.errores.length} fila(s) con error:</p>
+              <div style={{ marginTop: 8, color: 'var(--err)' }}>
+                <p style={{ fontWeight:600 }}>{resultado.errores.length} fila(s) con error:</p>
                 {resultado.errores.map((e, i) => <p key={i} style={{ fontSize: 12 }}>Fila {e.fila}: {e.motivo}</p>)}
               </div>
             )}

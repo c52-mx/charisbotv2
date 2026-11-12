@@ -1,4 +1,6 @@
 'use client'
+import { X } from 'lucide-react'
+import { labelEstado } from '@/lib/estados'
 import { useEffect, useState, useCallback, useContext } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -10,10 +12,9 @@ const BADGE: Record<string,string> = {
   EN_PROCESO:'badge-blue',COMPLETADO:'badge-purple',CANCELADO:'badge-red',
 }
 
-function avatarColor(str:string) {
-  let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))&0xFFFFFF
-  const colors=['#1a8fe3','#818cf8','#4ade80','#fbbf24','#f87171','#a78bfa','#34d399','#60a5fa']
-  return colors[Math.abs(h)%colors.length]
+// Inicial sobre superficie neutra: el color queda reservado para estados
+function avatarColor(_str:string) {
+  return 'var(--bg4)'
 }
 
 export default function ClientsPage() {
@@ -56,7 +57,7 @@ export default function ClientsPage() {
       {/* Header */}
       <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:24 }}>
         <div>
-          <h1 style={{ fontFamily:'Syne,system-ui,sans-serif',fontSize:26,fontWeight:700,color:'var(--txt)',margin:0 }}>Clientes</h1>
+          <h1 className="page-title">Clientes</h1>
           <p style={{ fontSize:13,color:'var(--txt2)',marginTop:3 }}>{total} clientes registrados</p>
         </div>
         <button className="cbtn cbtn-primary" onClick={()=>setShowForm(true)}>+ Nuevo cliente</button>
@@ -72,7 +73,7 @@ export default function ClientsPage() {
       <div className="table-wrap" style={{ marginBottom:14 }}>
         {loading ? (
           <div style={{ display:'flex',alignItems:'center',justifyContent:'center',padding:48 }}>
-            <div style={{ width:24,height:24,borderRadius:'50%',border:'2.5px solid var(--border)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite' }}/>
+            <div style={{ width:24,height:24,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite' }}/>
           </div>
         ) : clients.length===0 ? (
           <div style={{ padding:48,textAlign:'center',color:'var(--txt2)',fontSize:13 }}>Sin clientes registrados</div>
@@ -87,13 +88,13 @@ export default function ClientsPage() {
                   <tr key={c.id}>
                     <td>
                       <div style={{ display:'flex',alignItems:'center',gap:10 }}>
-                        <div style={{ width:32,height:32,borderRadius:8,background:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'white',flexShrink:0 }}>
+                        <div style={{ width:32,height:32,borderRadius:8,background:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:500,color:'var(--txt2)',flexShrink:0 }}>
                           {initial}
                         </div>
                         <span style={{ fontWeight:500 }}>{c.nombre||<span style={{color:'var(--txt3)',fontStyle:'italic'}}>Sin nombre</span>}</span>
                       </div>
                     </td>
-                    <td style={{ fontFamily:'monospace',fontSize:12 }}>{c.telefono}</td>
+                    <td style={{ fontFamily:'var(--font-mono)',fontSize:12 }}>{c.telefono}</td>
                     <td style={{ fontSize:12,color:'var(--txt2)' }}>{c.email||'—'}</td>
                     <td>
                       <span className="badge badge-blue">{c.pedidos_count||0}</span>
@@ -119,8 +120,8 @@ export default function ClientsPage() {
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:12,color:'var(--txt2)' }}>
           <span>Página {page} de {pages} · {total} clientes</span>
           <div style={{ display:'flex',gap:8 }}>
-            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}>← Anterior</button>
-            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages}>Siguiente →</button>
+            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}>Anterior</button>
+            <button className="cbtn cbtn-ghost" onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages}>Siguiente</button>
           </div>
         </div>
       )}
@@ -131,26 +132,26 @@ export default function ClientsPage() {
           <div className="modal-box" style={{ maxWidth:540 }}>
             <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
               <div style={{ display:'flex',alignItems:'center',gap:12 }}>
-                <div style={{ width:40,height:40,borderRadius:10,background:avatarColor(selected.telefono||selected.id),display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700,color:'white' }}>
+                <div style={{ width:40,height:40,borderRadius:10,background:avatarColor(selected.telefono||selected.id),display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:500,color:'var(--txt2)' }}>
                   {(selected.nombre||selected.telefono||'?')[0].toUpperCase()}
                 </div>
                 <div>
-                  <div style={{ fontFamily:'Syne,sans-serif',fontSize:15,fontWeight:700,color:'var(--txt)' }}>{selected.nombre||'Sin nombre'}</div>
-                  <div style={{ fontSize:11,color:'var(--txt2)',marginTop:2 }}>{selected.telefono}</div>
+                  <div style={{ fontSize:15,fontWeight:600,color:'var(--txt)' }}>{selected.nombre||'Sin nombre'}</div>
+                  <div style={{ fontSize:12,color:'var(--txt2)',marginTop:2 }}>{selected.telefono}</div>
                 </div>
               </div>
-              <button onClick={()=>setSelected(null)} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+              <button className="icon-btn" aria-label="Cerrar" onClick={()=>setSelected(null)}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
             </div>
             <div style={{ padding:'18px 22px 22px' }}>
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16 }}>
                 {[['Email',selected.email||'—'],['Notas',selected.notas||'—']].map(([l,v])=>(
                   <div key={l}>
-                    <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:4 }}>{l}</div>
+                    <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:4 }}>{l}</div>
                     <div style={{ fontSize:13,color:'var(--txt)' }}>{v}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:8 }}>
+              <div style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', marginBottom:8 }}>
                 Últimos pedidos ({clientOrders.length})
               </div>
               {clientOrders.length===0 ? (
@@ -160,12 +161,12 @@ export default function ClientsPage() {
                   {clientOrders.map((o:any,i:number)=>(
                     <div key={o.id} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',fontSize:12,borderTop:i>0?'1px solid var(--border)':'none' }}>
                       <div>
-                        <span style={{ fontFamily:'monospace',fontSize:10,color:'var(--txt3)' }}>#{o.id.slice(0,8).toUpperCase()}</span>
+                        <span style={{ fontFamily:'var(--font-mono)',fontSize:12,color:'var(--txt3)' }}>#{o.id.slice(0,8).toUpperCase()}</span>
                         <span style={{ marginLeft:8,fontWeight:500 }}>{o.tipo_case}</span>
                       </div>
                       <div style={{ display:'flex',alignItems:'center',gap:8 }}>
                         <span style={{ color:'var(--txt2)' }}>{format(new Date(o.creado_en),'dd MMM',{locale:es})}</span>
-                        <span className={`badge ${BADGE[o.estado]||'badge-warn'}`} style={{ fontSize:10 }}>{o.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}</span>
+                        <span className={`badge ${BADGE[o.estado]||'badge-warn'}`} style={{ fontSize:12 }}>{labelEstado(o.estado)}</span>
                       </div>
                     </div>
                   ))}
@@ -204,11 +205,11 @@ function ClientForm({ dark, onClose, onSaved }: { dark:boolean; onClose:()=>void
       <style>{SHARED_CSS}</style>
       <div className="modal-box" style={{ maxWidth:400 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>Nuevo cliente</div>
-          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+          <div style={{ fontSize:16,fontWeight:600,color:'var(--txt)' }}>Nuevo cliente</div>
+          <button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
         </div>
         <div style={{ padding:'18px 22px 22px' }}>
-          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
+          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'var(--err-bg)',color:'var(--err)',border:'1px solid var(--border2)',fontSize:13,marginBottom:14 }}>{error}</div>}
           <form onSubmit={handleSubmit}>
             <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
               {[
@@ -217,13 +218,13 @@ function ClientForm({ dark, onClose, onSaved }: { dark:boolean; onClose:()=>void
                 { l:'Email', f:'email', t:'email', p:'cliente@email.com', req:false },
               ].map(({l,f,t,p,req})=>(
                 <div key={f}>
-                  <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>{l}</label>
+                  <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>{l}</label>
                   <input className="cinput" type={t} placeholder={p} required={req}
                          value={(form as any)[f]} onChange={e=>setForm(fr=>({...fr,[f]:e.target.value}))} />
                 </div>
               ))}
               <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Notas</label>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Notas</label>
                 <textarea className="cinput" placeholder="Notas adicionales..." value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} style={{ minHeight:60 }}/>
               </div>
             </div>
@@ -263,27 +264,27 @@ function EditClientForm({ dark, client, onClose, onSaved }: { dark:boolean; clie
       <div className="modal-box" style={{ maxWidth:400 }}>
         <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 22px 14px',borderBottom:'1px solid var(--border)' }}>
           <div>
-            <div style={{ fontFamily:'Syne,sans-serif',fontSize:16,fontWeight:700,color:'var(--txt)' }}>Editar cliente</div>
-            <div style={{ fontSize:11,color:'var(--txt2)',marginTop:2,fontFamily:'monospace' }}>{client.telefono}</div>
+            <div style={{ fontSize:16,fontWeight:600,color:'var(--txt)' }}>Editar cliente</div>
+            <div style={{ fontSize:12,color:'var(--txt2)',marginTop:2,fontFamily:'var(--font-mono)' }}>{client.telefono}</div>
           </div>
-          <button onClick={onClose} style={{ width:30,height:30,borderRadius:8,border:'1px solid var(--border)',background:'transparent',color:'var(--txt2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center' }}>✕</button>
+          <button className="icon-btn" aria-label="Cerrar" onClick={onClose}><X size={16} strokeWidth={1.5} aria-hidden="true"/></button>
         </div>
         <div style={{ padding:'18px 22px 22px' }}>
-          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.1)',color:'#f87171',border:'1px solid rgba(239,68,68,0.2)',fontSize:13,marginBottom:14 }}>{error}</div>}
+          {error && <div style={{ padding:'9px 12px',borderRadius:8,background:'var(--err-bg)',color:'var(--err)',border:'1px solid var(--border2)',fontSize:13,marginBottom:14 }}>{error}</div>}
           <form onSubmit={handleSubmit}>
             <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
               <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Nombre</label>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Nombre</label>
                 <input className="cinput" type="text" placeholder="Nombre del cliente"
                        value={form.nombre} onChange={e=>setForm(f=>({...f,nombre:e.target.value}))} />
               </div>
               <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Email</label>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Email</label>
                 <input className="cinput" type="email" placeholder="cliente@email.com"
                        value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} />
               </div>
               <div>
-                <label style={{ fontSize:10,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',display:'block',marginBottom:5 }}>Notas</label>
+                <label style={{ fontSize:12,fontWeight:600,color:'var(--txt2)', display:'block',marginBottom:5 }}>Notas</label>
                 <textarea className="cinput" placeholder="Notas adicionales..." value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} style={{ minHeight:60 }}/>
               </div>
             </div>

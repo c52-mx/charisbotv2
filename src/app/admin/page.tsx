@@ -1,19 +1,23 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { LineChart, Line, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { X } from 'lucide-react'
 import { format, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { ThemeContext } from '@/lib/theme-context'
+import { labelEstado } from '@/lib/estados'
 import { useContext } from 'react'
 import Link from 'next/link'
 
-const ESTADO_COLORS: Record<string,string> = {
-  CONFIRMADO:'#22c55e', PENDIENTE_CONFIRMACION:'#f59e0b', PENDIENTE_PAGO:'#fbbf24',
-  EN_PREPARACION:'#1a8fe3', POR_VALIDAR_SURTIDO:'#a78bfa', EN_REPARTO:'#38bdf8',
-  LISTO_PARA_RECOGER:'#2dd4bf', ENTREGA_FALLIDA:'#fb7185', ENTREGADO:'#818cf8',
-  EN_PROCESO:'#1a8fe3', COMPLETADO:'#818cf8',
-  CANCELADO:'#ef4444',  PENDIENTE:'#6b7280',
+// Color por significado: pendiente = warn, en curso = info, ok = confirmado,
+// error = cancelado/fallido, final = neutro.
+const ESTADO_TONE: Record<string,string> = {
+  CONFIRMADO:'var(--ok)', PENDIENTE_CONFIRMACION:'var(--warn)', PENDIENTE_PAGO:'var(--warn)',
+  PENDIENTE:'var(--warn)', POR_VALIDAR_SURTIDO:'var(--warn)',
+  EN_PREPARACION:'var(--info)', EN_PROCESO:'var(--info)', EN_REPARTO:'var(--info)', LISTO_PARA_RECOGER:'var(--info)',
+  ENTREGA_FALLIDA:'var(--err)', CANCELADO:'var(--err)',
+  ENTREGADO:'var(--txt3)', COMPLETADO:'var(--txt3)',
 }
 const BADGE_CLASS: Record<string,string> = {
   CONFIRMADO:'badge-ok', PENDIENTE_CONFIRMACION:'badge-warn', PENDIENTE_PAGO:'badge-warn',
@@ -57,7 +61,7 @@ export default function DashboardPage() {
 
   if (loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:64}}>
-      <div style={{width:28,height:28,borderRadius:'50%',border:'2.5px solid rgba(26,143,227,0.2)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite'}}/>
+      <div style={{width:28,height:28,borderRadius:'50%',border:'2px solid var(--border2)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite'}}/>
     </div>
   )
 
@@ -75,60 +79,63 @@ export default function DashboardPage() {
   })
 
   const stats = [
-    {label:'Pedidos hoy',     value:st.pedidos_hoy??0,        icon:'📅', color:'#1a8fe3'},
-    {label:'Esta semana',     value:st.pedidos_semana??0,      icon:'📆', color:'#818cf8'},
-    {label:'Confirmados',     value:st.pedidos_confirmados??0, icon:'✅', color:'#22c55e'},
-    {label:'Clientes únicos', value:st.clientes_unicos??0,     icon:'👥', color:'#f59e0b'},
-    {label:'Stock bajo',      value:data?.stockBajo??0,        icon:'⚠️', color:'#ef4444', href:'/admin/catalog'},
-    {label:'Ventas (mes)',    value:`$${Number(data?.ventasMes??0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0})}`, icon:'💰', color:'#22c55e', href:'/admin/reportes'},
+    {label:'Pedidos hoy',     value:st.pedidos_hoy??0},
+    {label:'Esta semana',     value:st.pedidos_semana??0},
+    {label:'Confirmados',     value:st.pedidos_confirmados??0},
+    {label:'Clientes únicos', value:st.clientes_unicos??0},
+    {label:'Stock bajo',      value:data?.stockBajo??0, href:'/admin/catalog'},
+    {label:'Ventas del mes',  value:`$${Number(data?.ventasMes??0).toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0})}`, href:'/admin/reportes'},
   ]
+
+  const byEstado: { estado:string; cantidad:number }[] = data?.byEstado || []
+  const maxEstado = Math.max(1, ...byEstado.map(e => Number(e.cantidad)))
 
   return (
     <div className="page-anim" style={{...Object.fromEntries(Object.entries(tv)) as any}}>
       <style>{SHARED_CSS + `
-        @keyframes spin{to{transform:rotate(360deg)}}
-
         /* ── Stat grid ── */
-        .dash-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:18px; }
+        .dash-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:24px; }
         @media(max-width:1300px){ .dash-stats{ grid-template-columns:repeat(3,1fr); } }
         @media(max-width:900px){ .dash-stats{ grid-template-columns:repeat(2,1fr); } }
-        @media(max-width:400px){ .dash-stats{ grid-template-columns:1fr 1fr; gap:10px; } }
         .dash-stat-link { text-decoration:none; display:block; }
+        .dash-stat-link:hover .dash-stat { border-color:var(--border2); }
+        .dash-stat-link:focus-visible { outline:2px solid var(--blue); outline-offset:2px; border-radius:12px; }
 
-        /* ── Chart grid ── */
-        .dash-charts { display:grid; grid-template-columns:1fr 300px; gap:14px; margin-bottom:14px; }
-        @media(max-width:700px){ .dash-charts{ grid-template-columns:1fr; } }
+        /* ── Chart grid: gráfico principal ancho + lista angosta ── */
+        .dash-charts { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; margin-bottom:16px; }
+        @media(max-width:900px){ .dash-charts{ grid-template-columns:1fr; } }
 
         /* ── Bottom grid ── */
-        .dash-bottom { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-        @media(max-width:700px){ .dash-bottom{ grid-template-columns:1fr; } }
+        .dash-bottom { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        @media(max-width:900px){ .dash-bottom{ grid-template-columns:1fr; } }
 
         /* ── Stat card ── */
-        .dash-stat {
-          background:var(--bg2); border:1px solid var(--border);
-          border-radius:14px; padding:16px 18px;
-        }
-        .dash-stat-val { font-family:Syne,sans-serif; font-size:30px; font-weight:800; color:var(--txt); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        @media(max-width:1400px){ .dash-stat-val { font-size:26px; } }
-        @media(max-width:1100px){ .dash-stat-val { font-size:22px; } }
-        @media(max-width:400px){
-          .dash-stat { padding:12px 14px; }
-          .dash-stat-val { font-size:20px; }
-        }
+        .dash-stat { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; transition:border-color .15s var(--ease); }
+        .dash-stat-lbl { font-size:13px; color:var(--txt2); }
+        .dash-stat-val { font-size:28px; font-weight:600; letter-spacing:-.01em; color:var(--txt); line-height:1.1; margin-top:8px; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        @media(max-width:1400px){ .dash-stat-val { font-size:24px; } }
 
-        /* ── Periodo tabs ── */
-        .periodo-tab { padding:5px 14px; border-radius:8px; font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--txt2); transition:all .15s; }
-        .periodo-tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
-        .periodo-tab:hover:not(.active) { background:var(--bg4); color:var(--txt); }
+        .dash-h { font-size:14px; font-weight:500; color:var(--txt); }
 
-        /* ── Bar hover ── */
-        .recharts-bar-rectangle { cursor: pointer; }
+        /* ── Periodo (segmentado) ── */
+        .periodo-tab { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:500; font-family:inherit; cursor:pointer; border:1px solid transparent; background:transparent; color:var(--txt2); transition:background-color .15s var(--ease), color .15s var(--ease); }
+        .periodo-tab.active { background:var(--bg4); color:var(--txt); border-color:var(--border); }
+        .periodo-tab:hover:not(.active) { background:var(--bg3); color:var(--txt); }
+        .periodo-tab:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+
+        /* ── Filas de lista ── */
+        .dash-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 0; border-top:1px solid var(--border); }
+        .dash-row:first-of-type { border-top:none; }
+        .bar-track { height:4px; border-radius:2px; background:var(--bg4); }
+        .bar-fill  { height:100%; border-radius:2px; }
       `}</style>
 
       {/* Header */}
-      <div style={{marginBottom:22}}>
-        <h1 style={{fontFamily:'Syne,system-ui,sans-serif',fontSize:24,fontWeight:700,color:'var(--txt)',margin:0}}>Dashboard</h1>
-        <p style={{fontSize:13,color:'var(--txt2)',marginTop:3}}>Resumen de actividad del sistema</p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Resumen de actividad del sistema</p>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -136,15 +143,8 @@ export default function DashboardPage() {
         {stats.map(s=>{
           const card = (
             <div className="dash-stat" key={s.label}>
-              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
-                <div style={{minWidth:0}}>
-                  <div className="dash-stat-val">{s.value}</div>
-                  <div style={{fontSize:11,fontWeight:600,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em',marginTop:5,lineHeight:1.3}}>{s.label}</div>
-                </div>
-                <div style={{width:38,height:38,borderRadius:10,background:s.color+'20',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>
-                  {s.icon}
-                </div>
-              </div>
+              <div className="dash-stat-lbl">{s.label}</div>
+              <div className="dash-stat-val">{s.value}</div>
             </div>
           )
           return s.href ? <Link key={s.label} href={s.href} className="dash-stat-link">{card}</Link> : card
@@ -153,12 +153,10 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="dash-charts">
-        <div className="ccard" style={{padding:20,minWidth:0}}>
+        <div className="ccard" style={{padding:24,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,gap:8,flexWrap:'wrap'}}>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em'}}>
-              Pedidos por día y estado
-            </div>
-            <div style={{display:'flex',gap:6}}>
+            <div className="dash-h">Pedidos por día y estado</div>
+            <div style={{display:'flex',gap:4}}>
               {([7,30] as Periodo[]).map(p=>(
                 <button key={p} className={`periodo-tab${periodo===p?' active':''}`} onClick={()=>{setPeriodo(p);setDiaDetalle(null)}}>
                   {p} días
@@ -166,45 +164,46 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={240}>
             <LineChart data={porDia} onClick={handleBarClick} style={{cursor:'pointer'}}>
-              <XAxis dataKey="fecha" tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false}/>
-              <YAxis tick={{fill:'var(--txt2)',fontSize:10}} axisLine={false} tickLine={false} allowDecimals={false} width={24}/>
-              <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--txt)',fontSize:12}}/>
-              <Legend iconType="plainline" wrapperStyle={{fontSize:11}}/>
-              <Line type="monotone" dataKey="Pendientes" stroke="#f59e0b" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
-              <Line type="monotone" dataKey="En proceso" stroke="#1a8fe3" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
-              <Line type="monotone" dataKey="Entregados" stroke="#22c55e" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
-              <Line type="monotone" dataKey="Cancelados" stroke="#ef4444" strokeWidth={2} dot={{r:3}} activeDot={{r:5}}/>
+              <CartesianGrid stroke="var(--border)" vertical={false}/>
+              <XAxis dataKey="fecha" tick={{fill:'var(--txt3)',fontSize:12}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:'var(--txt3)',fontSize:12}} axisLine={false} tickLine={false} allowDecimals={false} width={28}/>
+              <Tooltip contentStyle={{background:'var(--bg2)',border:'1px solid var(--border2)',borderRadius:8,color:'var(--txt)',fontSize:13}}/>
+              <Legend iconType="plainline" wrapperStyle={{fontSize:12}}/>
+              <Line type="monotone" dataKey="Pendientes" stroke="var(--warn)" strokeWidth={1.5} dot={false} activeDot={{r:4}}/>
+              <Line type="monotone" dataKey="En proceso" stroke="var(--blue)" strokeWidth={2.5} dot={false} activeDot={{r:5}}/>
+              <Line type="monotone" dataKey="Entregados" stroke="var(--ok)" strokeWidth={1.5} dot={false} activeDot={{r:4}}/>
+              <Line type="monotone" dataKey="Cancelados" stroke="var(--err)" strokeWidth={1.5} dot={false} activeDot={{r:4}}/>
             </LineChart>
           </ResponsiveContainer>
-          <p style={{fontSize:10,color:'var(--txt3)',marginTop:8}}>Haz clic en un punto de la gráfica para listar abajo los pedidos de ese día.</p>
+          <p style={{fontSize:12,color:'var(--txt3)',marginTop:8}}>Haz clic en un punto de la gráfica para listar los pedidos de ese día</p>
 
           {/* Día detalle */}
           {diaDetalle && (
-            <div style={{marginTop:14,borderTop:'1px solid var(--border)',paddingTop:14}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.07em'}}>
-                  {format(new Date(diaDetalle+'T12:00:00'),"dd 'de' MMMM",{locale:es})} — {diaOrders.length} pedido{diaOrders.length!==1?'s':''}
+            <div style={{marginTop:16,borderTop:'1px solid var(--border)',paddingTop:16}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <span className="dash-h">
+                  {format(new Date(diaDetalle+'T12:00:00'),"dd 'de' MMMM",{locale:es})} · {diaOrders.length} pedido{diaOrders.length!==1?'s':''}
                 </span>
-                <button onClick={()=>setDiaDetalle(null)} style={{background:'none',border:'none',color:'var(--txt3)',cursor:'pointer',fontSize:14}}>✕</button>
+                <button className="icon-btn" aria-label="Cerrar" onClick={()=>setDiaDetalle(null)} style={{width:28,height:28}}><X size={16} strokeWidth={1.5}/></button>
               </div>
               {loadingDia ? (
                 <div style={{display:'flex',justifyContent:'center',padding:16}}>
-                  <div style={{width:18,height:18,borderRadius:'50%',border:'2px solid rgba(26,143,227,0.2)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite'}}/>
+                  <div style={{width:18,height:18,borderRadius:'50%',border:'2px solid var(--border2)',borderTopColor:'var(--blue)',animation:'spin 0.7s linear infinite'}}/>
                 </div>
               ) : diaOrders.length === 0 ? (
-                <div style={{fontSize:12,color:'var(--txt3)',textAlign:'center',padding:8}}>Sin pedidos ese día</div>
+                <div style={{fontSize:13,color:'var(--txt3)',textAlign:'center',padding:8}}>Sin pedidos ese día</div>
               ) : (
-                <div style={{display:'flex',flexDirection:'column',gap:0,maxHeight:220,overflowY:'auto'}}>
-                  {diaOrders.map((p:any,i:number)=>(
-                    <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderTop:i>0?'1px solid var(--border)':'none',gap:8}}>
+                <div style={{maxHeight:240,overflowY:'auto'}}>
+                  {diaOrders.map((p:any)=>(
+                    <div key={p.id} className="dash-row">
                       <div style={{minWidth:0,flex:1}}>
-                        <div style={{fontSize:12,fontWeight:500,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.cliente_nombre||p.telefono}</div>
-                        <div style={{fontSize:10,color:'var(--txt3)',fontFamily:'monospace'}}>#{p.id.slice(0,8).toUpperCase()}</div>
+                        <div style={{fontSize:13,fontWeight:500,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.cliente_nombre||p.telefono}</div>
+                        <div className="mono" style={{fontSize:12,color:'var(--txt3)'}}>#{p.id.slice(0,8).toUpperCase()}</div>
                       </div>
-                      <span className={`badge ${BADGE_CLASS[p.estado]||'badge-warn'}`} style={{fontSize:10,flexShrink:0}}>
-                        {p.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}
+                      <span className={`badge ${BADGE_CLASS[p.estado]||'badge-warn'}`} style={{flexShrink:0}}>
+                        {labelEstado(p.estado)}
                       </span>
                     </div>
                   ))}
@@ -214,68 +213,65 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="ccard" style={{padding:20,minWidth:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>Por estado</div>
-          <ResponsiveContainer width="100%" height={110}>
-            <PieChart>
-              <Pie data={data?.byEstado||[]} dataKey="cantidad" nameKey="estado" cx="50%" cy="50%" outerRadius={48} innerRadius={24}>
-                {(data?.byEstado||[]).map((e:any,i:number)=>(
-                  <Cell key={i} fill={ESTADO_COLORS[e.estado]||'#6b7280'}/>
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,fontSize:11}}/>
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{display:'flex',flexDirection:'column',gap:5,marginTop:8}}>
-            {(data?.byEstado||[]).map((e:any)=>(
-              <div key={e.estado} style={{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:11}}>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <div style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLORS[e.estado],flexShrink:0}}/>
-                  <span style={{color:'var(--txt2)'}}>{e.estado.replace(/_/g,' ')}</span>
+        <div className="ccard" style={{padding:24,minWidth:0}}>
+          <div className="dash-h" style={{marginBottom:16}}>Por estado</div>
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            {byEstado.map((e)=>{
+              const n = Number(e.cantidad)
+              return (
+                <div key={e.estado}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,fontSize:13,marginBottom:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+                      <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_TONE[e.estado]||'var(--txt3)',flexShrink:0}}/>
+                      <span style={{color:'var(--txt2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{labelEstado(e.estado)}</span>
+                    </div>
+                    <span className="num" style={{fontWeight:500,color:'var(--txt)'}}>{n}</span>
+                  </div>
+                  <div className="bar-track"><div className="bar-fill" style={{width:`${(n/maxEstado)*100}%`,background:n===maxEstado?'var(--blue)':'var(--txt3)'}}/></div>
                 </div>
-                <span style={{fontWeight:600,color:'var(--txt)'}}>{e.cantidad}</span>
-              </div>
-            ))}
+              )
+            })}
+            {!byEstado.length && <p style={{fontSize:13,color:'var(--txt3)'}}>Sin pedidos aún</p>}
           </div>
         </div>
       </div>
 
       {/* Bottom */}
       <div className="dash-bottom">
-        <div className="ccard" style={{padding:20,minWidth:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:14}}>Últimos pedidos</div>
-          {(data?.ultimosPedidos||[]).map((p:any,i:number)=>(
-            <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderTop:i>0?'1px solid var(--border)':'none',gap:8}}>
+        <div className="ccard" style={{padding:24,minWidth:0}}>
+          <div className="dash-h" style={{marginBottom:8}}>Últimos pedidos</div>
+          {(data?.ultimosPedidos||[]).map((p:any)=>(
+            <div key={p.id} className="dash-row">
               <div style={{minWidth:0,flex:1}}>
                 <div style={{fontSize:13,fontWeight:500,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.cliente_nombre||p.telefono}</div>
-                <div style={{fontSize:11,color:'var(--txt2)',marginTop:2}}>{format(new Date(p.creado_en),'dd MMM · HH:mm',{locale:es})}</div>
+                <div className="num" style={{fontSize:12,color:'var(--txt3)',marginTop:2}}>{format(new Date(p.creado_en),'dd MMM · HH:mm',{locale:es})}</div>
               </div>
               <span className={`badge ${BADGE_CLASS[p.estado]||'badge-warn'}`} style={{flexShrink:0}}>
-                {p.estado.replace(/_CONFIRMACION/,'').replace(/_/g,' ')}
+                {labelEstado(p.estado)}
               </span>
             </div>
           ))}
-          {!data?.ultimosPedidos?.length && <p style={{fontSize:12,color:'var(--txt2)'}}>Sin pedidos aún</p>}
+          {!data?.ultimosPedidos?.length && <p style={{fontSize:13,color:'var(--txt3)'}}>Sin pedidos aún</p>}
         </div>
 
-        <div className="ccard" style={{padding:20,minWidth:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--txt2)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:14}}>Top modelos (30 días)</div>
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div className="ccard" style={{padding:24,minWidth:0}}>
+          <div className="dash-h" style={{marginBottom:16}}>Top modelos, últimos 30 días</div>
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
             {(data?.topModelos||[]).map((m:any,i:number)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',gap:10}}>
-                <span style={{fontSize:11,width:18,textAlign:'center',fontWeight:700,color:'var(--txt3)',flexShrink:0}}>{i+1}</span>
+              <div key={i} style={{display:'flex',alignItems:'center',gap:16}}>
+                <span className="num" style={{fontSize:12,width:16,textAlign:'right',color:'var(--txt3)',flexShrink:0}}>{i+1}</span>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4,gap:8}}>
-                    <span style={{fontSize:12,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.modelo}</span>
-                    <span style={{fontSize:11,color:'var(--txt2)',flexShrink:0}}>{m.total} pzas</span>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:8,gap:8}}>
+                    <span style={{fontSize:13,color:'var(--txt)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.modelo}</span>
+                    <span className="num" style={{fontSize:13,color:'var(--txt2)',flexShrink:0}}>{m.total} pzas</span>
                   </div>
-                  <div style={{height:3,borderRadius:2,background:'var(--bg4)'}}>
-                    <div style={{height:'100%',borderRadius:2,background:'linear-gradient(90deg,var(--blue2),var(--blue))',width:`${Math.min(100,(m.total/(data.topModelos[0]?.total||1))*100)}%`}}/>
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{background:i===0?'var(--blue)':'var(--txt3)',width:`${Math.min(100,(m.total/(data.topModelos[0]?.total||1))*100)}%`}}/>
                   </div>
                 </div>
               </div>
             ))}
-            {!data?.topModelos?.length && <p style={{fontSize:12,color:'var(--txt2)'}}>Sin datos aún</p>}
+            {!data?.topModelos?.length && <p style={{fontSize:13,color:'var(--txt3)'}}>Sin datos aún</p>}
           </div>
         </div>
       </div>
