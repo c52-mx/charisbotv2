@@ -6,6 +6,7 @@ import { sendEmail, emailNuevoPedido, emailOrdenCompra } from '@/lib/email'
 import { resolveProductoId, convertirCarritoAPedidoTx, getConfigMinutos, InsufficientStockError, liberarPedidosVencidos } from '@/lib/stock'
 import { calcularTotal } from '@/lib/pricing'
 import { UUID_RE } from '@/lib/uploads'
+import { crearNotificacion } from '@/lib/notificaciones'
 import { generarOrdenCompraPdf } from '@/lib/purchaseOrderPdf'
 
 const METODO_CONFIG_KEY: Record<string, string> = {
@@ -255,6 +256,13 @@ export async function POST(req: NextRequest) {
       }
       throw e
     }
+
+    // Campanita interna: pedido nuevo para ventas
+    await crearNotificacion({
+      permiso: 'pagos_confirmar', tipo: 'NUEVO_PEDIDO', pedido_id: pedido.id,
+      titulo: `Pedido nuevo · #${(pedido.numero_pedido || pedido.id.slice(0, 8)).toUpperCase()}`,
+      mensaje: `${session.nombre || session.email} · ${totalPiezas} pzas`,
+    })
 
     // Notificar al equipo de ventas (no bloqueante)
     const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL

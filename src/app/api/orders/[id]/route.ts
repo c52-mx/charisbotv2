@@ -3,6 +3,8 @@ import { query, queryOne } from '@/lib/db'
 import { getSession, can, tipoSesion } from '@/lib/auth'
 import { UUID_RE, urlSegura } from '@/lib/uploads'
 import { notificarCliente } from '@/lib/notify'
+import { crearNotificacion, notificacionPorEstado } from '@/lib/notificaciones'
+import { editarItemsPedido, EdicionPedidoError } from '@/lib/pedido-edicion'
 import { finalizarPedido, liberarPedido, restaurarStockPedido } from '@/lib/stock'
 
 export const dynamic = 'force-dynamic'
@@ -78,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!UUID_RE.test(params.id)) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const body = await req.json()
-  const { estado, notas, notas_cliente, monto_total, motivo_monto, items_surtido, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
+  const { estado, notas, notas_cliente, monto_total, motivo_monto, items_surtido, items_edicion, motivo_edicion, motivo_cancelacion, motivo_rechazo_surtido, ubicacion_fisica, asignado_a,
           tipo_evento, nota_evento, detalle: detalleEvento,
           envio_guia, envio_costo, envio_rastreo_url, envio_observaciones, envio_archivo_url } = body
 
@@ -136,6 +138,28 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ]
     )
     return NextResponse.json({ ok: true })
+  }
+
+  // ── Edición de cantidades de los artículos (corregir errores del cliente) ──
+  if (Array.isArray(items_edicion)) {
+    if (!can(session, 'pagos_confirmar')) {
+      return NextResponse.json({ error: 'Sin permiso para editar el pedido' }, { status: 403 })
+    }
+    const motivoEd = String(motivo_edicion || '').trim().slice(0, 300)
+    if (!motivoEd) return NextResponse.json({ error: 'El motivo de la edición es obligatorio' }, { status: 400 })
+    const cambios = items_edicion.slice(0, 200).map((c: any) => ({ id: String(c?.id), cantidad: Number(c?.cantidad) }))
+    if (cambios.some((c: { id: string }) => !UUID_RE.test(c.id))) return NextResponse.json({ error: 'Artículo inválido' }, { status: 400 })
+    try {
+      const r = await editarItemsPedido(params.id, cambios, motivoEd, { id: session.sub, esAdmin: session.rol === 'ADMIN' })
+      await notificarCliente({
+        id: params.id, telefono: r.telefono, estado: r.estado, resumen: r.resumen, numero_pedido: r.numero_pedido,
+        nota: `Ajustamos tu pedido (${motivoEd}). Nuevo total: $${r.monto_nuevo.toLocaleString('es-MX')}.`,
+      })
+      return NextResponse.json({ ok: true, monto_nuevo: r.monto_nuevo })
+    } catch (e) {
+      if (e instanceof EdicionPedidoError) return NextResponse.json({ error: e.message }, { status: 400 })
+      throw e
+    }
   }
 
   // ── Avance de surtido por artículo (sin cambiar estado) ──────────────────
@@ -339,6 +363,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (ESTADOS_CON_STOCK_DESCONTADO.includes(before.estado)) {
       await restaurarStockPedido(params.id, session.sub).catch(e => console.error('[restaurarStock]', e))
     }
+  }
+
+  // Campanita interna (solo si el estado realmente cambió)
+  if (before.estado !== estado) {
+    const nn = notificacionPorEstado(estado, (updated.numero_pedido || String(updated.id).slice(0, 8)).toUpperCase())
+    if (nn) await crearNotificacion({ ...nn, tipo: estado, pedido_id: updated.id, mensaje: updated.resumen || undefined })
   }
 
   // Notificar al cliente — "por validar surtido" es un estado interno, no se

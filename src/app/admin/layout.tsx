@@ -6,6 +6,7 @@ import { SHARED_CSS, getThemeVars } from '@/components/shared'
 import { CharisAppIcon, CharisLogotipo } from '@/components/CharisLogo'
 import { can, type UserRol, type Permiso } from '@/lib/auth-shared'
 import { ThemeContext } from '@/lib/theme-context'
+import { NotifBell } from '@/components/NotifBell'
 
 const NAV_ITEMS: { href:string; label:string; icon:string; exact:boolean; perm:Permiso }[] = [
   { href:'/admin',         label:'Dashboard', icon:'📊', exact:true,  perm:'dashboard' },
@@ -153,6 +154,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           background:var(--blue3); border-radius:0 3px 3px 0;
         }
         .nl { position:relative; }
+        .bell-strip { display:flex; justify-content:flex-end; padding:8px 24px 0; flex-shrink:0; }
+        @media(max-width:1023px) { .bell-strip { display:none; } }
 
         /* ── Responsive ── */
         @media(max-width:1023px) {
@@ -179,7 +182,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </span>
           )}
         </div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+          <NotifBell />
           <button onClick={toggleTheme}
                   style={{ background:'transparent', border:'none', fontSize:17,
                            cursor:'pointer', padding:4, color:'var(--txt)' }}>
@@ -223,6 +227,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Main content */}
+        <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
+        <div className="bell-strip"><NotifBell /></div>
         <main className="main-scroll">
           <div className="main-pad page-anim">
             <ThemeContext.Provider value={{ dark, toggle: toggleTheme }}>
@@ -230,6 +236,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </ThemeContext.Provider>
           </div>
         </main>
+        </div>
       </div>
     </div>
   )
