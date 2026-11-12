@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import QtyInput from '@/components/QtyInput'
@@ -274,9 +274,18 @@ export default function ProductDetailPage() {
   const [lightbox,     setLightbox]    = useState(false)
   const [qty,          setQty]         = useState(1)
   const [minimoPedido, setMinimoPedido] = useState(1)
+  const [configListo, setConfigListo] = useState(false)
   useEffect(() => {
-    fetch('/api/client/config').then(r => r.json()).then(d => { const n = parseInt(d?.minimo_pedido_piezas); if (n > 1) setMinimoPedido(n) }).catch(() => {})
+    fetch('/api/client/config').then(r => r.json()).then(d => { const n = parseInt(d?.minimo_pedido_piezas); if (n > 1) setMinimoPedido(n) }).catch(() => {}).finally(() => setConfigListo(true))
   }, [])
+  // La caja de cantidad arranca en el mínimo configurado (solo visual: se puede pedir menos).
+  const qtyInicialDe = useRef<string | null>(null)
+  useEffect(() => {
+    const id = producto?.producto_id
+    if (!id || !configListo || disponible <= 0 || qtyInicialDe.current === id) return
+    qtyInicialDe.current = id
+    setQty(Math.max(1, Math.min(minimoPedido, disponible)))
+  }, [producto?.producto_id, minimoPedido, disponible, configListo])
   const [addMsg,       setAddMsg]      = useState('')
   const [adding,       setAdding]      = useState(false)
 
@@ -508,7 +517,7 @@ export default function ProductDetailPage() {
           <div style={{ marginBottom:14 }}>
             <p style={{ fontSize:12, color:'#999', marginBottom:8, fontWeight:500 }}>Cantidad</p>
             {minimoPedido > 1 && (
-              <p style={{ fontSize:11, color:'#b45309', marginBottom:8 }}>Pedido mínimo: {minimoPedido} piezas en total (puedes combinar varios productos).</p>
+              <p style={{ fontSize:11, color:'#b45309', marginBottom:8 }}>Pedido mínimo sugerido: {minimoPedido} piezas en total (puedes combinar varios productos).</p>
             )}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12, flexWrap:'wrap' }}>
               <div className="pd-qty">
